@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-11-06T11:42:59.980221+00:00",
+  "platform": {
+    "device": "Footage \u00b7 iPhone 17 Pro",
+    "udid": "471041E5-C3E5-4BEE-9139-3F2F5B2CEF38",
+    "os": "iOS 26.2",
+    "physical": false
+  },
+  "build": {
+    "version": "0.4.0",
+    "number": "4",
+    "artifact": "artifacts/ios-simulator/Footage.app",
+    "configuration": "Release arm64 iPhone Simulator, unsigned",
+    "javascriptSha256": "b4812396e041235a08ed07441ed6aa695fec6075484d3215523b274e0f2d248b",
+    "installedBundleMatches": true,
+    "metroAbsent": true
+  },
+  "fixture": {
+    "name": "footage-ui-test.mp4",
+    "bytes": 4010411,
+    "sha256": "9f86c0af3cabe8ecd20b9f8a9dbc365f360ed72417b40f37b862d070eb354989",
+    "kind": "generated 8-second 1280\u00d7720 H264/AAC test pattern"
+  },
+  "checks": {
+    "realSystemPicker": true,
+    "metadataMatchesGeneratedFixture": true,
+    "fullFramePlaybackAndReturn": true,
+    "changedVideoPixelsBetweenFrames": 45791,
+    "closeControlSafeAnd44pt": true,
+    "platformDisclosureInAbout": true,
+    "noUnimplementedUploadOrT3Action": true,
+    "coldLaunch": true,
+    "largeTextGeometryIncreased": true,
+    "textSizeRestored": true
+  },
+  "scope": [
+    "iOS remains preview-only; no native iOS upload engine or T3 dispatch was implemented",
+    "Android runtime validation was abandoned at user request; its test session and receiver were stopped",
+    "No physical phone, background transfer, VoiceOver, 4K/HDR fidelity or memory claim",
+    "Requested large-text setting is accepted as evidence only if title geometry actually increases"
+  ],
+  "screenshots": [
+    "artifacts/rebuild/ios-final.png",
+    "artifacts/rebuild/ios-09-review.png",
+    "artifacts/rebuild/ios-playback-a.png",
+    "artifacts/rebuild/ios-playback-b.png"
+  ]
+}

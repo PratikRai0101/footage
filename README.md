@@ -1,8 +1,27 @@
 # Footage
 
-An independent Android proof of work for reliable original-video intake. Not an official Cardboard app or integration.
+An independent original-video intake prototype. Not an official Cardboard app or integration.
 
-Choose one clip, review its real preview and metadata, confirm Upload, and receive a server-verified receipt. The selected screening-room UI is implemented, including dark/light/system appearance, connection waiting, cancellation, verification, and receiving-side playback. Kotlin owns copying, hashing, persistence and transfer; JavaScript never uploads video bytes or receives the upload capability.
+## Current iPhone build: 0.4.0
+
+The approved full-frame layout, Instrument Serif and charcoal/warm-white palette are implemented in the app. The Release build runs on a dedicated iPhone 17 Pro Simulator (iOS 26.2), with embedded JavaScript and no Metro. Actual picker selection, video metadata, full-frame playback, closing playback and larger text were verified. Main-screen copy stays short; platform details remain under About.
+
+```sh
+npm ci
+npm run ios:build
+xcrun simctl install <simulator-id> artifacts/ios-simulator/Footage.app
+xcrun simctl launch <simulator-id> dev.footage.spike
+```
+
+**iPhone is still preview-only.** Native iOS upload and the T3 destination/handoff are not implemented. No example T3 threads or non-working dispatch controls are shipped. The existing Android transfer engine and receiver remain unchanged; previous physical-phone results belong to their recorded versions, not this iPhone rebuild.
+
+Evidence: [`docs/evidence/full-frame-ios-rebuild.json`](docs/evidence/full-frame-ios-rebuild.json). Implementation notes: [`docs/architecture/full-frame-rebuild.md`](docs/architecture/full-frame-rebuild.md).
+
+The Android upload flow remains: choose a clip, review its preview/metadata, confirm Upload, and receive a server-verified receipt. Kotlin owns copying, hashing, persistence and transfer; JavaScript never uploads video bytes or receives the upload capability.
+
+## Source history
+
+The app and receiver now share this repository. Expo's original scaffold commit was preserved before establishing the workspace baseline. Small local commits have started. No GitHub remote, repository creation or push has been configured; publishing requires confirmation. Media, recordings, build outputs and runtime credentials are excluded from Git.
 
 ## Run locally
 

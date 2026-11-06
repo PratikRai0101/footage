@@ -6,6 +6,7 @@ type ContentType = 'video/mp4' | 'video/webm' | 'video/ogg' | 'application/octet
 type ByteRange = { start: number; end: number };
 
 export function requireReceived(job: StoredJob): void {
+  if (job.storageFault) throw new HttpError(503, 'Original storage integrity requires recovery.');
   if (job.status !== 'received' || !job.receipt) throw new HttpError(409, 'The file has not been verified.');
 }
 

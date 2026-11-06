@@ -175,6 +175,18 @@ The native runtime owns task-level state independently of the job outcome: `seal
 
 Accepted for isolated implementation, not activation. Parent independently reran the four live listener regression tests after integrating the review correction. Two contract bounds were corrected before handing work to implementers: eight frame overheads plus the group header require 544, not 512, bytes beyond a full group's plaintext; a single QR is capped at 2,048 binary bytes rather than the broader pairing API cap. Enrollment now explicitly proves possession of the submitted device key before offer consumption; desktop approval remains a trusted local action. These are accepted contract changes, not claims that pairing, codecs, durable ingest or background app integration already exist.
 
+## Integrated foundation slices (not activation)
+
+G1 components and G2 codecs are now present but unused by live receiver routes and UI. Evidence: [private-desktop pairing](../evidence/private-desktop-pairing.md) and [Swift/Node codecs](../evidence/sealed-protocol-codecs.md). Parent reran the combined 68 root tests, typecheck and lint, plus actual Swift/Node interoperability for G2. G1 Simulator/JVM counts remain the worker's build-scoped evidence, not new parent device runs. G1 activation gates remain open: desktop OS wrapping backend, user confirmation/scanner, Android native execution, LAN/private-host denial and job-lock revocation coordination.
+
+Accepted representation reconciliation for subsequent owners:
+
+- Pairing `identity` is exactly 32 raw SHA-256 bytes of receiver identity SPKI; sealed manifest `receiver` is their canonical lowercase 64-character hex representation. `serviceOrigin` must exactly match the sealed canonical origin. Never derive either from request Host/Location.
+- Pairing device ID is 16 raw bytes; sealed manifest device is canonical lowercase 32-character hex. Enrollment epoch is the same unsigned integer on both sides; validate u64 range at the integration boundary. Do not confuse rotation epoch with the enrolled device's revocation epoch.
+- Pairing standalone scopes use schema-valid hyphenated UUID text; sealed destination intake uses canonical 16-byte/lowercase hex representation. Convert and validate at the boundary, not by loosening scope comparison. Environment/project IDs remain case-sensitive exact NFC strings.
+- Native code obtains a manifest-bound device credential/epoch through the native pairing owner; JS never supplies or receives them. Receiver setup authorizes `0x01`; status `0x02`; revoke `0x04`; mint viewer `0x08`; list destinations `0x10`, always scoped to the owning device/destination. Ingest rechecks `assertActiveEpoch` inside the common commit lock, without putting a credential in a redirectable body.
+- The binary codec retains general UUID16/u64 representations. The shared-receipt publication profile requires schema-valid job/receipt UUIDs (mint UUIDv4 for new jobs/receipts) and UTC timestamps in `0..253402300799` seconds, renderable through year 9999. Reject an incompatible setup job ID before accepting packets and an incompatible final receipt before publication; do not publish then depend on an adapter failure. This is an explicit common-outcome profile, not a silent change to binary field widths. Receiver generation/device/opaque intake identities need not be receipt IDs.
+
 ## G1 — pairing and control authority (must prove before real uploads)
 
 ### Private-desktop onboarding

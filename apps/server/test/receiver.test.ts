@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { tmpdir } from 'node:os';
@@ -9,6 +9,7 @@ import { test, type TestContext } from 'node:test';
 import { z } from 'zod';
 import { createReceiver } from '../src/server.js';
 import { receiptSchema } from '../src/contracts.js';
+import { Jobs } from '../src/jobs.js';
 
 const snapshotSchema = z.object({ status: z.string(), confirmedBytes: z.number(), receipt: receiptSchema.nullable() });
 const tusHeaders = { 'Tus-Resumable': '1.0.0' };
@@ -21,6 +22,8 @@ async function fixture(t: TestContext) {
   return {
     url: (path: string) => `${base}${path}`,
     storedFile: (id: string) => join(directory, 'uploads', id),
+    originalFile: (id: string) => join(directory, 'originals', id),
+    directory,
     get server() { return receiver.server; },
     async restart() { await receiver.close(); receiver = await createReceiver(directory); base = await receiver.listen(); },
   };
@@ -219,6 +222,30 @@ test('tus Java HTTP method override uploads through the same protocol handler', 
   const upload = await fetch(f.url(`/files/${s.id}`), { method: 'POST', headers: { ...s.authorization, ...tusHeaders, 'X-HTTP-Method-Override': 'PATCH', 'Upload-Offset': '0', 'Content-Type': 'application/offset+octet-stream' }, body: s.bytes });
   assert.equal(upload.status, 204); await upload.text();
   const receipt = await complete(f, s); assert.equal(receipt.status, 200); await receipt.text();
+});
+
+test('exclusive storage writer blocks a second owner and releases on close', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'footage-writer-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const first = new Jobs(join(directory, 'jobs.sqlite'));
+  try { assert.throws(() => new Jobs(join(directory, 'jobs.sqlite')), /locked/); }
+  finally { first.close(); }
+  const next = new Jobs(join(directory, 'jobs.sqlite')); next.close();
+});
+
+test('tus publishes a private common original; corruption after restart blocks content', async (t) => {
+  const f = await fixture(t); const s = sample(); await register(f, s);
+  const uploaded = await patch(f, s, 0); await uploaded.text();
+  const receipt = receiptSchema.parse(await (await complete(f, s)).json());
+  if (process.platform !== 'win32') assert.equal((await stat(f.originalFile(s.id))).mode & 0o077, 0);
+  await writeFile(f.originalFile(s.id), Buffer.from('storage corruption'));
+  await f.restart();
+  const download = await fetch(f.url(`/jobs/${s.id}/content`), { headers: s.authorization });
+  assert.equal(download.status, 503); await download.text();
+  const retry = await complete(f, s); assert.equal(retry.status, 503); await retry.text();
+  // A storage incident never rewrites the authoritative issued receipt.
+  const snapshot = snapshotSchema.parse(await (await fetch(f.url(`/jobs/${s.id}`), { headers: s.authorization })).json());
+  assert.deepEqual(snapshot.receipt, receipt);
 });
 
 test('malformed metadata and oversized files are rejected at registration', async (t) => {

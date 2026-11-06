@@ -1,17 +1,67 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { HttpError, storedJobSchema, type JobId, type Receipt, type Registration, type StoredJob } from './contracts.js';
+import { closeSync, constants, fstatSync, openSync } from 'node:fs';
+import { HttpError, receiptSchema, storedJobSchema, type JobId, type Receipt, type Registration, type StoredJob } from './contracts.js';
 
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+function secureDatabase(path: string): void {
+  const descriptor = openSync(path, constants.O_RDWR | constants.O_CREAT | constants.O_NOFOLLOW, 0o600);
+  try {
+    const info = fstatSync(descriptor);
+    if (!info.isFile() || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) throw new Error('Database must be a private regular file.');
+  } finally { closeSync(descriptor); }
+}
+
 export class Jobs {
   private readonly db: DatabaseSync;
+  private readonly writer: DatabaseSync;
+  private readonly tails = new Map<JobId, Promise<void>>();
 
   constructor(path: string) {
-    this.db = new DatabaseSync(path);
-    this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, document TEXT NOT NULL); CREATE TABLE IF NOT EXISTS cancellations (id TEXT PRIMARY KEY, token_hash TEXT NOT NULL)');
+    // A separate SQLite rollback-journal lock is held for this owner's lifetime.
+    // OS file locks release on process death, unlike a stale PID/lock-directory protocol.
+    secureDatabase(`${path}.writer`);
+    secureDatabase(path);
+    this.writer = new DatabaseSync(`${path}.writer`);
+    try {
+      this.writer.exec('PRAGMA journal_mode=DELETE; PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; CREATE TABLE IF NOT EXISTS writer (id INTEGER)');
+      this.db = new DatabaseSync(path);
+      this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, document TEXT NOT NULL); CREATE TABLE IF NOT EXISTS cancellations (id TEXT PRIMARY KEY, token_hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS original_events (job_id TEXT PRIMARY KEY, receipt_id TEXT NOT NULL, kind TEXT NOT NULL)');
+      if (this.db.prepare('PRAGMA journal_mode').get()?.journal_mode !== 'wal' || this.db.prepare('PRAGMA synchronous').get()?.synchronous !== 2) throw new Error('Durable SQLite configuration unavailable.');
+    } catch (error) { this.writer.close(); throw error; }
+  }
+
+  async exclusive<T>(id: JobId, action: () => Promise<T>): Promise<T> {
+    const previous = this.tails.get(id) ?? Promise.resolve();
+    let release = () => {};
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    this.tails.set(id, current);
+    await previous;
+    try { return await action(); }
+    finally { release(); if (this.tails.get(id) === current) this.tails.delete(id); }
+  }
+
+  all(): StoredJob[] {
+    return this.db.prepare('SELECT document FROM jobs').all().map((row) => {
+      if (typeof row.document !== 'string') throw new Error('Invalid stored job.');
+      const decoded: unknown = JSON.parse(row.document);
+      return storedJobSchema.parse(decoded);
+    });
+  }
+
+  insertSealed(job: StoredJob): void {
+    if (this.db.prepare('SELECT id FROM cancellations WHERE id = ?').get(job.id)) throw new HttpError(410, 'Cancelled identity.');
+    this.reserve(job.bytes * 2 + 64 * 1024 ** 2);
+    this.db.prepare('INSERT INTO jobs (id, document) VALUES (?, ?)').run(job.id, JSON.stringify(storedJobSchema.parse(job)));
+  }
+
+  private reserve(bytes: number): void {
+    const jobs = this.all();
+    const reserved = jobs.filter(job => job.status !== 'cancelled').reduce((sum, job) => sum + (job.transport === 'sealed-v1' ? job.bytes * 2 + 64 * 1024 ** 2 : job.bytes * 2), 0);
+    if (jobs.length >= 20 || reserved + bytes > 8 * 1024 ** 3) throw new HttpError(507, 'Receiver storage or tombstone budget reached.');
   }
 
   get(id: JobId): StoredJob {
@@ -32,17 +82,8 @@ export class Jobs {
       }
       return existing;
     }
-    const rows = this.db.prepare('SELECT document FROM jobs').all();
-    const jobs = rows.map((row) => {
-      if (typeof row.document !== 'string') throw new Error('Invalid stored job.');
-      const decoded: unknown = JSON.parse(row.document);
-      return storedJobSchema.parse(decoded);
-    });
-    const reserved = jobs.filter((job) => job.status !== 'cancelled').reduce((sum, job) => sum + job.bytes, 0);
-    if (jobs.length >= 20 || reserved + input.bytes > 8 * 1024 ** 3) {
-      throw new HttpError(507, 'Demo storage budget reached. Remove local demo data before creating more uploads.');
-    }
-    const job: StoredJob = { ...input, tokenHash: hashToken(token), status: 'uploading', receipt: null };
+    this.reserve(input.bytes * 2);
+    const job: StoredJob = { ...input, tokenHash: hashToken(token), status: 'uploading', receipt: null, transport: 'tus' };
     this.db.prepare('INSERT INTO jobs (id, document) VALUES (?, ?)').run(job.id, JSON.stringify(job));
     return job;
   }
@@ -62,27 +103,38 @@ export class Jobs {
 
   authorize(id: JobId, token: string): StoredJob {
     const job = this.get(id);
-    if (!timingSafeEqual(Buffer.from(job.tokenHash, 'hex'), Buffer.from(hashToken(token), 'hex'))) {
+    if (job.transport !== 'tus' || !timingSafeEqual(Buffer.from(job.tokenHash, 'hex'), Buffer.from(hashToken(token), 'hex'))) {
       throw new HttpError(403, 'This capability does not authorize the upload.');
     }
     return job;
   }
 
   save(job: StoredJob): void {
-    this.db.prepare('UPDATE jobs SET document = ? WHERE id = ?').run(JSON.stringify(job), job.id);
+    this.db.prepare('UPDATE jobs SET document = ? WHERE id = ?').run(JSON.stringify(storedJobSchema.parse(job)), job.id);
   }
 
-  receive(job: StoredJob): Receipt {
+  newReceipt(job: StoredJob, seconds = BigInt(Math.floor(Date.now() / 1000))): Receipt {
+    if (seconds < 0n || seconds > 253402300799n) throw new Error('Receipt time outside shared profile.');
+    return receiptSchema.parse({ id: randomUUID(), jobId: job.id, bytes: job.bytes, sha256: job.sha256, verifiedAt: new Date(Number(seconds) * 1000).toISOString() });
+  }
+
+  // Call only after sync + rename + parent sync of the verified original, under exclusive().
+  publish(job: StoredJob, receipt: Receipt): Receipt {
     if (job.status === 'received' && job.receipt) return job.receipt;
     if (job.status !== 'uploading') throw new HttpError(409, `Upload is ${job.status}.`);
-    const receipt: Receipt = {
-      id: randomUUID(), jobId: job.id, bytes: job.bytes, sha256: job.sha256, verifiedAt: new Date().toISOString(),
-    };
-    this.save({ ...job, status: 'received', receipt });
-    return receipt;
+    const validated = receiptSchema.parse(receipt);
+    if (validated.jobId !== job.id || validated.bytes !== job.bytes || validated.sha256 !== job.sha256) throw new Error('Receipt identity mismatch.');
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.save({ ...job, contentReference: 'original', status: 'received', receipt: validated });
+      this.db.prepare('INSERT INTO original_events VALUES (?, ?, ?)').run(job.id, receipt.id, 'original-received');
+      this.db.exec('COMMIT');
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+    return validated;
   }
 
   close(): void {
     this.db.close();
+    this.writer.close();
   }
 }

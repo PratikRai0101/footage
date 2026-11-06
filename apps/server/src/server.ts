@@ -1,13 +1,12 @@
-import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { mkdir } from 'node:fs/promises';
+import { fileIdentity, originalPath, prepareOriginal, privateDirectory, repairOriginalOrphans } from './originals.js';
 import { join } from 'node:path';
 import { once } from 'node:events';
 import { FileStore } from '@tus/file-store';
 import { Server, Upload } from '@tus/server';
 import { NodeRequest } from 'srvx/node';
 import { ZodError } from 'zod';
-import { capabilitySchema, HttpError, jobIdSchema, registrationSchema, viewerExchangeSchema, type JobId, type StoredJob } from './contracts.js';
+import { capabilitySchema, HttpError, jobIdSchema, registrationSchema, viewerExchangeSchema, type StoredJob } from './contracts.js';
 import { Jobs } from './jobs.js';
 import { contentType, requireReceived, streamContent } from './content.js';
 import { requirePrivateTransport, usesTls, ViewerAccess, viewerCookieName, type ViewerOptions } from './viewer-access.js';
@@ -40,22 +39,26 @@ function json(res: ServerResponse, status: number, value: unknown): void {
 }
 
 export async function createReceiver(directory: string, options: ViewerOptions = {}) {
-  await mkdir(directory, { recursive: true });
+  await privateDirectory(directory);
   const viewer = new ViewerAccess(options);
   const jobs = new Jobs(join(directory, 'jobs.sqlite'));
+  if (jobs.all().some(job => job.transport === 'sealed-v1')) {
+    jobs.close();
+    throw new Error('Sealed storage requires explicit authenticated ingest owner and wrapping provider.');
+  }
   const store = new FileStore({ directory: join(directory, 'uploads') });
   const tus = new Server({ path: '/files', datastore: store, allowedOrigins: [], maxSize: 4 * 1024 ** 3 });
-  // One process only. All mutation and tus requests for an identity share this lock.
-  const tails = new Map<JobId, Promise<void>>();
-  async function exclusive<T>(id: JobId, action: () => Promise<T>): Promise<T> {
-    const previous = tails.get(id) ?? Promise.resolve();
-    let release = () => {};
-    const current = new Promise<void>((resolve) => { release = resolve; });
-    tails.set(id, current);
-    await previous;
-    try { return await action(); }
-    finally { release(); if (tails.get(id) === current) tails.delete(id); }
-  }
+  const exclusive = jobs.exclusive.bind(jobs);
+  try {
+    await repairOriginalOrphans(directory, jobs.all());
+    for (const job of jobs.all()) {
+      if (job.status !== 'received') continue;
+      try {
+        const identity = await fileIdentity(originalPath(directory, job));
+        if (identity.bytes !== job.bytes || identity.sha256 !== job.sha256) throw new Error('Stored original mismatch.');
+      } catch { jobs.save({ ...job, storageFault: true }); }
+    }
+  } catch (error) { jobs.close(); throw error; }
 
   async function ensureUpload(job: StoredJob): Promise<void> {
     try { await store.getUpload(job.id); }
@@ -99,7 +102,7 @@ export async function createReceiver(directory: string, options: ViewerOptions =
       }
       const job = jobs.get(viewer.authorize(req.headers.cookie));
       requireReceived(job);
-      const path = join(store.directory, job.id);
+      const path = originalPath(directory, job);
       if (req.method === 'GET' && url.pathname === '/viewer/job') {
         const type = await contentType(path);
         json(res, 200, { id: job.id, name: job.name, bytes: job.bytes, sha256: job.sha256, status: job.status, receipt: job.receipt, contentType: type, previewSupported: type !== 'application/octet-stream', contentPath: '/viewer/content', downloadPath: '/viewer/content?download=1' });
@@ -129,7 +132,7 @@ export async function createReceiver(directory: string, options: ViewerOptions =
     // Receipt publication makes the original immutable; playback never queues behind a socket.
     if (match[1] === 'jobs' && match[3] === 'content' && (req.method === 'GET' || req.method === 'HEAD')) {
       const job = jobs.authorize(id, token);
-      await streamContent({ req, res, job, path: join(store.directory, id), download: true });
+      await streamContent({ req, res, job, path: originalPath(directory, job), download: true });
       return;
     }
     if (match[1] === 'jobs' && match[3] === 'view' && req.method === 'POST') {
@@ -161,17 +164,17 @@ export async function createReceiver(directory: string, options: ViewerOptions =
       }
       if (req.method === 'GET' && !match[3]) { json(res, 200, await snapshot(job)); return; }
       if (req.method === 'POST' && match[3] === 'complete') {
-        if (job.status === 'received') { json(res, 200, job.receipt); return; }
+        if (job.status === 'received') { requireReceived(job); json(res, 200, job.receipt); return; }
         if (job.status !== 'uploading') throw new HttpError(409, `Upload is ${job.status}.`);
         const upload = await store.getUpload(id);
         if (upload.offset !== job.bytes || upload.size !== job.bytes) throw new HttpError(409, 'The server has not received the full file.');
-        const hash = createHash('sha256');
-        for await (const chunk of store.read(id)) hash.update(chunk);
-        if (hash.digest('hex') !== job.sha256) {
-          jobs.save({ ...job, status: 'failed' });
-          throw new HttpError(422, 'The received file does not match the original.');
+        const receipt = jobs.newReceipt(job);
+        try { await prepareOriginal(directory, job, store.read(id)); }
+        catch (error) {
+          if (error instanceof HttpError && error.status === 422) jobs.save({ ...job, status: 'failed' });
+          throw error;
         }
-        json(res, 200, jobs.receive(job));
+        json(res, 200, jobs.publish(job, receipt));
         return;
       }
       if (req.method === 'DELETE' && !match[3]) {

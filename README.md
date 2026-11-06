@@ -15,7 +15,7 @@ xcrun simctl launch <simulator-id> dev.footage.spike
 
 **iPhone is still preview-only.** Native iOS upload and the T3 destination/handoff are not implemented. No example T3 threads or non-working dispatch controls are shipped. The existing Android transfer engine and receiver remain unchanged; previous physical-phone results belong to their recorded versions, not this iPhone rebuild.
 
-Evidence: [`docs/evidence/full-frame-ios-rebuild.json`](docs/evidence/full-frame-ios-rebuild.json). Implementation notes: [`docs/architecture/full-frame-rebuild.md`](docs/architecture/full-frame-rebuild.md).
+Evidence: [`docs/evidence/full-frame-ios-rebuild.json`](docs/evidence/full-frame-ios-rebuild.json). Implementation notes: [`docs/architecture/full-frame-rebuild.md`](docs/architecture/full-frame-rebuild.md). Remaining work and acceptance milestones: [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
 
 The Android upload flow remains: choose a clip, review its preview/metadata, confirm Upload, and receive a server-verified receipt. Kotlin owns copying, hashing, persistence and transfer; JavaScript never uploads video bytes or receives the upload capability.
 

@@ -93,6 +93,29 @@ struct PairingCertificate {
     return dns.contains(host)
   }
 }
+/// Immutable app-scoped TLS policy shared by paired control and encrypted daemon uploads.
+struct PairingPinnedTrust: Sendable {
+  let offer: PairingOffer
+  func credential(for challenge: URLAuthenticationChallenge) -> URLCredential? {
+    let space = challenge.protectionSpace
+    do {
+      try pairingRequire(space.authenticationMethod == NSURLAuthenticationMethodServerTrust && space.protocol == "https" && space.host == offer.origin.host && space.port == offer.origin.port && challenge.previousFailureCount == 0)
+      guard let trust = space.serverTrust, let anchor = SecCertificateCreateWithData(nil, offer.ca as CFData) else { throw PairingFailure.rejected }
+      try pairingRequire(SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, offer.origin.host as CFString)) == errSecSuccess)
+      try pairingRequire(SecTrustSetAnchorCertificates(trust, [anchor] as CFArray) == errSecSuccess)
+      try pairingRequire(SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess)
+      try pairingRequire(SecTrustSetNetworkFetchAllowed(trust, false) == errSecSuccess)
+      try pairingRequire(SecTrustEvaluateWithError(trust, nil))
+      try pairingCertificateDates(offer.ca, now: Date())
+      guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate], let leaf = chain.first else { throw PairingFailure.rejected }
+      for certificate in chain { try pairingCertificateDates(SecCertificateCopyData(certificate) as Data, now: Date()) }
+      let cert = try PairingCertificate(SecCertificateCopyData(leaf) as Data)
+      try pairingRequire(cert.matches(offer.origin.host) && pairingHash(cert.spki) == offer.pin)
+      return URLCredential(trust: trust)
+    } catch { return nil }
+  }
+}
+
 enum PairingRoute: String {
   case enroll = "/pair/v1/enroll", challenge = "/pair/v1/challenge", recover = "/pair/v1/recover"
   case setup = "/sealed/v1/setup", status = "/sealed/v1/status", revoke = "/sealed/v1/revoke", view = "/sealed/v1/view"
@@ -136,22 +159,9 @@ private final class PairingExchange: NSObject, URLSessionDataDelegate, URLSessio
     session.dataTask(with: request).resume()
   }
   func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-    let space = challenge.protectionSpace
-    do {
-      try pairingRequire(space.authenticationMethod == NSURLAuthenticationMethodServerTrust && space.protocol == "https" && space.host == offer.origin.host && space.port == offer.origin.port && challenge.previousFailureCount == 0)
-      guard let trust = space.serverTrust, let anchor = SecCertificateCreateWithData(nil, offer.ca as CFData) else { throw PairingFailure.rejected }
-      try pairingRequire(SecTrustSetPolicies(trust, SecPolicyCreateSSL(true, offer.origin.host as CFString)) == errSecSuccess)
-      try pairingRequire(SecTrustSetAnchorCertificates(trust, [anchor] as CFArray) == errSecSuccess)
-      try pairingRequire(SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess)
-      try pairingRequire(SecTrustSetNetworkFetchAllowed(trust, false) == errSecSuccess)
-      try pairingRequire(SecTrustEvaluateWithError(trust, nil))
-      try pairingCertificateDates(offer.ca, now: Date())
-      guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate], let leaf = chain.first else { throw PairingFailure.rejected }
-      for certificate in chain { try pairingCertificateDates(SecCertificateCopyData(certificate) as Data, now: Date()) }
-      let cert = try PairingCertificate(SecCertificateCopyData(leaf) as Data)
-      try pairingRequire(cert.matches(offer.origin.host) && pairingHash(cert.spki) == offer.pin)
-      completionHandler(.useCredential, URLCredential(trust: trust))
-    } catch { rejected = true; completionHandler(.cancelAuthenticationChallenge, nil) }
+    if let credential = PairingPinnedTrust(offer: offer).credential(for: challenge) {
+      completionHandler(.useCredential, credential)
+    } else { rejected = true; completionHandler(.cancelAuthenticationChallenge, nil) }
   }
   func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
     // Never answer HTTP authentication/client-certificate challenges from any store.

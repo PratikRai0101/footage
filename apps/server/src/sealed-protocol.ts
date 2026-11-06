@@ -215,6 +215,57 @@ export class Manifest {
     return prefix;
   }
 }
+const outcomeSchema = manifestSchema.pick({ receiver: true, origin: true, job: true, generation: true,
+  device: true, enrollmentEpoch: true, originalBytes: true, originalSHA256: true, expiresAt: true,
+  frameBytes: true, framesPerGroup: true }).extend({ manifestDigest: digest, destinationDigest: digest,
+  frameCount: z.number().int().min(1).max(512) }).strict();
+/** Native durable metadata, not a wire record or a JS-supplied identity. */
+export class OutcomeContext {
+  private constructor(private readonly encoded: Buffer, private readonly value: z.infer<typeof outcomeSchema>) {}
+  private static parse(bytes: Buffer): OutcomeContext {
+    const r = new Reader(bytes, 1024); r.magic('FTCTX001');
+    const value = outcomeSchema.parse({ receiver: r.hex(32), origin: r.text(512), job: r.hex(16),
+      generation: r.hex(16), device: r.hex(16), enrollmentEpoch: r.n(8), manifestDigest: r.hex(32),
+      destinationDigest: r.hex(32), originalBytes: r.n(8), originalSHA256: r.hex(32), expiresAt: r.n(8),
+      frameBytes: r.small(4, limits.frame), framesPerGroup: r.small(2, 8), frameCount: r.small(4, 512) });
+    r.end();
+    requireValid(BigInt(value.frameCount) === (value.originalBytes + BigInt(limits.frame) - 1n) / BigInt(limits.frame));
+    return new OutcomeContext(Buffer.from(bytes), value);
+  }
+  static fromManifest(m: Manifest): OutcomeContext {
+    const f = m.fields;
+    return OutcomeContext.parse(new Writer().text('FTCTX001').hex(f.receiver).lp(Buffer.from(f.origin))
+      .hex(f.job).hex(f.generation).hex(f.device).n(f.enrollmentEpoch, 8).hex(m.digest).hex(m.destinationDigest)
+      .n(f.originalBytes, 8).hex(f.originalSHA256).n(f.expiresAt, 8).n(limits.frame, 4).n(8, 2).n(f.frameHashes.length, 4).done());
+  }
+  get bytes(): Buffer { return Buffer.from(this.encoded); }
+  get fields(): z.infer<typeof outcomeSchema> { return outcomeSchema.parse(this.value); }
+  get digest(): string { return this.value.manifestDigest; }
+  get destinationDigest(): string { return this.value.destinationDigest; }
+  get groupCount(): number { return Math.ceil(this.value.frameCount / 8); }
+  authentication(master: Buffer): Buffer {
+    requireValid(master.length === 32);
+    return createHmac('sha256', master).update('footage/sealed-v1/context-storage').update(this.encoded).digest();
+  }
+  static restore(bytes: Buffer, master: Buffer, authentication: Buffer): OutcomeContext {
+    requireValid(master.length === 32 && authentication.length === 32 && bytes.length <= 1024);
+    const expected = createHmac('sha256', master).update('footage/sealed-v1/context-storage').update(bytes).digest();
+    requireValid(timingSafeEqual(authentication, expected), 'Context authentication failed');
+    return OutcomeContext.parse(bytes);
+  }
+  partition(group: number): Partition {
+    z.number().int().min(0).max(63).parse(group); requireValid(group < this.groupCount);
+    const firstFrame = group * 8, offset = BigInt(firstFrame) * BigInt(limits.frame);
+    return Object.freeze({ group, firstFrame, frameCount: Math.min(8, this.value.frameCount - firstFrame), offset,
+      length: Number(this.value.originalBytes - offset < 8n * BigInt(limits.frame) ? this.value.originalBytes - offset : 8n * BigInt(limits.frame)) });
+  }
+  contiguous(bitmap: bigint): bigint {
+    u64.parse(bitmap); requireValid(bitmap >> BigInt(this.groupCount) === 0n);
+    let prefix = 0n;
+    for (let i = 0; i < this.groupCount && (bitmap & (1n << BigInt(i))) !== 0n; i++) prefix += BigInt(this.partition(i).length);
+    return prefix;
+  }
+}
 export class Binding {
   private constructor(readonly manifest: Manifest) {
   }
@@ -247,11 +298,15 @@ export function frameAAD(header: Buffer, frame: number, length: number, sealID: 
   return new Writer().text('FTBODY01').bytes(header).n(frame, 4).n(length, 4).bytes(sealID).done();
 }
 export class GenerationKeys {
-  private constructor(private readonly master: Buffer, readonly manifest: Manifest) {
+  private constructor(private readonly master: Buffer, private readonly fullManifest: Manifest | null, readonly outcome: OutcomeContext) {}
+  get manifest(): Manifest { requireValid(this.fullManifest, 'Full manifest required for body/setup'); return this.fullManifest; }
+  static forOutcomes(master: Buffer, outcome: OutcomeContext): GenerationKeys {
+    requireValid(master.length === 32);
+    return new GenerationKeys(Buffer.from(master), null, outcome);
   }
   static fromSetup(master: Buffer, manifest: Manifest): GenerationKeys {
     requireValid(master.length === 32);
-    return new GenerationKeys(Buffer.from(master), manifest);
+    return new GenerationKeys(Buffer.from(master), manifest, OutcomeContext.fromManifest(manifest));
   }
   static fresh(manifest: Manifest): Readonly<{
     keys: GenerationKeys;
@@ -272,7 +327,7 @@ export class GenerationKeys {
     }
     else
       requireValid(!frame);
-    return Buffer.from(hkdfSync('sha256', this.master, Buffer.from(this.manifest.digest, 'hex'), w.done(), 32));
+    return Buffer.from(hkdfSync('sha256', this.master, Buffer.from(this.outcome.digest, 'hex'), w.done(), 32));
   }
 }
 /** The caller must durably persist this intent as consumed before returning. This is not a crash ledger. */
@@ -380,11 +435,11 @@ export class VerifiedGroup {
     }
   }
 }
-function context(w: Writer, magic: string, m: Manifest): Writer {
+function context(w: Writer, magic: string, m: OutcomeContext): Writer {
   const f = m.fields;
   return w.text(magic).hex(f.receiver).hex(f.job).hex(f.generation).hex(m.digest);
 }
-function readContext(r: Reader, magic: string, m: Manifest): void {
+function readContext(r: Reader, magic: string, m: OutcomeContext): void {
   r.magic(magic);
   const f = m.fields;
   requireValid(r.hex(32) === f.receiver && r.hex(16) === f.job && r.hex(16) === f.generation && r.hex(32) === m.digest);
@@ -401,8 +456,8 @@ function authenticated(bytes: Buffer, keys: GenerationKeys, domain: 'ack' | 'rec
 }
 const ackSchema = z.object({ group: z.number().int().min(0).max(63), wireSHA256: digest, revision: u64 }).strict();
 export function encodeAck(keys: GenerationKeys, input: unknown): Buffer {
-  const a = ackSchema.parse(input), p = keys.manifest.partition(a.group);
-  return signed(context(new Writer(), 'FTACK001', keys.manifest).n(a.group, 4).hex(a.wireSHA256).n(p.offset, 8).n(p.length, 4).n(a.revision, 8).done(), keys, 'ack');
+  const a = ackSchema.parse(input), p = keys.outcome.partition(a.group);
+  return signed(context(new Writer(), 'FTACK001', keys.outcome).n(a.group, 4).hex(a.wireSHA256).n(p.offset, 8).n(p.length, 4).n(a.revision, 8).done(), keys, 'ack');
 }
 export class VerifiedAck {
   private readonly verified = true;
@@ -414,10 +469,10 @@ export class VerifiedAck {
   }): VerifiedAck {
     requireValid(bytes.length === 192);
     const r = authenticated(bytes, keys, 'ack');
-    readContext(r, 'FTACK001', keys.manifest);
+    readContext(r, 'FTACK001', keys.outcome);
     const group = r.small(4, 63), wire = r.hex(32), offset = r.n(8), length = r.small(4, 64 * 1024 * 1024), revision = r.n(8);
     r.end();
-    const p = keys.manifest.partition(group);
+    const p = keys.outcome.partition(group);
     requireValid(group === expected.group && wire === digest.parse(expected.wireSHA256) && offset === p.offset && length === p.length);
     return new VerifiedAck(group, offset, length, revision);
   }
@@ -425,7 +480,7 @@ export class VerifiedAck {
 const receiptSchema = z.object({ id: uuid, verifiedAt: u64, revision: u64 }).strict();
 export function encodeReceipt(keys: GenerationKeys, input: unknown): Buffer {
   const r = receiptSchema.parse(input);
-  return signed(context(new Writer(), 'FTRCPT01', keys.manifest).hex(keys.manifest.destinationDigest).hex(r.id).n(r.verifiedAt, 8).n(r.revision, 8).done(), keys, 'receipt');
+  return signed(context(new Writer(), 'FTRCPT01', keys.outcome).hex(keys.outcome.destinationDigest).hex(r.id).n(r.verifiedAt, 8).n(r.revision, 8).done(), keys, 'receipt');
 }
 export class VerifiedReceipt {
   private readonly verified = true;
@@ -441,7 +496,7 @@ export class VerifiedReceipt {
   }
   static verify(bytes: Buffer, keys: GenerationKeys): VerifiedReceipt {
     const r = authenticated(bytes, keys, 'receipt');
-    const m = keys.manifest;
+    const m = keys.outcome;
     readContext(r, 'FTRCPT01', m);
     requireValid(r.hex(32) === m.destinationDigest);
     const id = r.hex(16), verifiedAt = r.n(8), revision = r.n(8);
@@ -477,11 +532,11 @@ export type Query = z.infer<typeof querySchema>;
 export function freshQuery(operation: string): Query {
   return querySchema.parse({ operation, challenge: randomBytes(32).toString('hex') });
 }
-export function encodeQuery(m: Manifest, input: unknown): Buffer {
+export function encodeQuery(m: Manifest | OutcomeContext, input: unknown): Buffer {
   const q = querySchema.parse(input);
   return new Writer().text('FTQUERY1').hex(m.fields.job).hex(m.fields.generation).hex(m.digest).hex(q.operation).hex(q.challenge).done();
 }
-export function decodeQuery(bytes: Buffer, m: Manifest): Query {
+export function decodeQuery(bytes: Buffer, m: Manifest | OutcomeContext): Query {
   const r = new Reader(bytes, 120);
   r.magic('FTQUERY1');
   requireValid(r.hex(16) === m.fields.job && r.hex(16) === m.fields.generation && r.hex(32) === m.digest);
@@ -491,7 +546,7 @@ export function decodeQuery(bytes: Buffer, m: Manifest): Query {
 }
 const statusSchema = z.object({ revision: u64, state: z.number().int().min(1).max(6), cleanup: z.number().int().min(0).max(2), groupBitmap: u64 }).strict();
 export type StatusFields = z.infer<typeof statusSchema>;
-function statusRules(s: StatusFields, m: Manifest, receipt: VerifiedReceipt | null): void {
+function statusRules(s: StatusFields, m: OutcomeContext, receipt: VerifiedReceipt | null): void {
   requireValid(s.state >= 4 ? s.cleanup === 1 || s.cleanup === 2 : s.cleanup === 0);
   m.contiguous(s.groupBitmap);
   requireValid((s.state === 3) === (receipt !== null));
@@ -501,7 +556,7 @@ function statusRules(s: StatusFields, m: Manifest, receipt: VerifiedReceipt | nu
     requireValid(receipt.revision <= s.revision);
 }
 export function encodeStatus(keys: GenerationKeys, query: Query, input: unknown, receipt: Buffer = Buffer.alloc(0)): Buffer {
-  const q = querySchema.parse(query), s = statusSchema.parse(input), m = keys.manifest;
+  const q = querySchema.parse(query), s = statusSchema.parse(input), m = keys.outcome;
   statusRules(s, m, receipt.length ? VerifiedReceipt.verify(receipt, keys) : null);
   return signed(context(new Writer(), 'FTSTAT01', m).hex(q.operation).hex(q.challenge).n(s.revision, 8).n(s.state, 1).n(s.cleanup, 1).n(m.fields.expiresAt, 8).n(s.groupBitmap, 8).n(m.contiguous(s.groupBitmap), 8).lp(receipt, 4).done(), keys, 'status');
 }
@@ -512,7 +567,7 @@ export class VerifiedStatus {
   static verify(bytes: Buffer, keys: GenerationKeys, query: Query, highWater: bigint): VerifiedStatus {
     const q = querySchema.parse(query);
     u64.parse(highWater);
-    const r = authenticated(bytes, keys, 'status'), m = keys.manifest;
+    const r = authenticated(bytes, keys, 'status'), m = keys.outcome;
     readContext(r, 'FTSTAT01', m);
     requireValid(r.hex(16) === q.operation && r.hex(32) === q.challenge);
     const revision = r.n(8), state = r.small(1, 6), cleanup = r.small(1, 2), expires = r.n(8), groupBitmap = r.n(8), contiguous = r.n(8), rb = r.lp(200, 4);

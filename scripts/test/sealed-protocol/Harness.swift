@@ -4,6 +4,7 @@ import Foundation
 
 typealias P = SealedProtocol
 struct Vector: Codable {
+  let context: String, contextAuthentication: String
   let nodeRandomPacket: String, manifest: String, digest: String, master: String,
     destination: String, destinationDigest: String
   let header: String, packet: String, aad: String, bodyKey: String, ackKey: String,
@@ -117,6 +118,61 @@ func runVector(_ input: Vector) throws -> Result {
   let m = try P.Manifest.decode(manifestBytes)
   let master = try data(input.master)
   let keys = try P.Keys(master: master, manifest: m)
+  let context = try P.OutcomeContext.fromManifest(m)
+  let authentication = try context.authentication(master: master)
+  try P.check(context.bytes == data(input.context) && authentication == data(input.contextAuthentication))
+  let restoredContext = try P.OutcomeContext.restore(context.bytes, master: master, authentication: authentication)
+  let minimal = try P.Keys(master: master, outcome: restoredContext)
+  for domain in [P.Domain.ack, .receipt, .status] { try P.check(minimal.derive(domain) == keys.derive(domain)) }
+  try expectFailure { _ = try minimal.derive(.body, frame: 0, sealID: Data(repeating: 0, count: 16)) }
+  for i in context.bytes.indices {
+    try expectFailure { _ = try P.OutcomeContext.restore(flip(context.bytes, i), master: master, authentication: authentication) }
+  }
+  func restoreRemac(_ bytes: Data) throws -> P.OutcomeContext {
+    let mac = Data(HMAC<SHA256>.authenticationCode(for: Data("footage/sealed-v1/context-storage".utf8) + bytes,
+      using: SymmetricKey(data: master)))
+    return try P.OutcomeContext.restore(bytes, master: master, authentication: mac)
+  }
+  for n in 0..<context.bytes.count { try expectFailure { _ = try restoreRemac(Data(context.bytes.prefix(n))) } }
+  try expectFailure { _ = try restoreRemac(context.bytes + Data([0])) }
+  for offset in [context.bytes.count - 10, context.bytes.count - 6, context.bytes.count - 1] {
+    try expectFailure { _ = try restoreRemac(flip(context.bytes, offset)) }
+  }
+  var badExpiry = context.bytes
+  badExpiry.replaceSubrange((badExpiry.count - 18)..<(badExpiry.count - 10), with: Data(repeating: 255, count: 8))
+  let changedExpiryKeys = try P.Keys(master: master, outcome: restoreRemac(badExpiry))
+  try expectFailure {
+    _ = try P.VerifiedStatus.verify(data(input.statuses[0]), keys: changedExpiryKeys,
+      query: P.Query.decode(data(input.query), outcome: context), highWater: 0)
+  }
+  let digestOffset = 98 + m.origin.utf8.count
+  let rebound = try P.Keys(master: master, outcome: restoreRemac(flip(context.bytes, digestOffset)))
+  try expectFailure { _ = try P.VerifiedReceipt.verify(data(input.receipt), keys: rebound) }
+  let wrongDestination = try P.Keys(master: master, outcome: restoreRemac(flip(context.bytes, digestOffset + 32)))
+  try expectFailure { _ = try P.VerifiedReceipt.verify(data(input.receipt), keys: wrongDestination) }
+  var badOrigin = context.bytes; badOrigin[42] = 72
+  try expectFailure { _ = try restoreRemac(badOrigin) }
+  for byte: UInt8 in [0, 255] {
+    var badLength = context.bytes
+    badLength.replaceSubrange((digestOffset + 64)..<(digestOffset + 72), with: Data(repeating: byte, count: 8))
+    try expectFailure { _ = try restoreRemac(badLength) }
+  }
+  var invalidJob = context.bytes
+  invalidJob.replaceSubrange((42 + m.origin.utf8.count)..<(58 + m.origin.utf8.count), with: Data(repeating: 0x11, count: 16))
+  let invalidKeys = try P.Keys(master: master, outcome: restoreRemac(invalidJob))
+  let goodID = Data((try data(input.receipt))[136..<152])
+  try expectFailure {
+    let receipt = try P.encodeReceipt(keys: invalidKeys, id: goodID, verifiedAt: 1800000000, revision: 9)
+    _ = try P.VerifiedReceipt.verify(receipt, keys: invalidKeys).toOriginalReceipt()
+  }
+  try expectFailure {
+    let receipt = try P.encodeReceipt(keys: minimal, id: goodID, verifiedAt: 253_402_300_800, revision: 9)
+    _ = try P.VerifiedReceipt.verify(receipt, keys: minimal).toOriginalReceipt()
+  }
+  for s in input.statuses {
+    _ = try P.VerifiedStatus.verify(data(s), keys: minimal, query: P.Query.decode(data(input.query), outcome: context), highWater: 0)
+  }
+  _ = try P.VerifiedReceipt.verify(data(input.receipt), keys: minimal).toOriginalReceipt()
   let inputPacket = try data(input.packet)
   let header = try P.groupHeader(m, 0)
   let id = Data(inputPacket[8..<24])
@@ -129,6 +185,8 @@ func runVector(_ input: Vector) throws -> Result {
   _ = try authenticate(header + data(input.nodeRandomPacket), m, keys)
   let ackInput = try P.VerifiedAck.verify(data(input.ack), keys: keys, group: 0, wireSHA256: wire)
   let ack = try P.encodeAck(keys: keys, group: 0, wireSHA256: wire, revision: ackInput.revision)
+  _ = try P.VerifiedAck.verify(ack, keys: minimal, group: 0, wireSHA256: wire)
+  try P.check(P.encodeAck(keys: minimal, group: 0, wireSHA256: wire, revision: ackInput.revision) == ack)
   let receiptInput = try P.VerifiedReceipt.verify(data(input.receipt), keys: keys)
   try P.check(receiptInput.bytes == m.originalBytes && receiptInput.sha256 == m.originalSHA256)
   let shared = try receiptInput.toOriginalReceipt()
@@ -152,6 +210,7 @@ func runVector(_ input: Vector) throws -> Result {
   let restored = try P.decodeSetup(data(input.setup), manifest: m)
   try P.check(restored.derive(.ack) == keys.derive(.ack))
   let vector = try Vector(
+    context: hex(context.bytes), contextAuthentication: hex(authentication),
     nodeRandomPacket: input.nodeRandomPacket, manifest: hex(clone(m).bytes), digest: hex(m.digest),
     master: hex(master), destination: hex(m.destination.encode()),
     destinationDigest: hex(m.destinationDigest), header: hex(header), packet: hex(packet),

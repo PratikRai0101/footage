@@ -15,7 +15,7 @@ final class TestControl: BackgroundControl, @unchecked Sendable {
     return try SealedProtocol.encodeSetup(keys: keys(), master: master)
   }
   func keys() throws -> SealedProtocol.Keys { try SealedProtocol.Keys(master: master, manifest: manifest!) }
-  func status(_ m: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data {
+  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
     if offline { throw BackgroundFailure.uncertain }
     try backgroundRequire(m.digest == manifest?.digest)
     challenges.append(query.challenge)
@@ -23,7 +23,7 @@ final class TestControl: BackgroundControl, @unchecked Sendable {
     return try SealedProtocol.encodeStatus(keys: keys(), query: q,
       fields: .init(revision: revision, state: state, cleanup: cleanup, groupBitmap: bitmap))
   }
-  func revoke(_ m: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data {
+  func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
     operations.append(query.operation)
     return try status(m, query: query)
   }
@@ -47,6 +47,21 @@ func testState(_ root: URL) throws -> BackgroundState {
   let n = Int(sqlite3_column_bytes(statement, 0))
   guard let ptr = sqlite3_column_blob(statement, 0) else { throw BackgroundFailure.integrity }
   return try JSONDecoder().decode(BackgroundState.self, from: Data(bytes: ptr, count: n))
+}
+func testRewriteState(_ root: URL, change: (inout [String: Any]) -> Void) throws {
+  let state = try testState(root)
+  var raw = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as! [String: Any]
+  change(&raw)
+  let bytes = try JSONSerialization.data(withJSONObject: raw)
+  var db: OpaquePointer?, statement: OpaquePointer?
+  try backgroundRequire(sqlite3_open(root.appendingPathComponent("ledger.sqlite").path, &db) == SQLITE_OK)
+  defer { sqlite3_finalize(statement); sqlite3_close(db) }
+  try backgroundRequire(sqlite3_prepare_v2(db, "UPDATE runtime SET state=? WHERE id=1", -1, &statement, nil) == SQLITE_OK)
+  let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+  try bytes.withUnsafeBytes { buffer in
+    try backgroundRequire(sqlite3_bind_blob(statement, 1, buffer.baseAddress, Int32(buffer.count), transient) == SQLITE_OK)
+  }
+  try backgroundRequire(sqlite3_step(statement) == SQLITE_DONE)
 }
 func testAwait(_ operation: (@escaping @Sendable (Bool) -> Void) -> Void) throws -> Bool {
   let signal = DispatchSemaphore(value: 0)
@@ -204,10 +219,58 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
   }
   do {
     let c = TestControl(), d = TestDaemon(), name = "manifest-locked"
-    let r = try runtime(name, c, d); try r.prepare(testSelection(source))
-    try FileManager.default.moveItem(at: root(name).appendingPathComponent("private/manifest"), to: root(name).appendingPathComponent("private/unavailable"))
-    try backgroundRequire(!(try testAwait { r.restoreAndStart(completion: $0) }) && d.created == 0)
-    passed.append("protected-manifest-deferral")
+    var owner: BackgroundRuntime? = try runtime(name, c, d); try owner!.prepare(testSelection(source))
+    let manifest = root(name).appendingPathComponent("private/manifest")
+    let privateDirectory = root(name).appendingPathComponent("private")
+    try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: privateDirectory.path)
+    defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: privateDirectory.path) }
+    var denied = false
+    do { _ = try Data(contentsOf: manifest) } catch { denied = (error as NSError).code == NSFileReadNoPermissionError }
+    try backgroundRequire(denied)
+    try backgroundRequire(try testAwait { owner!.restoreAndStart(completion: $0) })
+    let g = try testState(root(name)).groups[0]
+    owner = nil
+    owner = try runtime(name, c, d, create: false)
+    let r = owner!
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    try backgroundRequire(d.created == 1) // cold reassociation, not replacement identity
+    let ack = try SealedProtocol.encodeAck(keys: c.keys(), group: 0, wireSHA256: g.hash!, revision: 3)
+    try testEvent(r, .init(id: g.taskID!, correlation: g.correlation, status: 200,
+      body: SealedProtocol.encodeOutcome(ack: ack), transportOK: true))
+    c.bitmap = 1; c.revision = 3; c.state = 2
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    c.offline = true
+    try backgroundRequire(!(try testAwait { r.cancel(completion: $0) }))
+    c.offline = false
+    try backgroundRequire(try testAwait { r.cancel(completion: $0) })
+    let receipt = try SealedProtocol.encodeReceipt(keys: c.keys(), id: BackgroundPreseal.uuid(),
+      verifiedAt: UInt64(Date().timeIntervalSince1970), revision: 4)
+    // A matching late final receipt wins cancel; even its verification cannot open display data.
+    let rebound = try testState(root(name))
+    let minimal = try SealedProtocol.Keys(master: c.master, outcome: rebound.outcome(master: c.master))
+    _ = try SealedProtocol.VerifiedReceipt.verify(receipt, keys: minimal).toOriginalReceipt()
+    try expectFailure { _ = try Data(contentsOf: manifest) }
+    passed += ["locked-context-ack-status-revoke-cold-reassociation", "locked-context-final-receipt-profile"]
+    var bad = rebound
+    bad.outcomeAuthentication = Data(repeating: 0, count: 32)
+    try expectFailure { _ = try bad.outcome(master: c.master) }
+    passed.append("durable-context-authentication-rejects-substitution")
+  }
+  for attack in ["original-identity", "context-mac", "forged-received"] {
+    let name = "durable-" + attack, c = TestControl(), d = TestDaemon()
+    var owner: BackgroundRuntime? = try runtime(name, c, d)
+    try owner!.prepare(testSelection(source)); owner = nil
+    try testRewriteState(root(name)) { value in
+      if attack == "original-identity" { value["originalHash"] = Data(repeating: 0, count: 32).base64EncodedString() }
+      else if attack == "context-mac" { value["outcomeAuthentication"] = Data(repeating: 0, count: 32).base64EncodedString() }
+      else {
+        value["phase"] = "received"; value["receiptOutcome"] = Data(repeating: 0, count: 200).base64EncodedString()
+        value["bitmap"] = 1; value["revision"] = 999
+      }
+    }
+    try expectFailure { _ = try runtime(name, c, d, create: false) }
+    try backgroundRequire(d.created == 0)
+    passed.append("durable-load-rejects-" + attack + "-before-snapshot")
   }
   do {
     let c = TestControl(), d = TestDaemon(), name = "final-cancel-race"

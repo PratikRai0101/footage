@@ -14,8 +14,8 @@ final class LocalControl: BackgroundControl {
     try BackgroundFiles.save(master, to: directory.appendingPathComponent("listener.master"), complete: true)
     return try SealedProtocol.encodeSetup(keys: .init(master: master, manifest: m), master: master)
   }
-  func status(_ m: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data { throw BackgroundFailure.uncertain }
-  func revoke(_ m: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data { throw BackgroundFailure.uncertain }
+  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data { throw BackgroundFailure.uncertain }
+  func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data { throw BackgroundFailure.uncertain }
 }
 struct LocalTrust: BackgroundServerTrust {
   let ca: Data, leaf: Data, port: Int

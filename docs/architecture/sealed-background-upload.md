@@ -187,6 +187,20 @@ Accepted representation reconciliation for subsequent owners:
 - Native code obtains a manifest-bound device credential/epoch through the native pairing owner; JS never supplies or receives them. Receiver setup authorizes `0x01`; status `0x02`; revoke `0x04`; mint viewer `0x08`; list destinations `0x10`, always scoped to the owning device/destination. Ingest rechecks `assertActiveEpoch` inside the common commit lock, without putting a credential in a redirectable body.
 - The binary codec retains general UUID16/u64 representations. The shared-receipt publication profile requires schema-valid job/receipt UUIDs (mint UUIDv4 for new jobs/receipts) and UTC timestamps in `0..253402300799` seconds, renderable through year 9999. Reject an incompatible setup job ID before accepting packets and an incompatible final receipt before publication; do not publish then depend on an adapter failure. This is an explicit common-outcome profile, not a silent change to binary field widths. Receiver generation/device/opaque intake identities need not be receipt IDs.
 
+### Integrated G3 receiver slice
+
+The [isolated sealed-ingest component](../evidence/sealed-ingest.md) now uses the existing `Jobs` receipt row and common durable original publication for both tus and sealed transfers. Parent reran 103 root tests (77 receiver, 20 mobile, six tooling), typecheck, lint and the ingest test-tool typecheck. The suite includes a streamed multi-group original and nine actual process-kill boundaries. This does not certify physical power-loss durability or app background lifecycle.
+
+Accepted **isolated-slice restrictions**, not waivers of activation gates:
+
+- One immutable generation per job is supported; replacement generations are refused, never overwritten. A future abandoned-seal recovery must explicitly reconcile/revoke the old job and obtain fresh user confirmation for a new job until a reviewed same-job supersession operation exists. It must never silently redirect/recreate an active upload.
+- Existing 8 GiB receiver reservation policy is conservative: two original copies plus 64 MiB quarantine mean a full 4 GiB sealed original is refused with 507. The wire limit is not a promise of admission. Reconcile advertised selectable limits or increase the explicitly configured budget with tested accounting before activation; do not call full-size acceptance verified.
+- Receiver startup or an exact packet retry resumes durable finalization. A periodic receiver-owned retry supervisor and shutdown drain are still required before service activation; the phone must not be required to invoke completion.
+- Missing/corrupt committed storage freezes the job and refuses success. Recovery-required presentation and explicit repair remain unfinished; retained keys/groups/tombstones have no destructive automatic cleanup.
+- The common publication path now applies to ordinary tus too. Existing routes/receipts remain compatible, but new publication stores a verified durable original copy and requires private storage; insecure historical storage requires explicit operator migration, not silent permission assumptions.
+
+Production sealed routing, HTTPS admission, OS wrapping provider, revocation notification service and all G4–G7 app/device gates remain disabled or unfinished. Filesystem proof is scoped to the tested macOS environment. No TLS/paired API or background-upload activation follows from these unit/integration results.
+
 ## G1 — pairing and control authority (must prove before real uploads)
 
 ### Private-desktop onboarding

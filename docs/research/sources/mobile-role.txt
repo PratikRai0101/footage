@@ -1,0 +1,71 @@
+Product Engineer (Mobile) | Cardboard Careers
+RecipesMac
+Plugins
+ChatGPT pluginEdit video in ChatGPT
+Claude pluginEdit video in ClaudePricingChangelog
+LoginGet startedGet started
+All positions
+Product Engineer (Mobile)
+EngineeringBengaluru, IndiaFull-timeApply
+About
+We're building the future of storytelling and video editing.
+We're a small team that moves fast and builds things we're proud of.
+We care obsessively about taste: in design, in product, in every detail.
+We're solving these hard problems.
+We're backed by a Tier-1 global fund, YC, and founders of billion dollar companies.
+Engineering
+Cardboard is a video editor you can talk to. It runs in the browser and as a Mac app. Most footage is shot on phones,
+and we don't have a mobile app yet.
+We're hiring a Product Engineer (Mobile) to build v1 from scratch, and to decide what Cardboard on a phone should be. We
+care more about taste and craft than any one stack. With agents, keeping iOS and Android in step is the easy part.
+Making something people love using is the hard part.
+What you'll own
+Cardboard on iOS and Android, from architecture to the app stores.
+Handling real phone footage: 4K, HDR, and huge files.
+Uploads that survive bad networks and the app going to the background.
+Who you are
+You've shipped mobile apps people use every day, and you sweat how they feel.
+You're a strong mobile engineer, whether that's Swift, Kotlin, or React Native.
+You notice when an interaction feels off, and you fix it.
+Bonus: you've built a camera, photo, or video app.
+How we work
+You own outcomes, not tickets: decide what to build, ship it, and check it worked.
+You talk to users and look at the data.
+You build with AI agents every day, and you're the taste and judgment in the loop.
+What you get
+You'd be surrounded by people who are absurdly good at what they do. One started coding at 11 and shipped an app with 6M+ downloads in high school. One got into CS engineering at 14 and has been working on distributed systems for 8+ years. One's an ex-founder who took a company to 1.2M users and $300M+ in transactions. That's the team. We're looking for someone who'll raise the bar on technical craftsmanship and product quality. Apart from that you'd get:
+Competitive salary and founding-team equity.
+Unlimited tokens across every AI model. Use whatever you want, as much as you want.
+A healthy budget for AI tools and any peripherals you need to do your best work.
+Made it this far? We'd love to hear from you.Apply for Product Engineer (Mobile)
+TeamEngineering
+LocationBengaluru, India
+TypeFull-time
+ApplyCopy link
+About
+Engineering
+What you'll own
+Who you are
+How we work
+What you get
+Create stunning content 10x faster with our agentic video editor.
+X
+Product
+Pricing
+Recipes
+Plugins
+Changelog
+Support
+Status
+Legal
+Privacy
+Terms of Service
+Company
+Blog
+Careers
+Hard problems
+Y Combinator
+Contact
+CardboardCardboardCardboard
+© 2026 Cardboard Inc. All rights reserved.
+Made within SF

@@ -1,0 +1,19 @@
+{
+  "artifact": "artifacts/footage-spike-debug.apk",
+  "sha256": "bb62664816726c25e3138c97df44d300ea2a217b8938b709b5f889f4232feb4b",
+  "bytes": 182757995,
+  "kind": "Android debug development client; Metro required",
+  "package": "dev.footage.spike",
+  "targetSdk": 36,
+  "minimumTransferApi": 26,
+  "schedulers": {
+    "26-33": "foreground-service",
+    "34+": "user-initiated-job; not device-tested"
+  },
+  "physicalDeviceTested": true,
+  "appLaunched": true,
+  "evidence": "android13-usb.json",
+  "nativeStartReturnContract": "Unit",
+  "receiverSourceSha256": "a88e8685be96354a3e7d94133ed739b1714f693ceccf5f360c00561f5fd460da",
+  "receiverFixEvidence": "android13-wifi-recovery.json"
+}

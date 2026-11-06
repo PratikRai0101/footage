@@ -1,0 +1,127 @@
+{
+  "recordedAt": "2026-10-29T12:49:27.557067+00:00",
+  "device": {
+    "manufacturer": "Samsung",
+    "model": "SM-N981U1",
+    "android": "13",
+    "api": 33,
+    "execution": "foreground-service",
+    "connection": "ADB USB reverse; plugged in and powered"
+  },
+  "fixture": {
+    "name": "footage-generated-test.mp4",
+    "provenance": "Generated test pattern and sine wave; not personal camera footage",
+    "bytes": 299779969,
+    "durationSeconds": 60,
+    "resolution": "1280x720",
+    "codecs": [
+      "h264",
+      "aac"
+    ],
+    "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+  },
+  "jobId": "463a57a8-a1a1-4411-bd97-01933dfc1657",
+  "receipt": {
+    "id": "a4e71403-07ae-49f2-8065-9916e2656088",
+    "jobId": "463a57a8-a1a1-4411-bd97-01933dfc1657",
+    "bytes": 299779969,
+    "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+    "verifiedAt": "2026-10-29T12:18:34.679Z"
+  },
+  "passed": [
+    "app launch and native bridge",
+    "native start promise resolved in the separate regression run",
+    "system picker and review",
+    "native stable copy and hashing",
+    "physical-phone upload over USB",
+    "server byte growth after Home",
+    "native waiting after USB disconnect and reauthorization pause",
+    "same-identity continuation after USB route restoration",
+    "server byte growth while the phone reported non-interactive Dozing",
+    "independent received-file length and SHA-256 check",
+    "matching native and server receipt"
+  ],
+  "pending": [
+    "Wi-Fi and cellular interruption",
+    "unplugged background execution",
+    "real camera footage and 4K/HDR",
+    "process death and force-stop distinctions",
+    "offline cancellation on this device",
+    "deep Doze and extended idle"
+  ],
+  "homeAndDisconnectEvents": [
+    {
+      "at": "2026-10-29T12:15:27.576020+00:00",
+      "event": "confirmed_upload_in_real_ui"
+    },
+    {
+      "at": "2026-10-29T12:15:40.839077+00:00",
+      "event": "receiver_registered",
+      "id": "463a57a8-a1a1-4411-bd97-01933dfc1657"
+    },
+    {
+      "at": "2026-10-29T12:15:40.969907+00:00",
+      "event": "pressed_home",
+      "serverBytes": 14680064,
+      "foregroundServiceObserved": true
+    },
+    {
+      "at": "2026-10-29T12:15:41.071065+00:00",
+      "event": "server_progress_after_home",
+      "serverBytes": 23134155
+    },
+    {
+      "at": "2026-10-29T12:15:41.092735+00:00",
+      "event": "removed_usb_upload_route",
+      "serverBytes": 25165824
+    },
+    {
+      "at": "2026-10-29T12:15:56.156538+00:00",
+      "event": "run_failed",
+      "error": "Command '['adb', 'wait-for-device']' timed out after 15 seconds",
+      "nativeState": null
+    }
+  ],
+  "screenAndCompletionEvents": [
+    {
+      "at": "2026-10-29T12:18:25.483381+00:00",
+      "event": "existing_upload_inspected",
+      "serverBytes": 25165824,
+      "nativePhase": "waiting"
+    },
+    {
+      "at": "2026-10-29T12:18:25.509432+00:00",
+      "event": "usb_upload_route_restored"
+    },
+    {
+      "at": "2026-10-29T12:18:25.797110+00:00",
+      "event": "screen_noninteractive_observed",
+      "serverBytes": 25165824,
+      "wakefulness": "Dozing"
+    },
+    {
+      "at": "2026-10-29T12:18:29.304332+00:00",
+      "event": "server_progress_while_screen_noninteractive",
+      "serverBytes": 35848015,
+      "wakefulness": "Dozing"
+    },
+    {
+      "at": "2026-10-29T12:18:35.125439+00:00",
+      "event": "same_original_verified_after_screen_test",
+      "receiptId": "a4e71403-07ae-49f2-8065-9916e2656088"
+    }
+  ],
+  "qualification": "The Home/disconnect run paused for USB reauthorization. A dedicated screen test continued the same existing job without creating a fresh upload. Samsung Dozing is non-interactive AOD, not proof of deep Doze.",
+  "postRunVerification": {
+    "nativeState": "received",
+    "serverState": "received",
+    "independentHashMatch": true,
+    "homeUsbRecoveryAndNoninteractiveScreenPassed": true,
+    "fullMvpAcceptancePassed": false
+  },
+  "history": [
+    "android13-usb-before-screen.json",
+    "android13-start-command.json",
+    "android13-screen.json"
+  ]
+}

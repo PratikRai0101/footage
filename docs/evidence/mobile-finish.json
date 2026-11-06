@@ -1,0 +1,199 @@
+{
+  "recordedAt": "2026-10-30T06:56:46.024796+00:00",
+  "scope": "Local tests, API36 emulator and Chromium. Not physical/unplugged/Doze evidence.",
+  "artifactSha256": "57be77ff24f0140cd6956e49baf25dd90b8c2f2920aea3de4b59b159abf287c1",
+  "checks": {
+    "receiverHttp": 26,
+    "mobileContracts": 17,
+    "streamingProxy": 2,
+    "nativeOrigin": 2,
+    "failures": 0,
+    "nativeLintWarnings": 4
+  },
+  "records": {
+    "standaloneRecovery": {
+      "scenario": "standalone-emulator-native-intake-and-transport-recovery",
+      "scope": "Android API 36 emulator. Proxy interruption is not physical Wi-Fi, unplugged, or deep-Doze evidence.",
+      "metroAbsent": true,
+      "receiptDeliveryDelayMs": 4000,
+      "fixture": {
+        "name": "footage-playback-test.mp4",
+        "bytes": 4161576,
+        "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81"
+      },
+      "events": [
+        {
+          "at": "2026-10-29T19:59:10.998378+00:00",
+          "event": "real_ui_upload_confirmed"
+        },
+        {
+          "at": "2026-10-29T19:59:32.881839+00:00",
+          "event": "test_transport_closed_mid_patch",
+          "jobId": "8811ec21-0c37-4a83-916b-affe348de3cb",
+          "serverBytes": 2621696
+        },
+        {
+          "at": "2026-10-29T19:59:35.208130+00:00",
+          "event": "waiting_visible_without_new_upload",
+          "serverBytes": 2621696
+        },
+        {
+          "at": "2026-10-29T19:59:55.441839+00:00",
+          "event": "standalone_original_verified",
+          "bytes": 4161576
+        }
+      ],
+      "passed": true,
+      "verificationStateObserved": true,
+      "jobId": "8811ec21-0c37-4a83-916b-affe348de3cb",
+      "receipt": {
+        "id": "ebb335dd-2ffb-4311-b4b2-b0a6fa0f9157",
+        "jobId": "8811ec21-0c37-4a83-916b-affe348de3cb",
+        "bytes": 4161576,
+        "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+        "verifiedAt": "2026-10-29T19:59:48.379Z"
+      },
+      "sameIdentityRecovery": true,
+      "independentHashMatch": true
+    },
+    "freshNotificationConsentIntake": {
+      "scope": "Standalone API36 emulator fresh app-data/notification-permission run; Metro stopped; not physical background proof",
+      "jobId": "aa9bb36f-e319-4794-a587-b309c5ec0c9e",
+      "receipt": {
+        "id": "f81df505-6341-4a25-bb4f-5f109551a7a9",
+        "jobId": "aa9bb36f-e319-4794-a587-b309c5ec0c9e",
+        "bytes": 4161576,
+        "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+        "verifiedAt": "2026-10-29T20:29:48.929Z"
+      },
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+      "bytes": 4161576,
+      "passed": true
+    },
+    "finalBinaryIntake": {
+      "scope": "Fresh Android API36 regression after iOS shared UI/metadata changes; standalone, no Metro; localhost ADB reverse, not Wi-Fi or physical background proof",
+      "apkSha256": "57be77ff24f0140cd6956e49baf25dd90b8c2f2920aea3de4b59b159abf287c1",
+      "jobId": "9a9ce409-87da-4d4a-9dbf-5f270a5b3da7",
+      "receipt": {
+        "id": "5cce5560-ce7c-4b87-bfa5-65c966383739",
+        "jobId": "9a9ce409-87da-4d4a-9dbf-5f270a5b3da7",
+        "bytes": 4161576,
+        "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+        "verifiedAt": "2026-10-30T00:36:14.236Z"
+      },
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+      "bytes": 4161576,
+      "passed": true,
+      "earlierSetupFailure": "../ios-simulator/android-lan-change.json"
+    },
+    "browser": {
+      "scenario": "actual-received-video-browser-playback",
+      "jobId": "aa9bb36f-e319-4794-a587-b309c5ec0c9e",
+      "fixture": "footage-playback-test.mp4",
+      "bytes": 4161576,
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+      "browser": "154.0.8037.98",
+      "playback": {
+        "duration": 8,
+        "width": 1280,
+        "height": 720,
+        "seekedTo": 6,
+        "decodedFrames": 220,
+        "nonBlackPixels": 256
+      },
+      "rangeResponseObserved": true,
+      "oneUseCodeRemovedFromHistory": true,
+      "httpOnlyStrictCookie": true,
+      "originalUploadCapabilityAbsentFromMarkup": true,
+      "downloadHashMatchesOriginal": true,
+      "pageErrors": [],
+      "mobileLayoutStable": true,
+      "mobileHorizontalOverflow": false,
+      "scope": "Real native emulator upload and real headless Chromium playback; not physical-phone background evidence."
+    },
+    "nativeBrowserOpening": {
+      "scope": "API36 emulator, actual Chrome opened from native View received file button",
+      "receivedFilenameRendered": true,
+      "fragmentNotVisible": true,
+      "passed": true
+    },
+    "previewAccessibility": {
+      "scope": "API36 emulator, missing staged preview after verified generated upload; public original unchanged",
+      "fontScale": 2,
+      "logicalWidth": 320,
+      "passed": true,
+      "previewBoundsPx": [
+        63,
+        233,
+        777,
+        883
+      ],
+      "textBoundsPx": [
+        127,
+        454,
+        713,
+        818
+      ],
+      "previewGrew": true,
+      "stagedCopyRestored": true,
+      "displaySettingsRestored": true
+    },
+    "storageRejection": {
+      "scope": "Android API 36 emulator, synthetic HTTP registration rejection",
+      "status": 507,
+      "observed": "Terminal, actionable receiver-full state; not endless network retry",
+      "passed": true
+    },
+    "receiverDeployment": {
+      "at": "2026-10-29T20:48:12.356099+00:00",
+      "oldPid": 43572,
+      "newPid": 33581,
+      "gracefulShutdown": true,
+      "health": 200,
+      "viewerPage": 200,
+      "existingUploadFileNamesAndSizesPreserved": true,
+      "scope": "Local owned receiver deployment; not a new physical transfer test."
+    }
+  },
+  "limits": [
+    "Physical coverage is in android13-final-device.json when its artifact hash matches",
+    "Unplugged and deep Doze unverified",
+    "TalkBack, cellular, real 4K/HDR and memory measurement unverified",
+    "Final three-minute application recording pending"
+  ],
+  "sourceSha256": {
+    "apps/mobile/app.json": "4af6782d49655b6f7d20969df1518adc5ff53512a527e21e48852d7f174a0c98",
+    "apps/mobile/modules/footage-transfer/android/build.gradle": "884129e85c64dcdeed431a3fa967460d0bbc787bffd01f6e058f733eda9350c3",
+    "apps/mobile/modules/footage-transfer/android/src/main/AndroidManifest.xml": "cc48600725787e89ae7e5c2754f34eef0552b8e5f1e5b383b02168192f00d9b8",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/FootageTransferModule.kt": "9b2ae84094f9264151b5f565caeaf00f0869a82bb659488812fec3f3e9b1c7a4",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/ReceiverOrigin.kt": "8211569768f98db6fa934be14f0fb4b26c2a92a46774e3c7f7baf131640a09db",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferForegroundService.kt": "584747273dfdc703284643d5e135d6aab43db83a5a68696d2be05c5324fcd905",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferJobService.kt": "c9adc226acc6b6ebf7fc9a99a6d75783375e25a229f604cd1d57e6fd5d0ad582",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferOwner.kt": "d0b8ab3bc524684e41d4127a1a62fbab4065de36962b8a8b029639478ffad507",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferState.kt": "90ede6c4c819aaea7804da2d000318645c1477caf1a28da80a8c287952b3b870",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/VideoMetadata.kt": "a65ce8a8b03bfd280297fafc42b1e7d04fd92067d87a0c91abb93f87a2e1a229",
+    "apps/mobile/modules/footage-transfer/android/src/test/java/expo/modules/footagetransfer/ReceiverOriginTest.kt": "e561deeaa1991f42eba67ecf93c5ef858a6bc92bd3cc6f0e603d3c4640c1882d",
+    "apps/mobile/modules/footage-transfer/expo-module.config.json": "c139a9885d2dbaf0790476fab5b37fb627cbfec304299b002f17890fd13df2da",
+    "apps/mobile/modules/footage-transfer/src/FootageTransferModule.ts": "71e3dc90528fb0477b98ab63b1718fb74e5336e1b40f8b63546d886d23fda001",
+    "apps/mobile/modules/footage-transfer/src/contracts.ts": "921c9ff1e8593e258a111a1a894b6354a21d3a5fc56fa7ac0c740a9e9a48d393",
+    "apps/mobile/src/app/_layout.tsx": "4f043277a60ec831044670fb53d52e083e053a24da02edafd55ba07db44b027d",
+    "apps/mobile/src/app/index.tsx": "6638693ac97e6c256e686f8982cb455208e3ac607a6c84fc7812f40ab688a978",
+    "apps/mobile/src/features/intake/Icon.tsx": "cefdb78a0093286c86bf6e73431016bc057c819b9823a48cf648d673b7e02ed8",
+    "apps/mobile/src/features/intake/Preview.tsx": "d13b6308aebf16bb1c71d132e316c810c23aae04c2ef83a1da16baee293a58aa",
+    "apps/mobile/src/features/intake/ScreeningRoom.tsx": "3619134272e474126fdc678d2f566cbbcd51623682022f0fd6900ac59678a194",
+    "apps/mobile/src/features/intake/SettingsSheet.tsx": "80a41548fef6784575b713d853825a1fdc1ad4d1b39a8709f08f850b97e19ad4",
+    "apps/mobile/src/features/intake/licenses.ts": "d486c471d5336821f74cb00b78f9f53b1fb52c2d0f931970eb5941f9a909be4a",
+    "apps/mobile/src/features/intake/presentation.ts": "ba10e3a656038438dd8aa72f72f823ca12659072acdede4d6741ebbd65744413",
+    "apps/mobile/src/features/intake/preview-metadata.ts": "4c484f1f378e95ecb9e78223d6e887f4db84d15e3caa505be62ef5a1a48b23df",
+    "apps/mobile/src/features/intake/theme.ts": "1e82dfe532c278da14e4f0b2f64fcaec464f5ac54a08aeb9d89f3794b07dbd1e",
+    "apps/mobile/src/features/intake/useTransfer.ts": "e85d417ba8a96415f4e0d71781a924429fbd4acf990c968b6572d0d4e9608f8d",
+    "apps/server/src/content.ts": "d3d25783f416ddca31d99486402ac540356c34d71c571a3b9860fe0f2af74f65",
+    "apps/server/src/contracts.ts": "657bdfda140c2b85032b8184d526e0944647eb54722a76a842b7907194f8a1f9",
+    "apps/server/src/jobs.ts": "3f85395673f7b054476fd7d0b2d5860141f3b6392fa34e67129ffca25835a33b",
+    "apps/server/src/main.ts": "805aac9966ed9d64ff01f0f38b87d754447151ca430946231e0a420fc8a5047c",
+    "apps/server/src/server.ts": "8dfc1474ec37ca30c30b19e9e50f93e128a3e47128c48863f23014081c7fcf28",
+    "apps/server/src/viewer-access.ts": "d3d3c161e97d5353fc982b0e6288308f1992bb709d99d2fb52771173af248f32",
+    "apps/server/src/viewer-page.ts": "daacbdf833d6cf0ab25219959485d1869cd61dc7f637be508188420c2389f4b7",
+    "package-lock.json": "e355a36ff6777656071b06d4412d3ac3aeb3e095b6ffbcf51b0829bcabe2f8b7"
+  }
+}

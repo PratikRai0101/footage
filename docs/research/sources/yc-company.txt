@@ -1,0 +1,136 @@
+Cardboard: Agentic video editor | Y Combinator
+Open menu
+About
+What Happens at YC?ApplyYC Interview GuideFAQPeopleYC Blog
+Companies
+Startup DirectoryFounder DirectoryLaunch YC
+Library
+Partners
+Resources
+Startup SchoolNewsletterRequests for StartupsFor InvestorsVerify FoundersHacker NewsBookfaceSAFEFind a Co-FounderEvents
+Startup Jobs
+Log inApply
+Home›Companies›Cardboard
+Cardboard
+Agentic video editor
+Y Combinator LogoWinter 2026
+Active
+Company
+Jobs5
+https://cardboard.ai
+Agentic video editor
+Cardboard is an agentic video editor for growth/marketing teams and serious creators who need to ship videos consistently. Instead of agencies, long timelines, and infinite review cycles, teams give cardboard a footage + a goal (“3 variants”, “30s hook”, “testimonials”) to get a strong first cut in minutes on which they can iterate quickly.
+Multimodal LLMs can finally reason over footage, and WebGPU/WebCodecs make a real NLE possible in the browser. For the first time, an “AI director” inside a professional editor can be a reality.
+We have to build two hard things at once: a high-performance editor in the browser and an agentic editor that is reliable for production use cases. Most startups do one; incumbents can’t rebuild their stack without breaking everything.
+Saksham and Ishan met in school and have known each other since 15 years. Saksham was Co-founder/CTO of Iterate AI (backed by EF) and posts content on social media; Ishan has spent ~5yr building memory-heavy, performance-critical browser apps at HackerRank (S11) and deeply understands browsers. He has built Hotspoter (5M+ downloads) when he was 14.
+Together, we’re unusually suited to build the editor core others avoid.
+Video is becoming the default distribution channel, and the team that iterates fastest compounds attention. Cardboard becomes the default workspace for video production, the way Canva/Figma became the workspace for design - because it’s collaborative, fast, and does the tedious parts for you.
+Active Founders
+Saksham Aggarwal
+Founder/CEO
+Saksham Aggarwal is the founder of Cardboard (W26). He studied CS at BITS Pilani and previously built AI products at Iterate AI (EF-backed startup).
+He has published at ACL and has spoken internationally on AI evaluations. He was the first engineer at PYOR (backed by Coinbase and Castle Island) and worked in growth at Sequoia-backed Flint.
+Saksham Aggarwal
+Founder/CEO
+Saksham Aggarwal is the founder of Cardboard (W26). He studied CS at BITS Pilani and previously built AI products at Iterate AI (EF-backed startup).
+He has published at ACL and has spoken internationally on AI evaluations. He was the first engineer at PYOR (backed by Coinbase and Castle Island) and worked in growth at Sequoia-backed Flint.
+Ishan Sharma
+Founder/CTO
+Ishan Sharma is the founder of Cardboard (W26). He is a full-stack engineer with deep experience in high-performance web systems, creative tooling, and applied AI.
+Previously, he spent ~4.5 years at HackerRank (S11), where he led multiple 0→1 products used by millions.
+He started programming in 6th grade and built a Windows app in school that crossed 5.7M+ downloads and was featured on CNET and Softonic
+Ishan Sharma
+Founder/CTO
+Ishan Sharma is the founder of Cardboard (W26). He is a full-stack engineer with deep experience in high-performance web systems, creative tooling, and applied AI.
+Previously, he spent ~4.5 years at HackerRank (S11), where he led multiple 0→1 products used by millions.
+He started programming in 6th grade and built a Windows app in school that crossed 5.7M+ downloads and was featured on CNET and Softonic
+Company Launches
+Cardboard - Agentic Video EditorSee original launch post
+TL;DR
+Cardboard is an agentic video editor. It gives you the power of Premiere Pro or DaVinci Resolve without the learning curve. It is orders of magnitude faster + cheaper than the old way of making videos.
+It lives in your browser and helps you go from a sea of raw footage (talking heads, screen recordings, screenshots, B-rolls) to a great video in seconds.
+Think of it as “vibe editing”
+https://youtu.be/xLBxatFM7uk
+The Problem
+Video has become the default distribution channel for growth, marketing, and brand storytelling. The teams who iterate fastest on video, compound attention over time.
+Many of us sit on mountains of raw assets - product walkthroughs, customer feedback, tweets, blogs, changelogs, emails, and newsletters - that should turn into testimonials, launch videos, recaps, and ad experiments.
+But, editing is painfully slow. Getting to a first cut still means hours of manual work, expensive tools, and async feedback loops. This is where the momentum dies.
+As a result, most teams ship far fewer videos than they should - not because they lack ideas or footage, but because the editing process can’t keep up.
+The Solution
+We are building Cardboard - it is an agentic video editor that lives in your browser.
+You can:
+Ask for a first cut (“make a 60s recap” / “cut this into ads”)
+Search footage by meaning, not filenames
+Then refine it yourself on a timeline
+The goal is to make video production feel closer to modern design / coding tools - fast, accessible, and collaborative - so the teams can iterate fast and ship more.
+Why us?
+We met in middle school and have been best friends since the last 15yrs. We built Cardboard because we lived with this problem ourselves:
+I create content on Instagram and LinkedIn, with ~250k views/month on an average.
+Ishan (CTO) has been producing Apple-style internal launch videos for HackerRank’s all-hands demo days (350+ attendees) [Example: Video 1, Video 2]
+Both of us hit the same wall: tools like Premiere Pro or DaVinci are powerful, but the learning curve is steep and getting to a first cut takes hours. Creativity starts to feel like manual work.
+Cardboard exists to remove those painful steps - so that people can focus on what they’re actually good at: telling great stories.
+Ask
+If you’re leading or working in a growth / marketing team that uses video as a distribution channel (launches, ads, recaps, testimonials, or weekly content) and you care about speed, we’d love to work closely with you.
+Start using Cardboard!
+- @Saksham Aggarwal and @Ishan Sharma (Cardboard, W26)
+Jobs at Cardboard
+View all jobs
+Backend Engineer
+Bengaluru
+Any (new grads ok)
+Apply Now ›
+Senior Applied ML Engineer, Evals & Data
+Bengaluru
+5+ years
+Apply Now ›
+Founding Designer
+Bengaluru / San Francisco
+₹3M - ₹6M INR
+0.10% - 1.00%
+3+ years
+Apply Now ›
+Founding Design Engineer
+Bengaluru / San Francisco
+Any (new grads ok)
+Apply Now ›
+Fullstack Engineer
+Bengaluru
+Any (new grads ok)
+Apply Now ›
+Cardboard
+Founded:2025
+Batch:Winter 2026
+Team Size:8
+Status:
+Active
+Location:Bengaluru, India
+Primary Partner:Ankit Gupta
+Footer
+Y Combinator
+Make something people want.
+Programs
+YC Program
+Startup School
+Work at a Startup
+Co-Founder Matching
+Resources
+Startup Directory
+Startup Library
+Investors
+Demo Day
+SAFE
+Hacker News
+Launch YC
+YC Deals
+Company
+YC Blog
+Contact
+Press
+People
+Careers
+Privacy Policy
+Notice at Collection
+Security
+Terms of Use
+TwitterTwitterFacebookFacebookInstagramInstagramLinkedInLinkedInYoutubeYouTube
+© 2026 Y Combinator

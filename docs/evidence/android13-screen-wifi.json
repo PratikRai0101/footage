@@ -1,0 +1,865 @@
+{
+  "recordedAt": "2026-10-29T15:42:03.364211+00:00",
+  "device": {
+    "model": "Samsung SM-N981U1",
+    "androidVersion": "13",
+    "apiLevel": 33,
+    "poweredViaUsb": true
+  },
+  "scope": "Generated-video transfer over real WLAN through a test-only streaming limiter. Samsung AOD Dozing, not deep Doze. Power saving remained enabled.",
+  "implementation": {
+    "owner": "Native foreground service",
+    "cpu": "PARTIAL_WAKE_LOCK",
+    "wifi": "WIFI_MODE_FULL_HIGH_PERF on API 26 through 33 when starting on Wi-Fi",
+    "foregroundAttemptWindowMs": 1800000,
+    "windowExpiryHardwareTested": false,
+    "sourceSha256": {
+      "apps/mobile/modules/footage-transfer/android/src/main/AndroidManifest.xml": "cc48600725787e89ae7e5c2754f34eef0552b8e5f1e5b383b02168192f00d9b8",
+      "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferForegroundService.kt": "584747273dfdc703284643d5e135d6aab43db83a5a68696d2be05c5324fcd905",
+      "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferOwner.kt": "9acb552cce24b0d17043c22a2b6c5e22d7267687cfd37c92aae35f7a541b0909"
+    }
+  },
+  "artifact": {
+    "path": "artifacts/footage-spike-debug.apk",
+    "bytes": 181300946,
+    "sha256": "be4701391a2679038f0237103a9961ffd12abeb2594372c1629948a75902755e",
+    "installedApkHashMatches": true,
+    "requiresMetro": true
+  },
+  "receiver": {
+    "sourceSha256": "a88e8685be96354a3e7d94133ed739b1714f693ceccf5f360c00561f5fd460da",
+    "processId": 43572,
+    "restartedDuringExperiment": false
+  },
+  "verified": {
+    "continuousScreenOffSeconds": 350.8,
+    "noScreenWakeBeforeReceipt": true,
+    "sameJobAsFailedCpuOnlyRepeat": true,
+    "sourceReceivedHashAndReceiptMatch": true,
+    "cpuAndWifiResourcesReleasedAfterReceipt": true,
+    "visibleCancellationReleasesResourcesAndDeletesPartialWithoutReceipt": true,
+    "networkAndPowerFlagsRestored": true,
+    "noBatteryExemptionApplied": true
+  },
+  "settingsFinally": {
+    "wifi_on": "1",
+    "mobile_data": "1",
+    "low_power": "1"
+  },
+  "passingScreenRun": {
+    "scenario": "extended-screen-off-real-wifi",
+    "scenarioPassed": true,
+    "fixture": {
+      "name": "footage-wifi-test.mp4",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+      "provenance": "generated H.264/AAC, not camera footage"
+    },
+    "origin": "http://<private-lan-ip>:1082",
+    "transport": "phone WLAN to test-only streaming limiter to unchanged receiver; USB-powered; no upload forwarding",
+    "limiter": {
+      "patchBytesPerSecond": 131072,
+      "reason": "Keep the actual transfer active for multiple minutes, not a throughput measurement"
+    },
+    "settingsBefore": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T15:18:30.565841+00:00",
+        "event": "upload_confirmed",
+        "power": {
+          "wakefulness": "Awake",
+          "noninteractive": false,
+          "lastWakeTime": "119846429",
+          "cpuLeaseHeld": false,
+          "wifiLeaseHeld": true,
+          "ownCpuLocks": [
+            "10-29 20:41:10.358 - 10313 - REL Footage:transfer-cpu"
+          ],
+          "ownWifiLocks": "WifiLock{Footage:transfer-wifi type=3 uid=1000 workSource=WorkSource{10313}}"
+        },
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-29T15:18:30.568953+00:00",
+        "event": "job_registered",
+        "id": "601a0caf-aea0-48f6-8660-06b3f4ca7616"
+      },
+      {
+        "at": "2026-10-29T15:18:31.439985+00:00",
+        "event": "active_transfer_resources",
+        "power": {
+          "wakefulness": "Awake",
+          "noninteractive": false,
+          "lastWakeTime": "119846429",
+          "cpuLeaseHeld": true,
+          "wifiLeaseHeld": true,
+          "ownCpuLocks": [
+            "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-964ms (uid=10313 pid=6761 displayId=-1 lock=ee9ca52)",
+            "10-29 20:41:10.358 - 10313 - REL Footage:transfer-cpu",
+            "10-29 20:48:29.308 - 10313 - ACQ Footage:transfer-cpu (partial)"
+          ],
+          "ownWifiLocks": "WifiLock{Footage:transfer-wifi type=3 uid=1000 workSource=WorkSource{10313}}"
+        },
+        "serverBytes": 4499060
+      },
+      {
+        "at": "2026-10-29T15:18:32.291503+00:00",
+        "event": "screen_noninteractive_quiet_window_started",
+        "power": {
+          "wakefulness": "Dozing",
+          "noninteractive": true,
+          "lastWakeTime": "119846429",
+          "cpuLeaseHeld": true,
+          "wifiLeaseHeld": true,
+          "ownCpuLocks": [
+            "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-1s754ms (uid=10313 pid=6761 displayId=-1 lock=ee9ca52)",
+            "10-29 20:41:10.358 - 10313 - REL Footage:transfer-cpu",
+            "10-29 20:48:29.308 - 10313 - ACQ Footage:transfer-cpu (partial)"
+          ],
+          "ownWifiLocks": "WifiLock{Footage:transfer-wifi type=3 uid=1000 workSource=WorkSource{10313}}"
+        },
+        "serverBytes": 4499060
+      },
+      {
+        "at": "2026-10-29T15:19:00.591210+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 6868400,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:19:30.593987+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 8517447,
+        "idleSeconds": 1.1
+      },
+      {
+        "at": "2026-10-29T15:20:00.724698+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 9953674,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:20:30.730209+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 10949051,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:21:00.838179+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 11999515,
+        "idleSeconds": 0.2
+      },
+      {
+        "at": "2026-10-29T15:21:30.972265+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 12435940,
+        "idleSeconds": 16.6
+      },
+      {
+        "at": "2026-10-29T15:22:01.115824+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 13100482,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:22:31.129446+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 15077468,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:23:01.253407+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 18851915,
+        "idleSeconds": 0.0
+      },
+      {
+        "at": "2026-10-29T15:23:31.312394+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 22594020,
+        "idleSeconds": 0.2
+      },
+      {
+        "at": "2026-10-29T15:24:01.454915+00:00",
+        "event": "host_only_progress_observation",
+        "serverBytes": 26395108,
+        "idleSeconds": 0.2
+      },
+      {
+        "at": "2026-10-29T15:24:23.131253+00:00",
+        "event": "server_received_before_any_wake_or_network_restore",
+        "power": {
+          "wakefulness": "Dozing",
+          "noninteractive": true,
+          "lastWakeTime": "119846429",
+          "cpuLeaseHeld": false,
+          "wifiLeaseHeld": false,
+          "ownCpuLocks": [
+            "10-29 20:48:29.308 - 10313 - ACQ Footage:transfer-cpu (partial)",
+            "10-29 20:54:21.664 - 10313 - REL Footage:transfer-cpu"
+          ],
+          "ownWifiLocks": ""
+        },
+        "serverBytes": 29080346,
+        "noninteractiveSeconds": 350.8
+      },
+      {
+        "at": "2026-10-29T15:24:24.866815+00:00",
+        "event": "extended_screen_off_transfer_verified",
+        "releasedPower": {
+          "wakefulness": "Dozing",
+          "noninteractive": true,
+          "lastWakeTime": "119846429",
+          "cpuLeaseHeld": false,
+          "wifiLeaseHeld": false,
+          "ownCpuLocks": [
+            "10-29 20:48:29.308 - 10313 - ACQ Footage:transfer-cpu (partial)",
+            "10-29 20:54:21.664 - 10313 - REL Footage:transfer-cpu"
+          ],
+          "ownWifiLocks": ""
+        }
+      }
+    ],
+    "resumingExistingJob": true,
+    "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+    "receipt": {
+      "id": "0cbb3620-6beb-48d0-9388-f7d4c97d028c",
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+      "verifiedAt": "2026-10-29T15:24:22.088Z"
+    },
+    "noninteractiveSeconds": 350.8,
+    "noWakeDuringTransfer": true,
+    "independentHashMatch": true,
+    "resourcesReleased": true,
+    "settingsAfter": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "uiOriginRestorePending": "http://<private-lan-ip>:1080"
+  },
+  "passingCancellationRun": {
+    "scenario": "foreground-cancellation-resource-release",
+    "scenarioPassed": true,
+    "fixture": {
+      "name": "footage-wifi-test.mp4",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+      "provenance": "generated H.264/AAC, not camera footage"
+    },
+    "origin": "http://<private-lan-ip>:1082",
+    "transport": "phone WLAN to test-only streaming limiter to unchanged receiver; USB-powered; no upload forwarding",
+    "limiter": {
+      "patchBytesPerSecond": 131072,
+      "reason": "Keep the actual transfer active for multiple minutes, not a throughput measurement"
+    },
+    "settingsBefore": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T15:31:38.350041+00:00",
+        "event": "upload_confirmed",
+        "power": {
+          "wakefulness": "Awake",
+          "noninteractive": false,
+          "lastWakeTime": "120679692",
+          "cpuLeaseHeld": false,
+          "wifiLeaseHeld": false,
+          "ownCpuLocks": [
+            "10-29 20:54:21.664 - 10313 - REL Footage:transfer-cpu"
+          ],
+          "ownWifiLocks": ""
+        },
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-29T15:31:39.573501+00:00",
+        "event": "job_registered",
+        "id": "cb0a0f00-15fd-426b-9a1d-e37e343e6c8c"
+      },
+      {
+        "at": "2026-10-29T15:31:49.748805+00:00",
+        "event": "active_transfer_resources",
+        "power": {
+          "wakefulness": "Awake",
+          "noninteractive": false,
+          "lastWakeTime": "120679692",
+          "cpuLeaseHeld": true,
+          "wifiLeaseHeld": true,
+          "ownCpuLocks": [
+            "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-9s636ms (uid=10313 pid=6761 displayId=-1 lock=9b1d7e6)",
+            "10-29 20:54:21.664 - 10313 - REL Footage:transfer-cpu",
+            "10-29 21:01:38.857 - 10313 - ACQ Footage:transfer-cpu (partial)"
+          ],
+          "ownWifiLocks": "WifiLock{Footage:transfer-wifi type=3 uid=1000 workSource=WorkSource{10313}}"
+        },
+        "serverBytes": 537136
+      },
+      {
+        "at": "2026-10-29T15:32:09.053435+00:00",
+        "event": "cancelled_with_resources_released_and_no_receipt",
+        "power": {
+          "wakefulness": "Awake",
+          "noninteractive": false,
+          "lastWakeTime": "120679692",
+          "cpuLeaseHeld": false,
+          "wifiLeaseHeld": false,
+          "ownCpuLocks": [
+            "10-29 20:54:21.664 - 10313 - REL Footage:transfer-cpu",
+            "10-29 21:01:38.857 - 10313 - ACQ Footage:transfer-cpu (partial)",
+            "10-29 21:01:51.880 - 10313 - REL Footage:transfer-cpu"
+          ],
+          "ownWifiLocks": ""
+        }
+      }
+    ],
+    "resumingExistingJob": false,
+    "jobId": "cb0a0f00-15fd-426b-9a1d-e37e343e6c8c",
+    "resourcesReleased": true,
+    "serverCleanupConfirmed": true,
+    "receiptIssued": false,
+    "settingsAfter": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "uiOriginRestorePending": "http://<private-lan-ip>:1080"
+  },
+  "previousRuns": {
+    "noExecutionLease": {
+      "scenario": "extended-screen-off-real-wifi",
+      "scenarioPassed": false,
+      "fixture": {
+        "name": "footage-wifi-test.mp4",
+        "bytes": 29080346,
+        "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+        "provenance": "generated H.264/AAC, not camera footage"
+      },
+      "origin": "http://<private-lan-ip>:1082",
+      "transport": "phone WLAN to test-only streaming limiter to unchanged receiver; USB-powered; no upload forwarding",
+      "limiter": {
+        "patchBytesPerSecond": 131072,
+        "reason": "Keep the actual transfer active for multiple minutes, not a throughput measurement"
+      },
+      "settingsBefore": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "events": [
+        {
+          "at": "2026-10-29T14:35:02.786560+00:00",
+          "event": "upload_confirmed",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "117137490",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [],
+            "ownWifiLocks": ""
+          },
+          "phoneWifiAddress": "<private-lan-ip>"
+        },
+        {
+          "at": "2026-10-29T14:35:02.989968+00:00",
+          "event": "job_registered",
+          "id": "fd28bd10-22fd-4960-9561-655fef603af1"
+        },
+        {
+          "at": "2026-10-29T14:35:08.830312+00:00",
+          "event": "active_transfer_resources",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "117137490",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 524288
+        },
+        {
+          "at": "2026-10-29T14:35:09.808784+00:00",
+          "event": "screen_noninteractive_quiet_window_started",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "117137490",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 524288
+        },
+        {
+          "at": "2026-10-29T14:35:32.916104+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 1042425,
+          "idleSeconds": 21.1
+        },
+        {
+          "at": "2026-10-29T14:35:57.748743+00:00",
+          "event": "screen_stress_failed_before_cleanup",
+          "error": "No server byte progress for 45 seconds with the screen non-interactive.",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "117137490",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [],
+            "ownWifiLocks": ""
+          },
+          "native": {
+            "id": "fd28bd10-22fd-4960-9561-655fef603af1",
+            "confirmed": 0,
+            "phase": {
+              "kind": "waiting",
+              "reason": "Connection interrupted. Confirmed progress is saved; retrying."
+            },
+            "bytes": 29080346,
+            "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+            "endpoint": "http://<private-lan-ip>:1082"
+          }
+        }
+      ],
+      "jobId": "fd28bd10-22fd-4960-9561-655fef603af1",
+      "error": "No server byte progress for 45 seconds with the screen non-interactive.",
+      "settingsAfter": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "cleanupErrors": [
+        "Cancel test job: Requested UI label not found or not visible: Cancel upload",
+        "Requested UI label not found or not visible: Demo server address"
+      ]
+    },
+    "cpuOnlyWithWakeRejected": {
+      "scenario": "extended-screen-off-real-wifi",
+      "scenarioPassed": false,
+      "fixture": {
+        "name": "footage-wifi-test.mp4",
+        "bytes": 29080346,
+        "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+        "provenance": "generated H.264/AAC, not camera footage"
+      },
+      "origin": "http://<private-lan-ip>:1082",
+      "transport": "phone WLAN to test-only streaming limiter to unchanged receiver; USB-powered; no upload forwarding",
+      "limiter": {
+        "patchBytesPerSecond": 131072,
+        "reason": "Keep the actual transfer active for multiple minutes, not a throughput measurement"
+      },
+      "settingsBefore": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "events": [
+        {
+          "at": "2026-10-29T14:49:54.941213+00:00",
+          "event": "upload_confirmed",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "118155062",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-33ms (uid=10313 pid=25101 displayId=-1 lock=4e280fc)",
+              "10-29 20:19:53.523 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "phoneWifiAddress": "<private-lan-ip>"
+        },
+        {
+          "at": "2026-10-29T14:49:54.942682+00:00",
+          "event": "job_registered",
+          "id": "fd28bd10-22fd-4960-9561-655fef603af1"
+        },
+        {
+          "at": "2026-10-29T14:49:55.952095+00:00",
+          "event": "active_transfer_resources",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "118155062",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-1s183ms (uid=10313 pid=25101 displayId=-1 lock=4e280fc)",
+              "10-29 20:19:53.523 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 1149568
+        },
+        {
+          "at": "2026-10-29T14:49:57.080106+00:00",
+          "event": "screen_noninteractive_quiet_window_started",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "118155062",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-2s110ms (uid=10313 pid=25101 displayId=-1 lock=4e280fc)",
+              "10-29 20:19:53.523 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 1149568
+        },
+        {
+          "at": "2026-10-29T14:50:25.024437+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 2812182,
+          "idleSeconds": 0.2
+        },
+        {
+          "at": "2026-10-29T14:50:55.067398+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 5346768,
+          "idleSeconds": 0.2
+        },
+        {
+          "at": "2026-10-29T14:51:25.147294+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 8799059,
+          "idleSeconds": 0.9
+        },
+        {
+          "at": "2026-10-29T14:51:55.233376+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 9085727,
+          "idleSeconds": 20.1
+        },
+        {
+          "at": "2026-10-29T14:52:25.239413+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 9747373,
+          "idleSeconds": 0.0
+        },
+        {
+          "at": "2026-10-29T14:52:55.347677+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 12792612,
+          "idleSeconds": 0.0
+        },
+        {
+          "at": "2026-10-29T14:53:25.486598+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 16594460,
+          "idleSeconds": 0.5
+        },
+        {
+          "at": "2026-10-29T14:53:55.617449+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 20448858,
+          "idleSeconds": 0.0
+        },
+        {
+          "at": "2026-10-29T14:54:25.679821+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 24326948,
+          "idleSeconds": 0.0
+        },
+        {
+          "at": "2026-10-29T14:54:55.712978+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 28209115,
+          "idleSeconds": 0.0
+        },
+        {
+          "at": "2026-10-29T14:55:03.572317+00:00",
+          "event": "server_received_before_any_wake_or_network_restore",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "118610894",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "10-29 20:19:53.523 - 10313 - ACQ Footage:transfer-cpu (partial)",
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu"
+            ],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 29080346,
+          "noninteractiveSeconds": 306.5
+        },
+        {
+          "at": "2026-10-29T14:55:04.591158+00:00",
+          "event": "screen_stress_failed_before_cleanup",
+          "error": "Phone woke during the supposed continuous screen-off interval.",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "118610894",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "10-29 20:19:53.523 - 10313 - ACQ Footage:transfer-cpu (partial)",
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu"
+            ],
+            "ownWifiLocks": ""
+          },
+          "native": {
+            "id": "fd28bd10-22fd-4960-9561-655fef603af1",
+            "confirmed": 29080346,
+            "phase": {
+              "kind": "received",
+              "receipt": {
+                "id": "3f4ee632-0a56-459b-ab72-bb214d75d6fa",
+                "jobId": "fd28bd10-22fd-4960-9561-655fef603af1",
+                "bytes": 29080346,
+                "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+                "verifiedAt": "2026-10-29T14:55:02.550Z"
+              }
+            },
+            "bytes": 29080346,
+            "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+            "endpoint": "http://<private-lan-ip>:1082"
+          }
+        }
+      ],
+      "resumingExistingJob": true,
+      "jobId": "fd28bd10-22fd-4960-9561-655fef603af1",
+      "error": "Phone woke during the supposed continuous screen-off interval.",
+      "settingsAfter": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "cleanupErrors": [
+        "Requested UI label not found or not visible: Demo server address"
+      ]
+    },
+    "cpuOnlyContinuousScreenFailed": {
+      "scenario": "extended-screen-off-real-wifi",
+      "scenarioPassed": false,
+      "fixture": {
+        "name": "footage-wifi-test.mp4",
+        "bytes": 29080346,
+        "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+        "provenance": "generated H.264/AAC, not camera footage"
+      },
+      "origin": "http://<private-lan-ip>:1082",
+      "transport": "phone WLAN to test-only streaming limiter to unchanged receiver; USB-powered; no upload forwarding",
+      "limiter": {
+        "patchBytesPerSecond": 131072,
+        "reason": "Keep the actual transfer active for multiple minutes, not a throughput measurement"
+      },
+      "settingsBefore": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "events": [
+        {
+          "at": "2026-10-29T14:57:52.554978+00:00",
+          "event": "upload_confirmed",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "118702119",
+            "cpuLeaseHeld": false,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu"
+            ],
+            "ownWifiLocks": ""
+          },
+          "phoneWifiAddress": "<private-lan-ip>"
+        },
+        {
+          "at": "2026-10-29T14:57:56.815407+00:00",
+          "event": "job_registered",
+          "id": "601a0caf-aea0-48f6-8660-06b3f4ca7616"
+        },
+        {
+          "at": "2026-10-29T14:58:02.551365+00:00",
+          "event": "active_transfer_resources",
+          "power": {
+            "wakefulness": "Awake",
+            "noninteractive": false,
+            "lastWakeTime": "118702119",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-7s998ms (uid=10313 pid=25101 displayId=-1 lock=207832a)",
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu",
+              "10-29 20:27:53.270 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 524288
+        },
+        {
+          "at": "2026-10-29T14:58:03.586271+00:00",
+          "event": "screen_noninteractive_quiet_window_started",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "118702119",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-9s5ms (uid=10313 pid=25101 displayId=-1 lock=207832a)",
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu",
+              "10-29 20:27:53.270 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "serverBytes": 524288
+        },
+        {
+          "at": "2026-10-29T14:58:22.691784+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 3236575,
+          "idleSeconds": 0.2
+        },
+        {
+          "at": "2026-10-29T14:58:52.714478+00:00",
+          "event": "host_only_progress_observation",
+          "serverBytes": 3749095,
+          "idleSeconds": 24.3
+        },
+        {
+          "at": "2026-10-29T14:59:14.482726+00:00",
+          "event": "screen_stress_failed_before_cleanup",
+          "error": "No server byte progress for 45 seconds with the screen non-interactive.",
+          "power": {
+            "wakefulness": "Dozing",
+            "noninteractive": true,
+            "lastWakeTime": "118702119",
+            "cpuLeaseHeld": true,
+            "wifiLeaseHeld": false,
+            "ownCpuLocks": [
+              "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-1m19s835ms LONG (uid=10313 pid=25101 displayId=-1 lock=207832a)",
+              "10-29 20:25:02.114 - 10313 - REL Footage:transfer-cpu",
+              "10-29 20:27:53.270 - 10313 - ACQ Footage:transfer-cpu (partial)"
+            ],
+            "ownWifiLocks": ""
+          },
+          "native": {
+            "id": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+            "confirmed": 2097152,
+            "phase": {
+              "kind": "waiting",
+              "reason": "Connection interrupted. Confirmed progress is saved; retrying."
+            },
+            "bytes": 29080346,
+            "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+            "endpoint": "http://<private-lan-ip>:1082"
+          }
+        }
+      ],
+      "resumingExistingJob": false,
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "error": "No server byte progress for 45 seconds with the screen non-interactive.",
+      "settingsAfter": {
+        "wifi_on": "1",
+        "mobile_data": "1",
+        "low_power": "1"
+      },
+      "cleanupErrors": [
+        "Cancel test job: Requested UI label not found or not visible: Cancel upload",
+        "Requested UI label not found or not visible: Demo server address"
+      ]
+    }
+  },
+  "networkPolicyProbe": {
+    "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+    "events": [
+      {
+        "event": "background_service_screen_off",
+        "wakefulness": "Dozing",
+        "ownCpuLocks": [
+          "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-8m48s714ms LONG (uid=10313 pid=25101 displayId=-1 lock=207832a)"
+        ],
+        "networkPolicy": "Restrict background: false\nRestrict power: true\n  UID=10313 state={procState=TOP ,seq=14160013,cap=LCMN} blocked_state={blocked=BATTERY_SAVER,allowed=FOREGROUND|TOP|METERED_FOREGROUND,effective=NONE}",
+        "foregroundService": true,
+        "serverBytes": 3749095
+      },
+      {
+        "event": "after_quiet_minute",
+        "wakefulness": "Dozing",
+        "ownCpuLocks": [
+          "PARTIAL_WAKE_LOCK              'Footage:transfer-cpu' ACQ=-9m49s215ms LONG (uid=10313 pid=25101 displayId=-1 lock=207832a)"
+        ],
+        "networkPolicy": "Restrict background: false\nRestrict power: true\n  UID=10313 state={procState=TOP ,seq=14160013,cap=LCMN} blocked_state={blocked=BATTERY_SAVER,allowed=FOREGROUND|TOP|METERED_FOREGROUND,effective=NONE}",
+        "foregroundService": true,
+        "serverBytes": 4431013
+      }
+    ],
+    "progressBytes": 681918,
+    "mobileDataRestored": true
+  },
+  "nativeEvents": [
+    {
+      "event": "execution_lease_acquired",
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "cpuHeld": true,
+      "wifiHeld": true,
+      "timeoutMs": 1800000,
+      "powerSaveEnabled": true
+    },
+    {
+      "event": "transfer_attempt_failed",
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "errorType": "SocketTimeoutException",
+      "status": null,
+      "confirmedBytes": 6528165
+    },
+    {
+      "event": "transfer_attempt_failed",
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "errorType": "SocketTimeoutException",
+      "status": null,
+      "confirmedBytes": 10718846
+    },
+    {
+      "event": "execution_lease_released",
+      "jobId": "601a0caf-aea0-48f6-8660-06b3f4ca7616",
+      "cpuReleased": true,
+      "wifiReleased": true
+    },
+    {
+      "event": "execution_lease_acquired",
+      "jobId": "cb0a0f00-15fd-426b-9a1d-e37e343e6c8c",
+      "cpuHeld": true,
+      "wifiHeld": true,
+      "timeoutMs": 1800000,
+      "powerSaveEnabled": true
+    },
+    {
+      "event": "execution_lease_released",
+      "jobId": "cb0a0f00-15fd-426b-9a1d-e37e343e6c8c",
+      "cpuReleased": true,
+      "wifiReleased": true
+    }
+  ],
+  "limits": [
+    "Only this Android 13 phone and generated 720p fixture were tested.",
+    "The limiter deliberately prolongs transfer; this is not a throughput benchmark.",
+    "The passing native transfer retried SocketTimeoutException errors without a screen wake.",
+    "The earlier full-size Wi-Fi runs remain failed historical scenarios.",
+    "Unplugged operation, deep Doze, cellular transfer, API 34+, 4K/HDR, and the 30-minute deadline branch remain unverified."
+  ]
+}

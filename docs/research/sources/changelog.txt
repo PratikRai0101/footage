@@ -1,0 +1,934 @@
+Changelog | Cardboard
+RecipesMac
+Plugins
+ChatGPT pluginEdit video in ChatGPT
+Claude pluginEdit video in ClaudePricingChangelog
+LoginGet startedGet started
+What’s new in Cardboard
+Something new every week. Without fail.
+OCT 26Edit Videos
+OCT 20Faster Exports
+OCT 13Meet Recipes
+OCT 5Any Footage
+SEP 28Now on
+SEP 21Reliable Exports
+SEP 14Fast Scrubbing
+SEP 7Canvas Text
+AUG 31Captions Behind
+AUG 24Fewer Surprises
+AUG 17Footage First
+AUG 10New Sidebar
+AUG 3Exact Color
+JUL 27References
+JUL 20Agent eyes
+JUL 13Keyframes
+JUL 6Share Links
+JUN 29Real Footage
+JUN 22Trending Fonts
+JUN 15Reframe Every
+JUN 8New Look
+JUN 1Big Speedups
+MAY 25Faster AI
+MAY 18Speaker Reframes
+MAY 11Smarter Search
+MAY 4Smoother Reframes
+APR 27Subscription Offers
+APR 20Speaker Grid
+APR 13DaVinci Exports
+APR 6Cloud Processing
+MAR 30Perfect Audio
+MAR 23Edge Export
+MAR 16Faster Exports
+MAR 9GIF Exports
+MAR 2Chat Checkpoints
+FEB 22Export Options
+FEB 16Transitions
+FEB 10Layouts
+JAN 31New Timeline
+JAN 22Stacked Captions
+JAN 11Voice Cloning
+JAN 1Voiceover
+DEC 22Keyframe Animations
+DEC 15AI Vision
+DEC 3Transcription
+NOV 20Transitions
+NOV 14Faster Playback
+NOV 9Initial Release
+October 26, 2026#48
+0:00 / 0:001x
+Edit Videos in ChatGPT and Claude
+Cardboard now lives in ChatGPT and Claude. Drop in your clips, say what you want, and get a finished edit without
+leaving the chat.
+Edit by asking
+Cuts, captions, music, reframes and motion graphics, all on a real timeline. Not quite right? Ask again and the edit
+picks up where it left off.
+No setup, no extra plan
+Add Cardboard in ChatGPT or Claude and sign in. It works on every plan and uses the credits you already have. See how on
+the Plugins page.
+Finish in Cardboard
+Every chat edit is a Cardboard project. Click Open in Cardboard to fine-tune it in the browser or Mac app.
+YouTube, straight into your edit
+Ask the Director on the web for a YouTube video. It finds a few picks, you choose one, and it lands in your project.
+Improvements
+Fixes & housekeeping
+Bring a few clips to your next chat and see what you can make. Happy editing.
+October 20, 2026#47
+Faster Exports, Shareable Recipes, Photos to Video
+Exports got faster and a lot more dependable this week. Recipes are easy to share, your photos can become clips, and the
+Mac app runs lighter while the Director works.
+Faster, steadier exports
+Videos with motion graphics export up to 30% faster on Mac, so a minute-long edit that took 56 seconds now takes
+about 40. Heavy 4K projects use far less memory along the way. Before an export says it's done, Cardboard now checks
+that the file plays from start to finish, and makes it again if it doesn't.
+Share a recipe
+Found a recipe you love? Copy its link straight from the recipe and send it to a friend. If they're signed in, the link
+opens ready to remix. Every recipe now takes any mix of video, photos and audio, and the dialog is simpler: one place
+for your media, and Remix is always ready to go.
+Turn your photos into clips
+Start a generated clip from one of your photos, or use your pictures as references for a new still. When a clip needs an
+opening frame, you approve it once and the frame and clip are made together. Pick the quality you want and see what it
+costs before you generate, with a progress ring while it works.
+A lighter Mac app
+The Mac app uses about half the CPU while the Director is writing, and graphics with videos inside them keep up while
+you scrub. You can also put your library anywhere: open Settings › Library and choose Change… to move it to another
+folder or drive.
+Improvements
+Fixes & housekeeping
+Lots of this came straight from your bug reports, so keep them coming. Happy editing.
+October 13, 2026#46
+0:00 / 0:001x
+Meet Recipes, Make It Yours
+See a video you like, make your own version of it. This week is all about Recipes.
+Meet Recipes
+Recipes are finished edits you can remix with your own footage, from comic-strip vlogs to 3D titles. Pick one, add your
+clips, and the Director builds your version from it. They're open to everyone, on the web and on Mac.
+Browse every recipe
+Explore them all at cardboard.ai/recipes, on your laptop or your phone. Search the way you'd describe it,
+like "TikTok" or "product launch", and the matching recipes slide right into view. Every recipe gets its own page too.
+Remix in a few clicks
+Open a recipe to watch it in full, with sound. It tells you what to bring, which sizes it comes in and whether it uses
+generative credits. Have a video you love? Paste its link and remix that instead. If your footage doesn't fit, the
+Director asks before working around it.
+Improvements
+Fixes & housekeeping
+Find a recipe you love and make it yours. Happy editing.
+October 5, 2026#45
+Any Footage, Sharper Cutouts, 3D Graphics
+This week, Cardboard on Mac opens whatever your camera shoots, cutouts get sharper, and the Director learns to build in
+3D.
+Bring any footage
+Drop in clips straight from your camera, pro formats included, and start editing. Each clip shows up right away and gets
+ready while you work.
+Sharper cutouts
+Background removal is cleaner around the edges, so your subject stands out and text placed behind them looks real.
+Graphics in 3D
+Ask the Director for a 3D scene, like a spinning product shot or a flight down to Earth, and it builds it for you.
+A calmer agent chat
+On Mac, the agent tells you what it's doing in plain words instead of code. Want the details back? Turn them on in
+Settings. The Director also keeps track of much longer sessions.
+Improvements
+Fixes & housekeeping
+Bring whatever you shot and see what you make. Happy editing.
+September 28, 2026#44
+0:00 / 0:001x
+Now on Mac, Bring Your Agent
+Cardboard now lives on your Mac. Sign in with the account you already have and pick up editing in an app of its own.
+An app of its own
+Download the app, drop in your footage and talk to your timeline. Your cut comes together in its own window, right next
+to everything else you're working on. Cardboard in the browser works just like it always has.
+Bring your own Claude or Codex agent
+Keep editing with Director, or switch to the agent you already use. If you have a Claude or ChatGPT plan, your agent
+does the thinking while Cardboard gives it the footage, the timeline, and the tools to cut.
+Local by default
+Your footage stays on your Mac, and Cardboard edits it right there. Nothing to upload, nothing to wait on.
+Improvements
+Fixes & housekeeping
+Download it, drop in some footage, and tell us what you make. Happy editing.
+September 21, 2026#43
+Reliable Exports, Smoother Graphics
+A week on the parts you only notice when they break. Exports come out right, and graphics keep playing.
+Exports you can trust
+Every export gets checked before it reaches you. If the picture or sound didn't make it, we finish it in the cloud or
+tell you what's missing. No more frozen frames, no clicks in the audio.
+Graphics that don't stall
+One graphic plays straight into the next, with no grey boxes in between. If one stalls, it fixes itself. If it can't,
+there's a Retry button.
+Improvements
+Fixes & housekeeping
+Less to notice, which is the point. Happy editing.
+September 14, 2026#42
+Fast Scrubbing, Editable Graphics, Sharper B-roll
+Scrubbing that keeps up
+Drag the playhead and frames arrive as fast as you move, long recordings included. Projects open quicker too:
+what sits near the playhead loads first and the rest of your library follows quietly behind it.
+Motion graphics you can edit by hand
+Click a graphic and its properties panel lists the words, numbers and colours inside it. Change one and the canvas
+updates as you type, and the whole run collapses into a single undo.
+B-roll lands on the right moment
+Where a stock clip starts now comes from watching the clip, not from a dozen preview frames. Long archival footage
+stops opening on its title card.
+Improvements
+Fixes & housekeeping
+More of that to come. And we're heads-down on something bigger behind the scenes, so keep an eye out :)
+September 7, 2026#41
+0:00 / 0:001x
+Text on the Canvas, Effects You Can See
+Styling moved onto the video this week. Text and effects both happen where you can see them now.
+Text styling on the canvas
+The toolbar floats next to the words you are editing instead of sitting off in a side panel. Font, weight, colour and
+shadow, all of it above the text. Presets restyle a clip without touching what it says, and the animation tiles play
+your own title rather than a stock phrase.
+0:00 / 0:001x
+Effects you can see before you pick
+Every look is rendered on your own footage now, not a name in a list. Texture and finish sit above the colour looks, so
+grain and vignette stop getting lost among the grades.
+0:00 / 0:001x
+A Director that says when it is stuck
+It used to reach its limit, try one more edit, and finish with nothing useful. Now it closes out and tells you what it
+could not do. It gets a lot more room on a long job, too. And when a reply lands, you can give it a thumbs up or down.
+Sharper eyes on your footage
+The model that watches your footage is new. Videos over a minute stop stalling partway through, and a long recording
+with one screen share in it no longer gets filed as a screen recording. B-roll picks are better as well: no letterboxed
+clips, and nothing already in your project gets pulled in twice.
+Improvements
+Fixes & housekeeping
+Styling belongs where you can see it. More of that to come.
+August 31, 2026#40
+Captions Behind You, A Steadier Director
+We moved house this week. Captions got the rework too: twenty-one styles now, and nine of them put the words behind the
+person talking.
+We live at cardboard.ai now
+Cardboard has a new address. usecardboard.com still works and still lands you in the same place, so your bookmarks and
+anything you've already shared carry on as they are.
+Captions that pass behind you
+Pick a style from Behind Subject and the words travel past the speaker instead of sitting on top of them. We find the
+person for you, clip by clip. If a shot has nobody in it, the words stay in front.
+A toolbar right on the video
+Click a caption and the controls come to you: font, size, colour, shadow, and the switch that puts the words behind your
+subject. Everything redraws as you go. Double-click to fix a word in place, and Apply to all gives the rest the same
+style.
+0:00 / 0:001x
+A steadier Director
+Pick a track or a voice when it asks, and your original request carries on with that choice instead of starting over
+from the selection. It stops when it's stuck rather than going round again, and wraps up with a summary instead of going
+quiet. And before it calls an audio edit done, it listens to the finished mix.
+Play a clip backwards
+Open Speed, flip Reverse playback, and the clip runs backwards in the preview and in your export, marked REV on the
+timeline. Ask the Director for it if you'd rather. Reversed clips run silent.
+Improvements
+Fixes & housekeeping
+Nine styles is a start. Tell us which ones you want next.
+August 24, 2026#39
+Fewer Surprises, Sharper Montages
+This one is mostly about trust. The Director checks its own work now, and tells you when something didn't land.
+The Director checks its own work
+Ask for a change and it goes back over the result before it says anything, holding your timeline up against what you
+actually asked for. If a part of it didn't land, you hear about it. It won't call an edit done when half the request
+quietly went missing.
+Montages that don't repeat themselves
+Every moment gets used once. When the music wants more cuts than your footage can fill, you get longer shots instead of
+the same clip three times over. Ask for a cut on every beat with too little to work with and it comes back to you rather
+than pad it out.
+Cleanup that finishes the job
+The dead air goes with the bad takes now. Ask for a cleanup and you get the retakes, the filler and the gaps they leave
+behind in one go, instead of a clean read full of holes.
+Improvements
+Fixes & housekeeping
+The Director is getting harder to catch out. Tell us when it slips.
+August 17, 2026#38
+Footage First, Faster Exports
+Two things you'll notice this week. You start with your footage instead of a blank prompt, and exports finish a lot
+sooner.
+Start with your footage
+Drop your clips in first. The prompt appears once they're in, so you're not staring at an empty box working out what to
+say. Send just the clips if you like, with nothing written. They line up in a single row however many you add, and if
+you take a couple out, we'll offer to clear the rest.
+Exports are a lot faster
+Here are a few of the runs we measured, before and after.
+A straight cutPress to run itbefore35.4snow11.6s
+Exports come out at High quality by default now, and the black frame that could flash between two clips is gone.
+Send a clip to another project
+Pick anything in your Asset library and Add to project sits next to Download. One field searches the projects you have
+or names a new one. You get your own copy, so deleting it in one project leaves the other alone, and adding the same
+clip twice still leaves you with one.
+0:00 / 0:001x
+You pick which version to keep
+If we recover a version of your project, it waits for you. You see it next to the one you have now, with the time, clip
+count and length for both, and you choose. Nothing reaches your editor until you say so, and the recovered version stays
+put if anything goes wrong.
+Improvements
+Fixes & housekeeping
+Drop a few clips in and see where it takes you.
+August 10, 2026#37
+New Sidebar, Asset Library
+Most of this week went into the parts of Cardboard you move through before you start cutting.
+A sidebar that stays with you
+Home, Projects and your Asset library now live down the left, and the rail folds away when you want the room. Your
+recent work sits in a row you can sweep through, with the sample projects cleared out.
+Every file in one place
+Everything you've uploaded, finally gathered out of individual projects. Search it, filter by type or length, and pull
+anything back down.
+0:00 / 0:001x
+Fill a layout slot from your media
+Layouts used to ask which track to use, which isn't how anyone thinks. Now you pick straight from your footage, and it
+lands framed on whoever's in the shot.
+0:00 / 0:001x
+Ask it to fix black bars
+Black edges are easy to spot and tedious to chase. Now you just ask, and the agent says so plainly when it can't.
+Improvements
+Fixes & housekeeping
+Mostly about where things live. Have a look around.
+August 3, 2026#36
+Exact Color, ProRes and Dolby, New Captions
+This one's mostly polish: two new caption presets, color control precise to the number, and an editor that's calmer to
+sit in. Here's what shipped this week.
+Two new caption presets
+Beast Mode gives you that big MrBeast energy, and Rapid Reveal shows your words one at a time as you say them. Both
+are in the Captions panel now.
+Color, to the number
+Ask for an exact value and you get it. Say "exposure +0.8, temperature -20, every clip" and the real sliders move,
+instead of landing on a preset that's just close. Works across all ten color controls, on as many clips as you want.
+A cleaner editor
+Chat is easier to follow now, with the agent's thinking folded right into the rest of what it's doing. Side panels
+look more consistent, and clip thumbnails finally show the right frame.
+ProRes and Dolby files just open
+ProRes footage now imports, previews, and exports, instead of hitting an unsupported codec error. Dolby AC-3 and
+E-AC-3 audio plays and shows a waveform too. If a file truly can't be read, we'll tell you exactly what to convert it
+to.
+Improvements
+Fixes & housekeeping
+A quiet week, but a solid one. Go make something good.
+July 27, 2026#35
+References, A Faster Editor, Fresh Paint
+Hand the agent a video you like, and it matches it. Here's what shipped this week.
+Show it what you're going for
+Attach a video or image to your message. The agent studies its color, pacing, and fonts, then edits to match, and it can
+lift the audio straight onto your timeline.
+A faster editor
+The editor now loads about half the code it used to. Projects open the moment they're ready, and everything else just
+feels quicker to the touch.
+A calmer chat
+A long agent turn no longer reads like a wall of steps. It folds into one line while it works, and queued prompts now
+sit in a draggable row on the composer.
+A new color picker
+One picker for every color field: a hue ring, presets, and an eyedropper that samples any color on your screen.
+Improvements
+Fixes & housekeeping
+Faster, tidier, and it can see what you're going for. Go make something good.
+July 20, 2026#34
+The Agent Got Eyes
+The big one this week: the agent can watch your video now and fix its own work. Free trials are here too. Here's
+everything.
+A second pair of eyes
+The agent can see your timeline now, not just the numbers behind it. After it makes a change it looks at the actual
+frames, spots what went wrong, a caption sliding off screen, a cut landing a beat early, and fixes it before handing the
+edit back. You can also point it at any moment and ask what it sees.
+Try it free for three days
+Every plan now opens with a 3-day free trial. Add a card, get the whole thing, and cancel any time before it ends. New
+here only.
+Your work keeps running in the background
+Switch tabs mid-import and Cardboard used to just stop. Not anymore. Uploads, analysis, and transcription now keep going
+while the tab sits in the background, and everything's caught up when you come back to it.
+Download any clip
+Right-click a clip on the timeline and hit Download Clip. You get just that piece, trimmed to exactly what's on your
+timeline, at full original quality. Works for video and audio.
+Improvements
+Fixes & housekeeping
+More next week. Go make something good.
+July 13, 2026#33
+Keyframes, Blur, Familiar Shortcuts
+The timeline just got a lot more capable. Keyframes live right on it now, clips snap and duplicate the way you expect,
+blur joins your effects, and Cardboard can speak your editor's shortcuts.
+Keyframes, right on the timeline
+Open a track and its properties fan out into keyframe lanes. Drag the diamonds to retime a move, click one to jump there
+and light up the matching field in the inspector, and press Delete to drop it. Collapse the clip and the keyframes ride
+along as a marker strip. Press U to expand. Animate position, scale, opacity, blur, and more, with the preview following
+your drag live.
+Cut, duplicate, snap
+The timeline keeps up with your hands now. Cmd/Ctrl+X cuts the selected clips, Alt/Option-drag drops a duplicate right
+where you let go, and clips snap to each other's edges as you drag. Press S to toggle snapping off when you need to
+place something by eye. Dragging several clips across tracks lands them cleanly.
+Your shortcuts, your way
+Press ? for the redesigned shortcuts dialog: a full keyboard you can hover to inspect and click to rebind,
+with presets for Premiere Pro, DaVinci Resolve, Final Cut Pro, and CapCut. Bring the muscle memory you already have, or
+build your own map. Your changes stick.
+Gaussian blur
+Blur is one of your effects now. Soften a background, ease a face out of focus, or keyframe it in and out over time.
+Improvements
+Fixes & housekeeping
+The editor's in your hands now. Go make something good.
+July 6, 2026#32
+Share Links, Video Comments
+This one is about getting your video in front of people. Share a link and anyone can watch and leave feedback right on
+the frame. Take a look at one of ours, comments and all. Here's
+what's new.
+Share your video with a link
+Turn any project into a link and send it to anyone. They open a clean watch page, no login, and always see your latest
+published cut. You decide when to publish: the page tells viewers plainly whether they're watching your latest edits or
+a version you haven't pushed yet, and copying the link works the instant one exists. Sharing is now on for every
+account.
+Comments, pinned to the frame
+On that same page, anyone with the link can leave a comment pinned to the exact moment in the video, just a name and
+email, no account needed. Each note jumps you straight to its timecode. You can resolve or delete them, and step right
+back into the project to act on the feedback.
+Word Pop captions
+A new caption style reveals your words as they're spoken and pops the keyword big on its own line. Captions also go
+quiet during long silences now, across every preset, so nothing lingers on screen when no one's talking.
+Improvements
+Fixes & housekeeping
+Make something worth sharing. We'll get it in front of people.
+June 29, 2026#31
+Real Footage, Retro Effects, Detached Audio
+Cardboard can now go find real footage for you, and there's a fresh set of retro film looks to give it character. Here's
+what's new.
+Bring in real footage
+Ask for a shot and Cardboard goes and finds it. It searches stock libraries and public archives, picks the clips that
+actually match, and drops them onto your timeline. Use them as b-roll over your voiceover or as the main visual, and
+every clip carries its credit. There's a new documentary flow too, that covers a voiceover end to end with real archival
+footage.
+A retro look
+New film and TV effects: grain, vignette, scanlines, and halation, plus faded film, technicolor, and newsreel presets.
+They live in the Effects panel, formerly Filters, preview on hover, and carry through to your exports exactly as you see
+them.
+Pull audio off a clip
+Ask the agent to separate a video's audio and it lifts the sound onto its own track, so you can keep the audio and drop
+or replace the picture. The same move the timeline already had, now something you can just ask for.
+Improvements
+Fixes & housekeeping
+Roll something beautiful. We'll handle the b-roll.
+June 22, 2026#30
+Trending Fonts, Message Queue, Smarter Prompts
+Five new fonts, a smarter chat, and a handful of fixes.
+Five new fonts
+Advercase, ZT Formom, Pixelon, Bootzy, and New Romantics are available in the caption and text pickers. They carry
+through to exports at full parity, so what you preview is what you get.
+Queue your messages
+Send a prompt while the agent is still working and it goes into a queue, numbered and visible in the composer. Each one
+fires automatically when the previous run finishes. There's also a dedicated stop button now, separate from the send
+button, so you can abort a run without losing what you typed next.
+Improvements
+Fixes & housekeeping
+More next week.
+June 15, 2026#29
+Reframe Every Clip, Beats That Land, Faster Timeline
+Three things got sharper this week. Reframing now carries across every clip you cut, music edits land on the beat, and
+the timeline stays smooth as your project grows.
+One reframe for every clip
+Cut a long recording into separate clips, a podcast into highlights or an interview into moments, and reframing now
+applies to all of them in a single pass and a single undo. Cardboard also stays on the right person through shot
+changes, instead of drifting to whoever just stepped out of frame.
+Beats you can edit to
+Beat-synced edits land where you expect them. Cardboard tracks a song's real beat grid instead of guessing from drum
+hits, so cuts and effects sit on the beat, even through quieter stretches with no percussion. It reads up to 20 minutes
+of a track too, so longer songs stay in sync the whole way.
+A faster timeline
+The timeline does far less work while you scroll, play, and edit, so it stays responsive on bigger projects. It also
+hands memory back during exports instead of holding onto it, so long sessions stay light.
+Improvements
+Fixes & housekeeping
+Cut it however you like. Cardboard keeps up.
+June 8, 2026#28
+New Look, Simpler Pricing, Smarter Agent
+This is a big one. Cardboard looks and feels new, pricing just got simpler, and everything for your account finally
+lives in one place. Here's what's new.
+A brand new Cardboard
+Cardboard has a fresh new look, and it runs deeper than the visuals. The whole experience feels more personal and more
+polished, built around you and your work. We reimagined onboarding and redesigned every dashboard screen, so it feels
+right from your very first visit.
+Simpler pricing
+We've moved to usage-based pricing. Plans now start at $32 a month, down from $60, so it's easier to get started and you
+only pay for what you use. Generous weekly and monthly limits keep credits out of your way while you work.
+Already with us? Nothing changes. You keep every perk and unlimited usage, just as we promised. Switch to the new plan
+anytime if it suits you better.
+Read more on our pricing page.
+Settings, all in one place
+Your settings and billing are completely rebuilt. Privacy, your account, usage, payment methods, plan changes, upgrades
+and downgrades, monthly or annual, it all lives in one place now. No more hopping between your account and a separate
+billing dashboard just to change one thing.
+A smarter agent
+The agent got a lot of work under the hood, and you'll feel it. It's sharper, more direct, and more capable, with a more
+personal touch. Surgical edits and quick follow-ups in particular are faster and more precise than before.
+Improvements
+Fixes & housekeeping
+We poured a lot into this one. We hope it shows.
+June 1, 2026#27
+Big Speedups, Smarter Framing, Smoother Chat
+A faster, smarter week. Cardboard frames your shots on its own, keeps speakers centered as they move, and gets you
+through voiceovers and big imports in a fraction of the time.
+A smoother chat
+Pick layouts, music, and voices right where you're chatting, without hunting through menus. Previews stay clean and out
+of the way while you type your next prompt.
+Smarter auto-framing
+Let Cardboard choose the right aspect ratio for you, faster and more accurately, from your footage and your prompt.
+Vertical, square, and wide cuts land without any extra setup.
+Reframes that follow movement
+Speakers stay in frame as they move around the shot, and the cut to whoever starts talking is quicker than before.
+Conversations feel natural without any manual keyframing.
+Faster voiceovers and imports
+Generate voiceovers up to 8x faster, with longer scripts that now finish reliably. Big footage imports up to 4x faster
+too, so heavy clips are ready to edit much sooner.
+Improvements
+Fixes & housekeeping
+A bigger release lands next week. Stay close.
+May 25, 2026#26
+Faster AI Edits, Clearer Media Progress
+Less waiting, more editing. The agent gets to work sooner, speaker reframes feel more natural, and you can always see
+what Cardboard is preparing behind the scenes.
+Faster AI edits
+Prompts start working sooner, especially on larger projects, so there's less waiting after you ask Cardboard to make an
+edit.
+Smarter speaker reframes
+Speaker-focused edits feel more natural, with quicker switches and smoother tracking as people move.
+Clearer media progress
+When Cardboard needs to prepare clips before an edit, chat now shows exactly which files are still uploading, preparing,
+analyzing, or transcribing.
+Smoother project home
+Recent projects, samples, renames, and deletes are more dependable, with clearer previews before the important actions.
+Improvements
+Fixes & housekeeping
+Less waiting, more flow.
+May 18, 2026#25
+Speaker-Aware Reframes, Smoother Editing
+Big multi-speaker clips just got easier, and the editor around them got faster. Cut to whoever's talking automatically,
+move through large edits smoothly, and come back to your projects fully intact.
+Speaker-aware reframe
+Turn interviews, podcasts, and other multi-speaker clips into fullscreen edits that cut to whoever is speaking,
+automatically.
+A faster timeline
+Move around bigger edits with smoother scrolling, clearer waveforms, tighter playhead sync, and more dependable
+dragging.
+More reliable exports
+Export layered projects with clearer progress, better downloads, and fewer edge-case failures.
+Better project reopens
+Come back to your projects with media, transcripts, analysis, and searchable moments restored more dependably.
+Improvements
+Fixes & housekeeping
+Point it at your next interview and watch it cut itself.
+May 11, 2026#24
+Smarter Search, Media Insights
+Finding the right moment just got a lot faster. Search your footage by what's actually in it, peek inside any clip
+before you scrub, and review the highlights Cardboard picks before they reach your timeline.
+Search for any moment
+Find exact moments by what's said, what's on screen, the objects in frame, filenames, and scene details. Preview a match
+and drop just that segment onto your timeline.
+Media insights at a glance
+Open a media preview to see concise visual and speech context while you scrub, so you know what's inside a clip without
+watching the whole thing.
+Highlight preview
+Review the highlights Cardboard picks in a playable flyout, then choose what to keep before anything lands on your
+timeline.
+Improvements
+Fixes & housekeeping
+Go find your moment.
+May 4, 2026#23
+Smoother Reframes, Reliable Project Opens
+A steadier week. Reframes track your subjects more naturally, and your projects come back the way you left them, even
+the ones you started offline.
+Smoother auto-reframe
+Speakers and subjects stay framed more naturally, especially on longer clips and shots with a lot of movement. Less
+drift, fewer awkward crops.
+More reliable project opens
+Reopen your projects with far fewer missing-media hiccups, including projects with generated voiceovers or work you
+started locally before syncing.
+Improvements
+Fixes & housekeeping
+Plenty more under the hood, with something bigger on the way.
+April 27, 2026#22
+Subscription Offers, Polished Previews, Faster Loads
+There are new subscription deals to grab, your projects open faster, and previewing clips feels a lot smoother. Here's
+what's new.
+Special subscription offers
+There's a new place to find subscription deals, with a landing experience built around the offer and a checkout flow
+that gets you through in fewer steps. It looks and works just as well on your phone, so you can browse and claim an
+offer wherever you are.
+Projects that open faster
+Opening a project is quicker now. Thumbnails appear sooner, the name shows up while everything loads so you always know
+what you're opening, and a clearer "preparing" phase tells you exactly where things stand. If an import hits a snag, it
+recovers on its own instead of leaving you stuck, and reopening picks up right where you left off.
+Smoother media preview
+Scrubbing through a clip lands where you expect it to, with a seek bar you can trust. Take any clip fullscreen and
+Cardboard's playback controls stay on top, so you keep full command of what you're watching.
+Improvements
+Fixes & housekeeping
+P.S. Still reading down here? You're our kind of person.
+Hey can you share the secret offer with me?
+April 20, 2026#21
+Speaker Grid Reframing, Smarter Cleanup
+Reframing got a lot smarter this week. Multi-person footage now lays itself out into clean split layouts, transcript
+cleanup lets you pick how aggressive to be, and long transcripts scroll without a hitch.
+Speaker grids from one prompt
+Point Cardboard at multi-person footage and ask for a split layout. It recognizes each speaker and arranges them into
+their own slot automatically, so a single prompt turns a busy shot into a polished grid. Auto-reframe motion is steadier
+too, with smooth tracking that keeps your subject framed cleanly even on fast-moving shots.
+Cleanup, your way
+Transcript cleanup now asks how far you want to go. Pick Light, Balanced, or Tight right in chat and preview each one
+before you commit, so you can see exactly what gets cut. Whatever you choose, word boundaries stay protected and nothing
+gets clipped mid-word.
+A faster captions panel
+Scroll through long-form transcripts without the lag. Even projects with thousands of caption segments stay smooth, and
+your captions show up the moment a project opens instead of waiting for the panel to catch up.
+Improvements
+Fixes & housekeeping
+Hand Cardboard a room full of speakers and get a clean grid back.
+April 13, 2026#20
+DaVinci-Ready Exports, Synced Chat History
+This release is all about handing your edit off cleanly and picking your work back up wherever you are. Exports now drop
+straight into DaVinci Resolve, and your chats follow you across devices.
+A clean handoff to DaVinci Resolve
+Send your edit to DaVinci Resolve and it just opens. Media relinks on its own, camera timecodes come along for the ride,
+your assets are bundled, and the audio is all there. Premiere handoffs got the same care, with cleaner export options,
+bundled assets, and smarter media sorting so projects land where you expect.
+Chats that follow you
+Your AI conversations now live with your account instead of a single browser tab. Start something on your laptop,
+refresh the page, or move to another machine, and the whole history is waiting for you.
+A clearer welcome
+Open Cardboard in Arc, Safari, or Brave and you'll get a friendly nudge that tells you exactly what to do next, so a new
+browser never leaves you guessing.
+Improvements
+Fixes & housekeeping
+Edit here, finish in Resolve. Your chat history makes the trip too.
+April 6, 2026#19
+Cloud Processing, Smarter AI, Faster Loading
+Big files edit smoothly now, projects open faster, and the agent always works from what's actually on your timeline.
+Here's what's new.
+Edit big files without the lag
+Drop in a massive video and keep editing at full speed. Large media gets prepared in the background, so playback and
+scrubbing stay smooth no matter how heavy the source footage is.
+Projects that open faster
+Opening a project is quicker, and you can see it happen. A detailed progress view shows what's loading, and your media
+gets checked along the way so problems surface before they trip you up.
+An agent that sees your latest timeline
+The agent now always works from your current timeline, so its edits land where you expect. It checks the state of your
+project before acting, which means more accurate changes and fewer surprises.
+Improvements
+Fixes & housekeeping
+The heavy lifting happens in the cloud now, so your projects open faster.
+March 30, 2026#18
+Perfect Audio Sync
+Audio now stays locked to picture no matter how long your timeline runs, in playback and in your exports. Here's what
+changed.
+Audio that stays in sync
+We rebuilt how audio lines up with your video, and the drift is gone. Play back or export an hour-long project and the
+sound stays right where it belongs, from the first frame to the last. Long timelines that used to slowly slip out of
+time now hold perfectly, all the way through.
+Improvements
+Fixes & housekeeping
+Press play on your longest project. The audio will be exactly where you left it.
+March 23, 2026#17
+Edge Export, Audio Sync, Browser Compatibility
+Cardboard now exports locally in Microsoft Edge, your audio stays tighter through long projects, and your browser tells
+you up front whether it can keep up.
+Export in Microsoft Edge
+You can now export your videos locally right inside Microsoft Edge, no Chrome required. If Edge is your everyday
+browser, you can edit and finish a project end to end without switching to anything else.
+Know your browser is ready
+If your browser is missing the graphics support Cardboard needs, you'll get a clear heads-up instead of a confusing
+failure later. You'll know what's wrong and what to do about it before you sink time into an edit.
+Improvements
+Fixes & housekeeping
+Edge users, this one's for you.
+March 16, 2026#16
+Faster Exports, Mandarin Support, Subscription Management
+Exports are faster and far more reliable, you can now work in Mandarin, and managing your plan no longer means leaving
+the app. Here's what's new.
+More reliable exports
+Exporting in Chrome is steadier now, with better audio handling and recovery when something goes wrong mid-render. We
+stress-tested it against projects over 200 GB, so even your heaviest timelines make it all the way through.
+Faster exports
+We rebuilt the export pipeline and put your hardware to work. Renders are quicker across the board, and the gains hold
+up on larger projects instead of slowing to a crawl.
+Mandarin support
+You can now transcribe, analyze, and caption your videos in Chinese (Mandarin). Cleanup and captions work the same way
+they always have, just in a new language.
+Manage your plan in settings
+Cancelling or changing your subscription now happens right inside settings. No support email, no separate billing page,
+just the controls where you'd expect them.
+Improvements
+Fixes & housekeeping
+Even your biggest exports finish in a fraction of the time now.
+March 9, 2026#15
+GIF Exports, Smart Reframing, Better Voiceovers
+You can export GIFs now, let clips reframe themselves for any aspect ratio, and hear voices before you commit to one.
+Here's what's new.
+Export a GIF
+Pick any range of your video and export it as a GIF. Thumbnails let you scrub to exactly the frames you want, so the
+loop you share is the one you meant to make.
+Reframing that follows the subject
+Switch to a new aspect ratio and your clips adjust their own scale and position to keep the subject in view. No more
+nudging every shot by hand when you move from wide to vertical.
+Better voiceovers and text
+Preview voice options and hear how each one sounds before you generate a voiceover, so the take you get is the one you
+picked. Text got richer too: add motion with 12 new presets, rotate it, tune its padding, and it stays crisp wherever
+you place it. And when an idea is still rough, one click rewrites it into a clearer edit request.
+Improvements
+Fixes & housekeeping
+Set the ratio once, and your clips reframe themselves.
+March 2, 2026#14
+Chat Checkpoints, Faster Exports, Fresh Look
+You can now rewind your AI chat to any point and get the timeline back exactly as it was. Exports are faster, and
+sign-in got a cinematic makeover.
+Chat checkpoints
+Every message in your AI chat is now a save point. Roll back to any earlier moment and your timeline returns exactly as
+it was, so you can explore a bold edit and step back without losing your place.
+Faster, steadier exports
+Exports render noticeably faster, and the long ones hold together. Hour-long videos now finish without stalls, audio
+cutoffs, or a frozen progress bar, and the percentage stays honest the whole way through.
+A redesigned sign-in
+Logging in greets you with a cinematic split-screen and smooth transitions. It is the same quick path in, with a lot
+more polish on the way.
+Improvements
+Fixes & housekeeping
+Take a risk in chat. If it does not land, one click puts everything back.
+February 22, 2026#13
+Export Options, HDR, Beat Sync
+This week is about finishing the cut and getting it out clean. You can lay out shots faster, bring in much bigger files,
+cut to the beat, and export with HDR color intact.
+Layouts you can shape by hand
+Layout presets are redesigned with drag-and-drop and live previews, so you can see each arrangement before you commit
+and nudge things until the framing feels right.
+A sharper agent
+The agent asks better questions when it isn't sure what you mean, including grouped multi-part prompts instead of one at
+a time. When several music tracks fit, it hands you an interactive picker so you choose the one you want. It can also
+cut to the beat now, lining up your edit with the percussion in a track.
+Bigger files, cleaner exports
+Upload limits doubled: up to 2.5GB on Creator and up to 10GB on Pro. On the way out, software encoding, a low-memory
+mode, and HDR color correction keep long videos exporting reliably with their full color.
+Improvements
+Fixes & housekeeping
+Ten gigs in, full HDR out.
+February 16, 2026#12
+Transitions, Background Removal, Multilingual Captions
+This week is about the moments between your clips and the world behind your subject. You get real transitions, one-click
+background removal, voiceovers that arrive as they speak, and captions in more languages.
+Transitions between clips
+Add a transition wherever two clips meet, with the controls right there at the seam. Set the look and timing without
+leaving your edit, and the cut between shots flows the way you want.
+Lift your subject out of the background
+Remove or replace the background on any video or image in a single click. Cardboard reads the depth of the scene too, so
+it can tuck text behind your subject for a layered, in-the-room look.
+Voiceovers that stream as they speak
+Voiceovers are more expressive now, and they start playing back as they're generated instead of making you wait for the
+whole take. Captions also speak more languages, so you can subtitle in whatever your audience reads.
+Improvements
+Fixes & housekeeping
+Subtitle once, reach everyone.
+February 10, 2026#11
+Layouts, Cleanup, Background Sync
+This week is about starting faster and worrying less. Drop in a layout to kick off an edit, clear the dead air out of
+your recordings, and let your work save itself in the background.
+Start from a layout
+New layout presets give you a head start on common compositions, so you can drop one in and build from there instead of
+arranging everything from scratch. It's the fastest way to get an edit moving.
+Clear out the silence
+Auto-cleanup reads your transcript and trims the silent gaps and dead takes out of a recording for you. Point it at a
+long, rambly take and get back something tight and watchable.
+Saved without thinking about it
+Your projects now back up to the cloud on their own while you keep editing, so nothing waits on a save button and you
+never lose your place. We also moved into a new home at usecardboard.com (now cardboard.ai).
+Improvements
+Fixes & housekeeping
+Save button? You won't miss it.
+January 31, 2026#10
+New Timeline, Sound Effects, Subscriptions
+The timeline is rebuilt, there's a library of music and sound effects to draw from, and you can now start a project
+straight from a prompt. We also opened the doors to everyone with a free trial.
+Start from a prompt
+The home screen now puts the agent front and center. Describe the video you want and start building right there, instead
+of setting up an empty project first and figuring out where to begin.
+A rebuilt timeline
+The timeline got a ground-up rework, and editing feels steadier for it. Dragging clips is smoother, trimming lands where
+you mean it to, and the small frictions that used to slow you down are gone.
+Music and sound effects
+Browse a curated library of music and sound effects and drop them straight onto your timeline. Music and sound effects
+now behave the same way, so once you've placed one you already know how the rest work.
+Open to everyone
+We retired the waitlist. Anyone can sign up and start with a free trial, and subscriptions are live when you're ready to
+keep going.
+Improvements
+Fixes & housekeeping
+The waitlist is gone. The doors are open to everyone.
+January 22, 2026#9
+Stacked Captions, Product Demos, Big Files
+This week brings a fresh caption style, smoother product demos, and room for much bigger footage. Here's what's new.
+Captions that reveal as you talk
+Stacked captions are a new animation that brings your text in line by line as it's spoken, so it reads along with the
+voice instead of landing all at once. The captions panel now follows the playhead while you work, and steps aside the
+moment you scroll so you can move freely.
+Smoother product demos
+Putting together a product demo is easier now, with better support for the moves those edits lean on. Crop a clip to a
+preset aspect ratio right on the canvas, save the current preview frame as an image, and press F to drop into fullscreen
+for a clean look at your work.
+Room for bigger footage
+You can now edit videos up to 5GB, so longer recordings and high-bitrate captures come in without trimming them down
+first. Import iPhone photos in their HEIC and HEIF form directly, no conversion step. And if files moved since your last
+session, reconnect them in place instead of starting over.
+Improvements
+Fixes & housekeeping
+Captions that keep pace, files that don't hold back.
+January 11, 2026#8
+Voice Cloning, Sentence Search, Ripple Delete
+A big week for voices and finding your footage. You can clone any voice, search your media by describing it in plain
+language, and edit your timeline with fewer fiddly steps.
+Voices that sound like you want
+Browse hundreds of voices and narrow them down by gender, age, accent, and language until one feels right. If you have a
+voice in mind that isn't there, clone it by uploading or recording a short sample. Voiceovers also get a cleanup pass
+that strips filler words and dead pauses so they land cleanly, and transcription now handles 10+ languages with
+automatic detection.
+Search by describing it
+Find media by writing a rough sentence instead of guessing at filenames or exact words. Describe the moment you're after
+and Cardboard surfaces the clips that match.
+A faster timeline
+Ripple delete removes a clip and closes the gap it leaves behind in one move, so your edit stays tight. The agent also
+chimes in mid-conversation with clickable suggestions, so the next useful step is right there when you want it.
+Improvements
+Fixes & housekeeping
+Clone a voice, search a line, trim in a tap.
+January 1, 2026#7
+Voiceover, Spatial Awareness, Sample Projects
+A few big ones this time. You can generate voiceovers, the agent understands what's happening inside your frame, and
+there's more to play with on the canvas and in chat.
+Generate voiceovers
+Create professional voiceovers right inside Cardboard, with a range of voices to pick from. Drop one onto a section that
+needs narration and keep editing without ever leaving your project.
+An agent that sees your frame
+The agent now understands what's happening inside your frame. It places captions and overlays where they won't block
+your subject, so things land in the right spot the first time.
+Move around the canvas
+Pan, zoom, align, and rotate with guides and snapping to position everything just right. Timeline zoom now anchors
+around the playhead, so you stay oriented as you move through a project.
+Start from a sample
+New explainer and montage templates get you going fast. Open one, swap in your media, and you have a real project to
+build from instead of a blank canvas.
+Improvements
+Fixes & housekeeping
+Give your edits a voice. We're only getting warmed up.
+December 22, 2025#6
+Keyframe Animations, Playback Speed, Cloud Projects
+A big one for motion and storage. You can animate anything on the timeline, bend playback speed for slow-motion or
+time-lapse, dress up your video with a background, and keep your projects safe in the cloud.
+Animate anything with keyframes
+Set keyframes on timeline items and let Cardboard move them for you. Position, scale, and more can now change over time,
+so you can build real motion into your edits instead of static placements.
+Bend playback speed
+Speed clips up for a time-lapse or slow them down for a dramatic beat. Speed changes carry through to your audio and
+exports, so what you hear in the editor is what you get in the final video.
+Backgrounds for your video
+Drop a background behind your video, whether that's a gradient, a solid color, or one of the macOS wallpapers. It's an
+easy way to frame vertical clips or give a plain shot some room to breathe.
+Your projects, in the cloud
+Projects and media now live in the cloud, so your work is backed up and ready to pick up from anywhere. A new settings
+panel also gives you one place to manage your preferences.
+Improvements
+Fixes & housekeeping
+More ways to move, and a safer home for your work.
+December 15, 2025#5
+AI Vision, Music Library, Canvas Crop
+Cardboard understands your footage now, there's a music library to score it, and a handful of on-canvas tools make
+shaping your edit feel direct. Here's what's new.
+An agent that sees your footage
+The agent can now look at what's actually in your clips, the scenes, actions, and on-screen text, and suggest edits
+based on it. Describe a moment in plain language and it finds the footage, and you can ask it to generate and place
+captions across your timeline for you.
+A music library
+Browse royalty-free tracks by genre and mood and drop them straight onto your timeline. Tracks preload as you hover, so
+the moment you pick one it's ready to play.
+Shape your edit on the canvas
+Crop videos and images right on the canvas with pixel precision, and hold Option or Option + Shift while you resize for
+finer control. Hover any color grade to preview it before you commit, and reach for new text controls like letter
+spacing and line height to get type looking the way you want.
+Improvements
+Fixes & housekeeping
+The agent can see now. Imagine where that goes.
+December 3, 2025#4
+Transcription, Agent Overhaul, Canvas Editing
+A big step forward. Cardboard can now transcribe your footage, the agent got a major overhaul, and you can edit clips
+right on the canvas. Here's what's new.
+Automatic transcription
+Drop in a video or audio file and Cardboard transcribes it for you. The text is fully searchable, so you can jump
+straight to the moment you're after, and you get timestamped captions to work from.
+A smarter agent
+Director chat has been overhauled with new tools, clearer messages, and a model picker so you can choose the model that
+fits the job. Conversations are steadier now, and the agent reasons more reliably about your project as you work.
+Edit on the canvas
+You can now drag, scale, and position clips directly on the canvas and see the result in real time. A new unified
+effects panel keeps your transitions and effects in one place, you can select several timeline items at once to edit
+them together, and you can hand a project off to Premiere Pro with XML export.
+Improvements
+Fixes & housekeeping
+A lot landed this week, and we're not slowing down.
+November 20, 2025#3
+Transitions, Text, Shot-Level Search
+A big set of building blocks this release. You can move between clips with transitions, drop styled text on your video,
+find any moment by describing it, and chat with the agent in a panel that remembers your conversations.
+Transitions and text
+You can now add fade, scale, and fly transitions between clips, so cuts move the way you want them to. Text gets its own
+toolkit too: drop styled overlays on your video, start from a preset, and dial in the typography until it reads right.
+Find any moment by describing it
+Search your footage in plain language and jump straight to the shot you mean. Cardboard understands what's happening on
+screen, so a phrase like "the wide shot of the beach" lands you on the right frame with a timestamped thumbnail to
+confirm it.
+A new look and the Director chat
+Cardboard has a fresh color system with a dark theme and a redesigned landing page. Alongside it, the chat panel is now
+Director, with conversations that stick around so you can pick up where you left off and switch between them easily.
+Keyboard shortcuts
+Common timeline actions are now a keystroke away. Space, the arrow keys, delete, and more all work the way you'd expect,
+so you can edit without reaching for the mouse.
+Improvements
+Fixes & housekeeping
+The building blocks are in. Now the fun part.
+November 14, 2025#2
+Faster Playback, Better Timeline, Chat Improvements
+This release makes editing feel smoother end to end. Playback and previews are quicker, the timeline gives you finer
+control, and chat keeps more of your work in view.
+Smoother, sharper playback
+Video now plays back faster and more accurately, with quicker previews while you work and crisper, higher-quality
+exports when you're done. Layered edits hold up under heavier projects, so you can keep building without the preview
+falling behind.
+More control on the timeline
+Scrubbing, snapping, and clip placement are more precise, and you can now stack your edits across multiple layers.
+Visual guidelines and per-clip audio waveforms make it easier to line everything up. A new properties sidebar lets you
+dial in position, scale, rotation, opacity, blend mode, and audio for any clip directly on the timeline.
+Sharper understanding, roomier chat
+Cardboard analyzes your footage faster and more accurately, right in the browser, so it has a better read on what's in
+your clips. Chat now supports multiple tabs and a one-click way to clear history, so you can keep separate threads going
+and start fresh whenever you like.
+Improvements
+Faster on every front, with plenty still to come.
+November 9, 2025#1
+Initial Release
+Cardboard is here. This first release gives you everything you need to bring your footage in, cut it on a timeline, and
+ask the agent for help along the way.
+Bring in your media
+Import images, music, and video, and keep everything organized inside projects. When you're looking for a specific
+moment, search by what's happening on screen and jump straight to the right clip.
+Edit on the timeline
+Drag clips onto a multi-track timeline, split them where you want, and scrub or zoom in for precise cuts. Your changes
+show up in the preview as you make them, and you can switch between 16:9, 9:16, and 1:1 whenever your project calls for
+it.
+Shape the workspace
+Resize panels to fit how you work, and reach for keyboard shortcuts to move faster. When you're done, export your
+project in a range of formats, including XML.
+Edit with the agent
+Tell the agent what you want in plain language and it makes the edit for you, so quick changes are just a message away.
+Welcome to Cardboard. We can't wait to see what you make.
+Create stunning content 10x faster with our agentic video editor.
+X
+Product
+Pricing
+Recipes
+Plugins
+Changelog
+Support
+Status
+Legal
+Privacy
+Terms of Service
+Company
+Blog
+Careers
+Hard problems
+Y Combinator
+Contact
+CardboardCardboardCardboard
+© 2026 Cardboard Inc. All rights reserved.
+Made within SF

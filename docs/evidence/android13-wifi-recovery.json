@@ -1,0 +1,306 @@
+{
+  "recordedAt": "2026-10-29T14:15:12.506359+00:00",
+  "scope": "Receiver disconnect deadlock fix and observed real Wi-Fi recovery; not a full extended screen-off acceptance pass",
+  "device": {
+    "model": "Samsung SM-N981U1",
+    "android": "13",
+    "api": 33,
+    "execution": "foreground-service",
+    "power": "USB connected"
+  },
+  "route": "Direct Wi-Fi to owned private LAN receiver; no USB upload forward",
+  "fix": {
+    "file": "apps/server/src/server.ts",
+    "cause": "The Node response adapter waited for delivery to a destroyed socket, retaining the per-upload lock. An already disconnected queued request could also miss its close event.",
+    "approach": "Await maintained tus protocol/storage completion through handleWeb, skip disconnected queued requests, and send control responses without awaiting a dead socket.",
+    "serverSourceSha256": "a88e8685be96354a3e7d94133ed739b1714f693ceccf5f360c00561f5fd460da"
+  },
+  "before": {
+    "scenario": "wifi-loss-recovery-home-noninteractive-screen",
+    "origin": "http://<private-lan-ip>:1080",
+    "route": "direct Wi-Fi; no USB upload forward; phone USB-powered",
+    "device": {
+      "model": "SM-N981U1",
+      "api": "33"
+    },
+    "fixture": {
+      "name": "footage-generated-test.mp4",
+      "provenance": "generated 720p H.264/AAC video, not camera footage",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+    },
+    "networkBefore": {
+      "wifi": "1",
+      "mobileData": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T13:13:59.277083+00:00",
+        "event": "cellular_fallback_disabled",
+        "wifiAddress": "<private-lan-ip>",
+        "receiverRoute": "<private-lan-ip> dev wlan0 table 1009 src <private-lan-ip> uid 2000 \n    cache",
+        "uploadUsbForwardPresent": false
+      },
+      {
+        "at": "2026-10-29T13:14:01.907258+00:00",
+        "event": "upload_confirmed_in_real_ui"
+      },
+      {
+        "at": "2026-10-29T13:14:15.732033+00:00",
+        "event": "direct_wifi_upload_registered",
+        "id": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+        "nativeEndpoint": "http://<private-lan-ip>:1080"
+      },
+      {
+        "at": "2026-10-29T13:14:18.522621+00:00",
+        "event": "receiver_tcp_peer_is_phone_wifi",
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-29T13:14:18.700295+00:00",
+        "event": "pressed_home_with_foreground_service",
+        "serverBytes": 2215879
+      },
+      {
+        "at": "2026-10-29T13:14:18.853416+00:00",
+        "event": "server_progress_after_home_over_wifi",
+        "serverBytes": 2525706
+      },
+      {
+        "at": "2026-10-29T13:14:19.847294+00:00",
+        "event": "wifi_off_cellular_off",
+        "serverBytes": 2686416,
+        "receiverRoute": "RTNETLINK answers: Network is unreachable"
+      },
+      {
+        "at": "2026-10-29T13:14:20.067193+00:00",
+        "event": "native_waiting_during_actual_network_loss",
+        "confirmedBytes": 2097152,
+        "serverBytes": 2686416
+      },
+      {
+        "at": "2026-10-29T13:14:24.985820+00:00",
+        "event": "wifi_reconnected",
+        "receiverRoute": "<private-lan-ip> dev wlan0 table 1009 src <private-lan-ip> uid 2000 \n    cache",
+        "phoneWifiAddress": "<private-lan-ip>",
+        "mobileData": "0"
+      },
+      {
+        "at": "2026-10-29T13:19:02.033940+00:00",
+        "event": "wifi_test_failed",
+        "error": "Wi-Fi scenario did not complete within 300 seconds."
+      }
+    ],
+    "scenarioPassed": false,
+    "error": "Wi-Fi scenario did not complete within 300 seconds.",
+    "networkAfter": {
+      "wifi": "1",
+      "mobileData": "1"
+    }
+  },
+  "deployment": {
+    "at": "2026-10-29T13:39:42.884771+00:00",
+    "event": "receiver_restarted_to_apply_fix",
+    "jobId": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+    "retainedBytes": 2686416,
+    "retainedPrefixSha256": "037988d7d0c47ea0ca30dd3fb6e2f3939a278d5c7542f6b7f3a9d7f62040f188",
+    "forcedStopOfDeadlockedProcess": true,
+    "serverSourceSha256": "a88e8685be96354a3e7d94133ed739b1714f693ceccf5f360c00561f5fd460da",
+    "qualification": "Receiver restart applies the fix. The subsequent Wi-Fi drop/reconnect must recover without any further receiver restart."
+  },
+  "afterRecoveryRun": {
+    "scenario": "wifi-loss-recovery-home-noninteractive-screen",
+    "origin": "http://<private-lan-ip>:1080",
+    "route": "direct Wi-Fi; no USB upload forward; phone USB-powered",
+    "device": {
+      "model": "SM-N981U1",
+      "api": "33"
+    },
+    "fixture": {
+      "name": "footage-generated-test.mp4",
+      "provenance": "generated 720p H.264/AAC video, not camera footage",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+    },
+    "networkBefore": {
+      "wifi": "1",
+      "mobileData": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T13:39:41.622353+00:00",
+        "event": "cellular_fallback_disabled",
+        "wifiAddress": "<private-lan-ip>",
+        "receiverRoute": "<private-lan-ip> dev wlan0 table 1009 src <private-lan-ip> uid 2000 \n    cache",
+        "uploadUsbForwardPresent": false
+      },
+      {
+        "at": "2026-10-29T13:39:41.709419+00:00",
+        "event": "existing_job_observer_ready",
+        "id": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+        "serverBytes": 2686416
+      },
+      {
+        "at": "2026-10-29T13:39:41.771450+00:00",
+        "event": "direct_wifi_job_observed",
+        "id": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+        "nativeEndpoint": "http://<private-lan-ip>:1080",
+        "existingJob": true
+      },
+      {
+        "at": "2026-10-29T13:39:51.802306+00:00",
+        "event": "receiver_tcp_peer_is_phone_wifi",
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-29T13:39:51.936969+00:00",
+        "event": "pressed_home_with_foreground_service",
+        "serverBytes": 5246865
+      },
+      {
+        "at": "2026-10-29T13:39:52.188405+00:00",
+        "event": "server_progress_after_home_over_wifi",
+        "serverBytes": 5989590
+      },
+      {
+        "at": "2026-10-29T13:39:53.313668+00:00",
+        "event": "wifi_off_cellular_off",
+        "serverBytes": 6880720,
+        "receiverRoute": "RTNETLINK answers: Network is unreachable"
+      },
+      {
+        "at": "2026-10-29T13:39:53.789626+00:00",
+        "event": "native_waiting_during_actual_network_loss",
+        "confirmedBytes": 4783568,
+        "serverBytes": 6880720
+      },
+      {
+        "at": "2026-10-29T13:39:58.921839+00:00",
+        "event": "wifi_reconnected",
+        "receiverRoute": "<private-lan-ip> dev wlan0 table 1009 src <private-lan-ip> uid 2000 \n    cache",
+        "phoneWifiAddress": "<private-lan-ip>",
+        "mobileData": "0"
+      },
+      {
+        "at": "2026-10-29T13:40:01.143547+00:00",
+        "event": "same_identity_progress_after_wifi_reconnect",
+        "id": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+        "serverBytes": 6893752
+      },
+      {
+        "at": "2026-10-29T13:40:01.426413+00:00",
+        "event": "screen_noninteractive_over_wifi",
+        "serverBytes": 7174628,
+        "wakefulness": "Dozing"
+      },
+      {
+        "at": "2026-10-29T13:40:02.125449+00:00",
+        "event": "server_progress_over_wifi_while_noninteractive",
+        "serverBytes": 7763883,
+        "wakefulness": "Dozing"
+      },
+      {
+        "at": "2026-10-29T13:40:11.596965+00:00",
+        "event": "server_bytes_progress",
+        "serverBytes": 36240848
+      },
+      {
+        "at": "2026-10-29T13:40:19.566956+00:00",
+        "event": "server_bytes_progress",
+        "serverBytes": 70846384
+      },
+      {
+        "at": "2026-10-29T13:40:36.892747+00:00",
+        "event": "server_bytes_progress",
+        "serverBytes": 104435568
+      },
+      {
+        "at": "2026-10-29T13:46:18.049048+00:00",
+        "event": "server_bytes_progress",
+        "serverBytes": 138024743
+      },
+      {
+        "at": "2026-10-29T13:49:19.792736+00:00",
+        "event": "server_bytes_progress",
+        "serverBytes": 171580623
+      },
+      {
+        "at": "2026-10-29T13:52:31.525178+00:00",
+        "event": "wifi_test_failed",
+        "error": "No server byte progress for 90 seconds; inspect the existing job rather than wait for the total-run deadline."
+      }
+    ],
+    "scenarioPassed": false,
+    "resumingExistingJob": true,
+    "initialServerBytes": 2686416,
+    "error": "No server byte progress for 90 seconds; inspect the existing job rather than wait for the total-run deadline.",
+    "networkAfter": {
+      "wifi": "1",
+      "mobileData": "1"
+    }
+  },
+  "finalIntegrity": {
+    "at": "2026-10-29T13:55:53.084588+00:00",
+    "jobId": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+    "sameOriginalUpload": true,
+    "receivedBytes": 299779969,
+    "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+    "receipt": {
+      "id": "550e2b4d-9cc8-4715-a228-f009adca2ad5",
+      "jobId": "80a30b9a-d257-4feb-aa19-22e9d57d4aec",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+      "verifiedAt": "2026-10-29T13:53:53.846Z"
+    },
+    "independentHashMatch": true,
+    "qualification": "Same upload completed after the screen-off stress-run timeout and its wake/network-settings restoration. This does not turn the timed-out full scenario into a pass."
+  },
+  "verified": {
+    "abortedContentLengthPatchRegression": true,
+    "abortedChunkedPatchRegression": true,
+    "abandonedQueuedHeadRegression": true,
+    "receiverIntegrationTestsPassed": 15,
+    "wifiLossWithCellularDisabledObserved": true,
+    "sameUploadResumedAfterReconnectWithoutAnotherReceiverRestart": true,
+    "originalLargeFileReceivedWithMatchingHashAndReceipt": true,
+    "fullExtendedScreenOffScenarioPassed": false,
+    "unpluggedBehaviorTested": false,
+    "cellularTransferTested": false
+  },
+  "networkSettingsVerifiedRestored": {
+    "wifi_on": "1",
+    "mobile_data": "1"
+  },
+  "limitations": [
+    "The fixed long screen-off run later reached its 90-second no-progress deadline. The same upload completed after wake/settings restoration. The cause of that long-idle behavior is not established.",
+    "A shorter screen-off repeat was terminated by its external runner deadline. Manual restoration was checked afterward; its full scenario is not counted as passed.",
+    "All footage used here was generated 720p H.264/AAC media, not personal camera footage, 4K, or HDR."
+  ],
+  "localRegressionEvidence": {
+    "before": {
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "log": "receiver-recovery-before.tap"
+    },
+    "after": {
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "log": "server-tests.tap"
+    }
+  },
+  "shortRepeatFinalIntegrity": {
+    "jobId": "5dfdb86e-71ba-4f1a-96fb-7c90871378cc",
+    "bytes": 29080346,
+    "receipt": {
+      "id": "6a639100-2135-479d-bd93-f799f18b1ceb",
+      "jobId": "5dfdb86e-71ba-4f1a-96fb-7c90871378cc",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+      "verifiedAt": "2026-10-29T14:08:52.388Z"
+    },
+    "independentHashMatch": true,
+    "qualification": "Completed after the external runner deadline and wake/network-settings restoration. Do not count the terminated full scenario as passed."
+  }
+}

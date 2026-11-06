@@ -1,0 +1,71 @@
+Hard problems in video editing | Cardboard
+RecipesMac
+Plugins
+ChatGPT pluginEdit video in ChatGPT
+Claude pluginEdit video in ClaudePricingChangelog
+LoginGet startedGet started
+Hard problems
+Ten problems we have to solve to build the video editor we think should exist. We’re working hard on all of them.
+5 min read
+High Performance NLE in the Browser
+Collaboration
+Multimodal Understanding
+Better Context
+Predicting Next Actions
+Style References
+Motion Graphics
+Memory
+Verification
+Version Control
+01High Performance NLE in the Browser
+Non-linear video editing is a hard systems problem: real-time timeline rendering, frame-accurate seeking, multi-track compositing, codec handling, etc. And doing this in the browser is significantly harder. You’re working within browser memory limits, building on APIs (WebGPU, WebCodecs) that are still maturing, and solving performance problems that desktop editors offload to native code.
+We’re choosing the browser anyway because it’s the right long-term bet. It makes the product accessible by default: no downloads, no installs. It makes us agent-native in a way a native app can’t. And it gives us real-time collaboration infra from day one.
+02Collaboration
+Collaborative editing is a solved problem for text (Google Docs, Notion) and static design (Figma, Canva). Video is fundamentally different. A production grade video includes raw footage, audio tracks, images, graphics, effects. These assets are orders of magnitude larger than anything Figma needs to sync. And video state isn’t just a document graph. It includes timeline, playback state, in-progress renders, and source media that may not even exist on every client.
+The hard problem is keeping all of this in sync across multiple users while video processing stays client-side. CRDTs and operational transforms get you part of the way, but the real challenge is syncing large assets without lag or loss. This requires innovation in smart pre-processing, compression, selective sync and more.
+03Multimodal Understanding
+There is no grep equivalent for video. Text is searchable by default. Video is not. Finding the right clip from a large media library today relies on multimodal embeddings that are either too slow or too inaccurate for real-time use in an editing workflow. The same applies to images, audio, and graphics. This requires innovation across model quality, embedding infrastructure, indexing architecture, and UX that makes search feel instant and precise even over 100s of gigs of multimodal input.
+04Better Context
+An editor has an unusually wide surface of context. Assets (video, audio, images, graphics, text), timeline state, playback position, user actions, available presets across modalities (text animations, transitions, effects, etc.), version history, collaborator activity. And that’s just internal state. Externally, there’s generative media, news, stock footage, web-sourced clips and images. For an agent to operate meaningfully in this environment, it needs to reason across all of these sources simultaneously.
+No existing framework handles this well. It requires tight integration of the agent harness, the underlying models, the UX layer, and infrastructure.
+05Predicting Next Actions
+While editing, users perform many low-entropy actions that cluster closely in a high-dimensional action space. Text editors and IDEs have strong prediction capabilities: autocomplete, next-action suggestions, inline completions. Video tools have nothing comparable. The opportunity is not just suggesting the next action but executing it, and doing so in a way that doesn’t break flow state but adds to it. This is a hard UX and modeling problem simultaneously. The model needs to run fast, at low cost, with high enough intelligence to be useful rather than annoying.
+Building this requires a tight feedback loop between user telemetry, action embeddings, and model iteration, turning editing behavior data into a prediction engine that improves with every session.
+06Style References
+Users often see a video and want to borrow specific elements from it, like typography, color grade, pacing, transitions, animations, camera movement. How does the agent ingest a style reference and decompose it into discrete, actionable attributes? How does the user select which attributes to apply and which to ignore? And how does the agent reliably reproduce those styles?
+This gets harder when the referenced video uses a font, animation, or effect that the editor doesn’t have. The agent then needs a path forward: source it from the internet, generate a close match, or propose a fallback, without obstructing the workflow.
+07Motion Graphics
+After the first cut, motion graphics is where the most time goes. Editors spend tens of hours on animations a viewer sees for seconds. The open question is how to generate them (diffusion models, programmatic code, or a hybrid) while keeping output fully controllable and editable at the frame level.
+There’s also a format problem. Motion graphics today live in proprietary formats (After Effects projects, Lottie files). Whatever we build needs to interoperate with these or offer a representation expressive enough to replace them. And the output needs to look tasteful and distinct, not the generic sameness that current generative approaches tend to produce.
+08Memory
+Every creator and brand has a signature style: effects, color palettes, typography, pacing, transitions, etc. How will the system learn these preferences over time and apply them without being told? Some preferences are explicit (brand guidelines, approved assets). Others are implicit: a creator who always favors a particular transition style. Learning both requires different approaches.
+This gets more complex in teams. Which preferences are shared across a team and which are private? How does the system handle conflicts between them? And preferences evolve over time, so the system needs to weigh recency without anchoring to stale patterns. When to apply it, when to not?
+09Verification
+After the agent makes edits, how does it know if the output is good? There’s no linter for video. We have to build one, something that can check technical basics (no glitches, audio in sync), but also whether the edit looks good, matches the brand, holds a story arc, has the right pacing.
+The bigger idea is closing the loop. If we tie this verifier to actual engagement data from social platforms, we can build an RL environment where the agent evolves automatically over time. The agent will then develop taste.
+10Version Control
+Code has git. Video has nothing, just “final_v3_actual (1).mp4”. We need to build version control for video that lets people branch, work in parallel on the same project, merge changes, and resolve conflicts.
+The challenge is that git’s primitives don’t translate directly. Editors don’t think in commits or diffs. A merge conflict in code is a few lines. A merge conflict in video might look very different. What does a diff even look like for a timeline? How do you present a conflict in a way an editor can resolve without friction? The abstractions need to be powerful enough to handle real parallel workflows but intuitive enough that no one needs to understand git to use them.
+Want to work on one of these?
+These are the problems we hire against. Pick the one you can’t stop thinking about.See open roles
+Create stunning content 10x faster with our agentic video editor.
+X
+Product
+Pricing
+Recipes
+Plugins
+Changelog
+Support
+Status
+Legal
+Privacy
+Terms of Service
+Company
+Blog
+Careers
+Hard problems
+Y Combinator
+Contact
+CardboardCardboardCardboard
+© 2026 Cardboard Inc. All rights reserved.
+Made within SF

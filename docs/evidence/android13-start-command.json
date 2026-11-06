@@ -1,0 +1,102 @@
+{
+  "symptomObserved": "Call to FootageTransfer.start rejected: Unknown type: class android.content.ComponentName",
+  "cause": "Implicit lambda return exposed the Android startForegroundService ComponentName through Expo conversion after the service had already started.",
+  "fix": "An explicit anonymous function returning Unit prevents platform objects from becoming command results.",
+  "before": {
+    "fixture": {
+      "name": "footage-generated-test.mp4",
+      "kind": "generated 720p H.264/AAC test clip, not camera footage",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+    },
+    "route": "ADB USB reverse, not Wi-Fi",
+    "device": {
+      "model": "SM-N981U1",
+      "api": "33"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T12:10:24.936803+00:00",
+        "event": "confirmed_upload_in_real_ui"
+      },
+      {
+        "at": "2026-10-29T12:10:38.027962+00:00",
+        "event": "receiver_registered",
+        "id": "bb1cd785-2d87-4581-9ce2-3cd2843f53ce"
+      },
+      {
+        "at": "2026-10-29T12:10:45.844784+00:00",
+        "event": "run_failed",
+        "error": "JavaScript did not acknowledge the native start command",
+        "nativeState": {
+          "id": "bb1cd785-2d87-4581-9ce2-3cd2843f53ce",
+          "confirmed": 299779969,
+          "phase": {
+            "kind": "received",
+            "receipt": {
+              "id": "4a3e1a53-67b8-4b2d-9d1f-90e403a9ab5e",
+              "jobId": "bb1cd785-2d87-4581-9ce2-3cd2843f53ce",
+              "bytes": 299779969,
+              "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+              "verifiedAt": "2026-10-29T12:10:42.899Z"
+            }
+          },
+          "bytes": 299779969,
+          "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+        }
+      }
+    ],
+    "complete": false,
+    "error": "JavaScript did not acknowledge the native start command"
+  },
+  "after": {
+    "fixture": {
+      "name": "footage-generated-test.mp4",
+      "kind": "generated 720p H.264/AAC test clip, not camera footage",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+    },
+    "route": "ADB USB reverse, not Wi-Fi",
+    "device": {
+      "model": "SM-N981U1",
+      "api": "33"
+    },
+    "events": [
+      {
+        "at": "2026-10-29T12:14:36.424960+00:00",
+        "event": "confirmed_upload_in_real_ui"
+      },
+      {
+        "at": "2026-10-29T12:14:49.211891+00:00",
+        "event": "receiver_registered",
+        "id": "44f9466e-7cfa-4021-af8e-94351b79b3b7"
+      },
+      {
+        "at": "2026-10-29T12:14:55.952072+00:00",
+        "event": "native_start_promise_resolved_in_ui"
+      },
+      {
+        "at": "2026-10-29T12:14:55.952547+00:00",
+        "event": "original_verified_on_both_sides",
+        "bytes": 299779969,
+        "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+        "receiptId": "fbd35531-609f-4e3e-a4fe-854b63f8bde5"
+      }
+    ],
+    "complete": true,
+    "jobId": "44f9466e-7cfa-4021-af8e-94351b79b3b7",
+    "receipt": {
+      "id": "fbd35531-609f-4e3e-a4fe-854b63f8bde5",
+      "jobId": "44f9466e-7cfa-4021-af8e-94351b79b3b7",
+      "bytes": 299779969,
+      "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+      "verifiedAt": "2026-10-29T12:14:53.215Z"
+    },
+    "homeProgressObserved": false,
+    "usbInterruptionWaitingObserved": false,
+    "noninteractiveScreenProgressObserved": false,
+    "nativeReceiptObserved": true,
+    "scenario": "start-command-regression",
+    "scenarioPassed": true
+  }
+}

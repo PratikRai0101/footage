@@ -1,0 +1,331 @@
+{
+  "recordedAt": "2026-10-30T06:53:04.234550+00:00",
+  "artifactSha256": "57be77ff24f0140cd6956e49baf25dd90b8c2f2920aea3de4b59b159abf287c1",
+  "device": {
+    "model": "Samsung SM-N981U1",
+    "api": 33,
+    "serial": "<redacted-device-serial>",
+    "physical": true,
+    "usbPowered": true
+  },
+  "usbBaseline": {
+    "recordedAt": "2026-10-30T06:27:23.074847+00:00",
+    "scope": "Actual Samsung SM-N981U1/API33; final standalone APK; ADB USB reverse, not Wi-Fi; USB-powered",
+    "apkSha256": "57be77ff24f0140cd6956e49baf25dd90b8c2f2920aea3de4b59b159abf287c1",
+    "installedHashMatches": true,
+    "metroRequired": false,
+    "fixture": {
+      "name": "footage-standalone-final-test.mp4",
+      "bytes": 4161576,
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81"
+    },
+    "jobId": "ffb62e2f-c3be-4089-a228-23c94d8573e8",
+    "receipt": {
+      "id": "be4c1acf-d8d9-4a4d-8662-2586191b423e",
+      "jobId": "ffb62e2f-c3be-4089-a228-23c94d8573e8",
+      "bytes": 4161576,
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+      "verifiedAt": "2026-10-30T06:27:19.353Z"
+    },
+    "actualReceivedUiObserved": true,
+    "independentHashMatch": true,
+    "passed": true
+  },
+  "wifiHomeScreen": {
+    "case": "wifi-home-screen",
+    "startedAt": "2026-10-30T06:33:08.198977+00:00",
+    "passed": true,
+    "route": "Actual physical phone WLAN \u2192 streaming limiter \u2192 unchanged primary receiver; no USB upload reverse; USB-powered",
+    "device": {
+      "serial": "<redacted-device-serial>",
+      "model": "SM-N981U1",
+      "api": 33
+    },
+    "fixture": {
+      "name": "footage-wifi-test.mp4",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669"
+    },
+    "settingsBefore": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-30T06:33:32.978488+00:00",
+        "event": "native_upload_confirmed_in_real_ui",
+        "cellularFallbackDisabled": true
+      },
+      {
+        "at": "2026-10-30T06:33:46.848367+00:00",
+        "event": "physical_wlan_peer_and_execution_resources_verified",
+        "jobId": "651a5d65-b325-41ca-a375-8a0ccc3124cf",
+        "serverBytes": 529256,
+        "power": {
+          "wakefulness": "Awake",
+          "lastWakeTime": "149842985",
+          "cpuLockHeld": true,
+          "wifiLockHeld": true
+        },
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-30T06:33:46.929244+00:00",
+        "event": "home_pressed",
+        "serverBytes": 660310
+      },
+      {
+        "at": "2026-10-30T06:33:49.168364+00:00",
+        "event": "actual_server_progress_after_home",
+        "serverBytes": 987945
+      },
+      {
+        "at": "2026-10-30T06:33:49.558699+00:00",
+        "event": "actual_wifi_disabled_no_cellular_fallback",
+        "serverBytes": 987945
+      },
+      {
+        "at": "2026-10-30T06:33:52.810988+00:00",
+        "event": "real_waiting_ui_observed_same_job",
+        "serverBytes": 1405819
+      },
+      {
+        "at": "2026-10-30T06:34:02.981437+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 1405819
+      },
+      {
+        "at": "2026-10-30T06:34:33.162936+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 1405819
+      },
+      {
+        "at": "2026-10-30T06:34:55.209418+00:00",
+        "event": "same_identity_progress_after_wifi_restoration",
+        "serverBytes": 1553497,
+        "jobId": "651a5d65-b325-41ca-a375-8a0ccc3124cf"
+      },
+      {
+        "at": "2026-10-30T06:34:57.301351+00:00",
+        "event": "quiet_screen_off_window_started",
+        "power": {
+          "wakefulness": "Dozing",
+          "lastWakeTime": "149842985",
+          "cpuLockHeld": true,
+          "wifiLockHeld": true
+        },
+        "serverBytes": 1553497
+      },
+      {
+        "at": "2026-10-30T06:35:03.203011+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 2600105
+      },
+      {
+        "at": "2026-10-30T06:35:33.205155+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 6394383
+      },
+      {
+        "at": "2026-10-30T06:36:03.391818+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 10273652
+      },
+      {
+        "at": "2026-10-30T06:36:33.562999+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 12790670
+      },
+      {
+        "at": "2026-10-30T06:37:03.758422+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 16290382
+      },
+      {
+        "at": "2026-10-30T06:37:33.767792+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 20185315
+      },
+      {
+        "at": "2026-10-30T06:38:03.934858+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 24087511
+      },
+      {
+        "at": "2026-10-30T06:38:34.089924+00:00",
+        "event": "host_only_byte_observation",
+        "serverBytes": 27947899
+      },
+      {
+        "at": "2026-10-30T06:38:44.817264+00:00",
+        "event": "received_and_hashed_before_any_test_wake",
+        "power": {
+          "wakefulness": "Dozing",
+          "lastWakeTime": "149842985",
+          "cpuLockHeld": false,
+          "wifiLockHeld": false
+        },
+        "noninteractiveSeconds": 226.5,
+        "serverBytes": 29080346
+      }
+    ],
+    "jobId": "651a5d65-b325-41ca-a375-8a0ccc3124cf",
+    "receipt": {
+      "id": "1b65207b-ea5f-4394-951c-20625a86883c",
+      "jobId": "651a5d65-b325-41ca-a375-8a0ccc3124cf",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669",
+      "verifiedAt": "2026-10-30T06:38:42.754Z"
+    },
+    "screenOffSeconds": 226.5,
+    "lastWakeTimestampUnchanged": true,
+    "independentHashMatch": true,
+    "resourcesReleased": true,
+    "nativeReceiptUiAfterWake": "Actual expanded native receipt ID and SHA matched server receipt after user unlock",
+    "settingsAfterCase": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    }
+  },
+  "visibleCancellation": {
+    "case": "cancel",
+    "startedAt": "2026-10-30T06:48:12.907470+00:00",
+    "passed": true,
+    "route": "Actual physical phone WLAN \u2192 streaming limiter \u2192 unchanged primary receiver; no USB upload reverse; USB-powered",
+    "device": {
+      "serial": "<redacted-device-serial>",
+      "model": "SM-N981U1",
+      "api": 33
+    },
+    "fixture": {
+      "name": "footage-wifi-test.mp4",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669"
+    },
+    "settingsBefore": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-30T06:48:38.170367+00:00",
+        "event": "native_upload_confirmed_in_real_ui",
+        "cellularFallbackDisabled": true
+      },
+      {
+        "at": "2026-10-30T06:48:44.934594+00:00",
+        "event": "physical_wlan_peer_and_execution_resources_verified",
+        "jobId": "dc47b0fb-c5b7-4744-a599-1fc3c69b8b4c",
+        "serverBytes": 524288,
+        "power": {
+          "wakefulness": "Awake",
+          "lastWakeTime": "151752408",
+          "cpuLockHeld": true,
+          "wifiLockHeld": true
+        },
+        "phoneWifiAddress": "<private-lan-ip>"
+      },
+      {
+        "at": "2026-10-30T06:48:59.562239+00:00",
+        "event": "visible_cancel_confirmed_no_receipt",
+        "power": {
+          "wakefulness": "Awake",
+          "lastWakeTime": "151752408",
+          "cpuLockHeld": false,
+          "wifiLockHeld": false
+        }
+      }
+    ],
+    "jobId": "dc47b0fb-c5b7-4744-a599-1fc3c69b8b4c",
+    "serverCleanupConfirmed": true,
+    "receiptIssued": false,
+    "resourcesReleased": true,
+    "settingsAfterCase": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    }
+  },
+  "directWifi": {
+    "recordedAt": "2026-10-30T06:51:56.284544+00:00",
+    "scope": "Final standalone APK on physical Samsung/API33, direct private WLAN origin 1080, no upload reverse, cellular fallback disabled, USB-powered",
+    "jobId": "f03e72e5-39af-453d-94d2-58ff211f0690",
+    "receipt": {
+      "id": "fa0165a2-dc21-4a6d-afd2-09a1dcd020c4",
+      "jobId": "f03e72e5-39af-453d-94d2-58ff211f0690",
+      "bytes": 4161576,
+      "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+      "verifiedAt": "2026-10-30T06:51:52.416Z"
+    },
+    "independentHashMatch": true,
+    "nativeVerifiedUiObserved": true,
+    "passed": true
+  },
+  "nativeViewer": {
+    "scope": "Actual phone browser opened by native View received file action",
+    "receivedFilenameAndSHAVisible": true,
+    "fragmentRemovedBeforeCapture": true,
+    "passed": true
+  },
+  "failedHarnessAttempt": {
+    "case": "cancel",
+    "startedAt": "2026-10-30T06:43:33.960375+00:00",
+    "passed": false,
+    "route": "Actual physical phone WLAN \u2192 streaming limiter \u2192 unchanged primary receiver; no USB upload reverse; USB-powered",
+    "device": {
+      "serial": "<redacted-device-serial>",
+      "model": "SM-N981U1",
+      "api": 33
+    },
+    "fixture": {
+      "name": "footage-wifi-test.mp4",
+      "bytes": 29080346,
+      "sha256": "c4178a31973c7dd231384762a41e1a34e1a4e2a8d6f4258d884a8d73b69d0669"
+    },
+    "settingsBefore": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    },
+    "events": [
+      {
+        "at": "2026-10-30T06:43:56.000971+00:00",
+        "event": "failed_before_cleanup",
+        "error": "Requested UI label not found or not visible: Demo server address"
+      }
+    ],
+    "error": "Requested UI label not found or not visible: Demo server address",
+    "failureIntervention": "Owned test app stopped; job retained. Not an autonomous recovery pass.",
+    "settingsAfterCase": {
+      "wifi_on": "1",
+      "mobile_data": "1",
+      "low_power": "1"
+    }
+  },
+  "settingsBeforeSession": {
+    "wifi_on": "0",
+    "mobile_data": "1",
+    "low_power": "1"
+  },
+  "settingsAfterSession": {
+    "wifi_on": "0",
+    "mobile_data": "1",
+    "low_power": "1"
+  },
+  "settingsRestoredAtSessionEnd": true,
+  "noTransferServiceOrExecutionLocksRemain": true,
+  "noTestProxyOrPhoneUploadReverseRemains": true,
+  "nextUploadOrigin": "http://<private-lan-ip>:1080",
+  "pending": [
+    "Physical unplugged test",
+    "Deep Doze; AOD is not deep Doze"
+  ],
+  "limits": [
+    "All physical tests USB-powered",
+    "Only generated 720p media; no 4K/HDR memory or fidelity result",
+    "No personal media or secure keyguard bypass"
+  ]
+}

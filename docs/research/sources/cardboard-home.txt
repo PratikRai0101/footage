@@ -1,0 +1,242 @@
+Cardboard | AI Video Editor for Your Browser and Mac
+RecipesMac
+Plugins
+ChatGPT pluginEdit video in ChatGPT
+Claude pluginEdit video in ClaudePricingChangelog
+LoginGet startedGet started
+Make any video you can think ofMake any video you can think of
+Auto
+Improve prompt
+Launch VideoUGCExplainerMontageProduct DemoPodcast Clip
+or make it inChatGPT·Claude
+Product Ad
+Keyframed Portal
+Paper Collage
+Talking Head
+Invisible Glass
+Made with Cardboard
+Remarkable video quality
+Get started
+Your first video in three steps
+Describe it, direct it, and share it. Here's how your first cut comes together.
+Turn my product demo into a launch video
+demo.mp4b-roll.mov
+Describe it
+Use a prompt, your footage, or both, and Cardboard builds your editable first cut.
+Make the intro faster and add captions
+Done. Intro trimmed and captions added.
+0:000:010:020:030:040:054s → 2sCaptionCaptionCaption
+soundtrack.mp3
+Direct it
+Refine the first cut through simple chat requests or right on the timeline.
+Link copiedExport MP43 commentsShared with teamMaya · ViewingLeo · Viewing
+Share it
+Send a link to your team for feedback, or export the finished video.
+Everything you need to make videos
+Build the story, shape the edit, then share or export it, all in one editor.
+01
+Build the story
+Generate video, images, music, and sound effects.
+Create motion graphics from a prompt.
+Clone your voice and narrate in it.
+Source relevant B-roll from the internet.
+Use reference links to videos you like.
+Make a 30-second launch video for our new dashboard
+Video
+Image
+Music
+Sound effectGenerating…
+“Chrome title for our launch”
+Spring Drop“Liquid gradient for the spring drop”
+“Globe with our shipping routes”
+“Logo bursting into ‘Now in beta’”
+Each one from a single line, editable on your timeline.
+Voice clone
+Read this aloud2 / 4
+Here is the thing nobody tells you about starting something new. The first version is supposed to be rough.
+0:27
+Keep reading · 3s to go
+SkipescClone voice↵
+Finding B-roll for “The steel that built our cities.”
+Searching the web0 clips found
+Watching 132 clips for the best fit…1 of 132 fits the line
+0:090:050:120:08Best match0:060:040:070:070:100:05
+Welder at work in a steel shopArchival footage · 0:08Added at 0:14
+youtube.com/@studio…
+Match the pacing and color of this video
+Auto
+02
+Shape the edit
+Cut dead air, filler words, and retakes.
+Pull the best moments from long recordings.
+Captions, reframing, and chat-directed revisions.
+Transcript−6s of dead air
+0:00So, um, this is the new dashboard.
+0:04Everything you need is like, in one view.
+0:08You can filter by, uh— let me redo that.Retake
+0:12You can filter by team.
+Lightcone · Boris Cherny50:10 · 5 speakersFinding moments…3 moments found
+0:0050:10
+“It found the leak faster than I did.”Story · 15:26 · 0:17
+“Make the thing they’re trying to do easier.”Advice · 29:10 · 0:32
+“I uninstalled my IDE.”Hot take · 43:50 · 0:13
+Make this vertical for Reels and add captions
+9:16Okay,here’swhatnobodytellsyou
+Reframed to 9:16 around the speaker and added captions.
+03
+Work and publish your way
+Connect Claude Code or Codex through the desktop app.
+Share work with a link.
+Render an hour of footage in about five minutes.
+HomeCodeNewProjectsArtifactsScheduledChatProduct updates videoQ3 roadmap notesOnboarding email copy
+Product updates video
+Use Cardboard and create a product updates video for everything we shipped last month
+Using Cardboard integration…Used Cardboard integration
+Here’s a first cut, one scene for each of the six things you shipped:
+Product updatesVideo · 1:12 · Open in Cardboard
+Write a message…Opus 5.5Medium
+Share
+Share linkCopy link
+Shared with team3 commentsLink copied
+Conference keynote1:02:14 · 4K · MP4Rendering…Done
+1 hour of footage1:02:14
+Render time12× faster than real time0:00
+Make videos the way you do everything else
+Create directly in Cardboard, use its agent, or connect your agents to bring your project to life.
+Learn more
+CardboardFileEditPlaybackViewWindowHelpMon Sep 28  9:41 AM
+DashboardPiece Runner launchMakers documentary16:9Export⌘E
+Library
+Search project media…Add
+0:04furnace-wide.mp4
+0:03voiceover-bf8c0be5.mp3
+0:03weld-11.mp4
+0:12stock-cnc.mp4
+0:04voiceover-66643085.mp3
+0:16stock-plane.mp4
+0:00/1:04
+00:00:00.000
+0s5s10s15s20s25s30s35s40s45s50s55s60s65s70s
+CaptionsM
+Makers and shapers and put-it-togetherers.We work with our hands, and our hands serve us well.Iron and steel provide a nation with its comfort,its luxury, and its progress.This country was conqueredby those who move forward.And you go ahead and land it.For some, there is nothing more beautiful than the man-made spectaculars.All these have come from the roots of the maker’s mind,or the fruits of the maker’s labors.
+Matched replacement editM
+14 | original21 | original22 | forge23 | hands24 | steel25 | city27 | flag35 | furnace37 | lathe49 | runner62 | cad69 | cnc73 | original
+VoiceoverM
+Makers and shapers and put-it-togetherers.We work with our hands, and our hands serve us well.Iron and steel provide a nation with its comfort,its luxury, and its progress.This country was conqueredPicking up some dust.by those who move forward.Contact light.And so will space.And you go ahead and land it.For some, there is nothing more beautiful than the man-made spectaculars.All these have come from the roots of the maker’s mind,or the fruits of the maker’s labors.
+ScoreM
+Score
+Makers documentary
+makers-reference.mp4Make a short documentary on American makers, from forges and furnaces to the moon landing. Grainy archival feel, cut to the rhythm of this film, with a warm narrator.
+Worked for 12m 36s
+I’ll match your reference cut for cut: 73 shots across 30 subjects, from forges and furnaces to the moon landing, then narrate it fresh.
+Ran 5 commands
+Transcribed makers-reference.mp4
+Found archival footage: “American Maker” (1960)
+Generated a video: “Molten steel pouring from a furnace”
+Generated a video: “Welder at work in a shower of sparks”
+Found stock footage: “CNC machine cutting metal”
+Shots are in. Laying them on the reference’s cuts, with archival film for the speeches and a narrator reading each line.
+Ran 4 commands
+Your 65-second documentary is ready: 73 shots cut to the reference, 29 generated scenes alongside archival and stock footage, and 13 narrated lines with captions. Every shot is its own clip, so you can swap any of them.
+What should we do next?GPT-6 Astra
+SearchDashboardProjects
+Report an issueSettingsIIshan
+What are we editing today, Ishan?
+GPT-6 AstraDrag and drop or click here to add your media files
+Recent
+New projectStart empty
+Piece Runner launch2 hours ago·16:9·0:27
+Makers documentary1 day ago·16:9·1:05
+Google Chrome
+Claude
+Cardboard
+Codex
+Trash
+Cardboard can connect to Claude Code and Codex.
+Users can work in Cardboard directly or through their agents.
+Lite is free on Apple Silicon because processing runs locally.
+Your next video, made in Cardboard.Your next product video,
+made in Cardboard.
+No editing experience needed.
+Product ShowcasesViral TrendsLaunch VideosUGC AdsExplainersVlogsPodcast Clips
+Pricing for every stage of editing
+Every plan includes the full editing suite.
+MonthlyAnnualSave up to 61%
+Launch pricing, up to 78% off your first month.
+Lite
+$5/first month
+Then $10 - $8/monthGet started
+Standard usage
+Generative AI not included
+Captions
+Not included: Watermark-free exports
+Reframing
+Video cleanup
+Motion graphics
+Full suite of editing tools
+Starter
+$9/first month
+Then $40 - $29/monthGet started
+2.5x usage
+400 generative creditsBase model access (Hailuo, Kling 2.5, Image gen etc)
+Everything in Lite
+Unlimited, watermark-free exports
+NLE exports
+AI-generated music
+Stock footage
+CreatorRecommended
+$30/first month
+Then $100 - $59/monthGet started
+10x usage
+1,500 generative creditsPremium model access (Kling 3, Seed Dance 2.5, Omni, Veo etc)
+Everything in Starter
+Voice cloning
+Web-sourced B-roll
+4K exports
+Direct clips from X, Instagram, YouTube, Vimeo and more
+Match text styles and audio from any video link
+Pro
+$89/first month
+Then $250 - $175/monthGet started
+30x usage
+5,000 generative creditsAll models
+Everything in Creator
+Priority processing
+Early access to advanced AI features
+Higher usage limitsCompare all plans
+Frequently asked questions
+Which devices does Cardboard work on?
+Any computer with Chrome, plus a Mac app for Apple Silicon. Phones and tablets aren't supported yet.
+What's the difference between local and cloud processing?
+The Mac app edits and exports on your Mac; in the browser, that happens in the cloud. AI features like transcription and generation use the cloud either way.
+Can I use my own AI agent?
+Yes. The Mac app works with Claude Code and Codex, and any agent can drive Cardboard through its CLI or MCP server.
+Is my footage private?
+Yes. Your footage is yours, and nothing is shared until you create a link. In the Mac app, your projects stay on your Mac.
+How do I share or export my video?
+Share a link people can watch and comment on, or export an MP4, MOV and more at up to 4K. You can also send the timeline to Premiere Pro, Final Cut Pro or DaVinci Resolve.
+00:12
+Get started with one prompt.
+Get started
+Launch pricing on every plan. Cancel anytime.
+Create stunning content 10x faster with our agentic video editor.
+X
+Product
+Pricing
+Recipes
+Plugins
+Changelog
+Support
+Status
+Legal
+Privacy
+Terms of Service
+Company
+Blog
+Careers
+Hard problems
+Y Combinator
+Contact
+CardboardCardboardCardboard
+© 2026 Cardboard Inc. All rights reserved.
+Made within SF

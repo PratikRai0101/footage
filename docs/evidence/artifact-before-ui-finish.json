@@ -1,0 +1,28 @@
+{
+  "artifact": "artifacts/footage-spike-debug.apk",
+  "sha256": "be4701391a2679038f0237103a9961ffd12abeb2594372c1629948a75902755e",
+  "bytes": 181300946,
+  "kind": "Android debug development client; Metro required",
+  "package": "dev.footage.spike",
+  "targetSdk": 36,
+  "minimumTransferApi": 26,
+  "schedulers": {
+    "26-33": "foreground-service",
+    "34+": "user-initiated-job; not device-tested"
+  },
+  "physicalDeviceTested": true,
+  "appLaunched": true,
+  "evidence": "android13-screen-wifi.json",
+  "nativeStartReturnContract": "Unit",
+  "receiverSourceSha256": "a88e8685be96354a3e7d94133ed739b1714f693ceccf5f360c00561f5fd460da",
+  "receiverFixEvidence": "android13-wifi-recovery.json",
+  "screenOffFixEvidence": "android13-screen-wifi.md",
+  "nativeSourceSha256": {
+    "apps/mobile/modules/footage-transfer/android/src/main/AndroidManifest.xml": "cc48600725787e89ae7e5c2754f34eef0552b8e5f1e5b383b02168192f00d9b8",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferForegroundService.kt": "584747273dfdc703284643d5e135d6aab43db83a5a68696d2be05c5324fcd905",
+    "apps/mobile/modules/footage-transfer/android/src/main/java/expo/modules/footagetransfer/TransferOwner.kt": "9acb552cce24b0d17043c22a2b6c5e22d7267687cfd37c92aae35f7a541b0909"
+  },
+  "foregroundAttemptWindowMs": 1800000,
+  "previousArtifactEvidence": "artifact-before-screen-fix.json",
+  "installedApkHashVerified": true
+}

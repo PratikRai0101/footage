@@ -1,0 +1,94 @@
+{
+  "recordedAt": "2026-10-30T00:41:30.816885+00:00",
+  "simulator": {
+    "name": "iPhone Duo",
+    "udid": "FA652008-7FC6-4054-A1F9-4D5E6464FA3C",
+    "os": "iOS 27.1",
+    "physical": false
+  },
+  "build": {
+    "artifact": "artifacts/ios-simulator/Footage.app",
+    "bundleId": "dev.footage.spike",
+    "version": "0.2.0",
+    "configuration": "Release iphonesimulator arm64; unsigned; JS/assets embedded",
+    "executableSha256": "908d1295598419505c165e37f893b308ab7ad4aaba360dd3ae28eceda20434c1",
+    "javascriptSha256": "c33d1e8377ebbadf6157ddff0e4de4be610125427b4396fdd176ad3516d3b0a1",
+    "metroRequired": false,
+    "metroAbsentDuringTest": true
+  },
+  "fixture": {
+    "name": "footage-ios-generated.mp4",
+    "bytes": 4161576,
+    "sha256": "087c25d01d569da4de721d49392c53a460155c379d0c5028faaeaabc5d35fa81",
+    "durationMs": 8000,
+    "width": 1280,
+    "height": 720,
+    "kind": "Generated H264 Main/AAC; dedicated simulator local-provider test folder"
+  },
+  "checks": {
+    "coldLaunch": true,
+    "realSystemPicker": true,
+    "actualPreviewMetadata": true,
+    "movingVideoFramesObserved": true,
+    "changedPixelsInPreviewBetweenRecordedFrames": 27165,
+    "providerOriginalUnchanged": true,
+    "pickerCancellationRetainsSelection": true,
+    "previewOnlyActionNotUpload": true,
+    "accessibilityLargeDisclosureReachableAfterRawDrag": true,
+    "appearance": {
+      "themeBackgroundRgb": {
+        "light": [
+          244,
+          246,
+          247
+        ],
+        "dark": [
+          11,
+          12,
+          13
+        ],
+        "system": [
+          244,
+          246,
+          247
+        ]
+      },
+      "systemAppearanceOriginal": "light",
+      "textSizeOriginal": "large",
+      "accessibilityLargeActionReachable": true,
+      "textSizeRestored": true,
+      "osAppearanceUnchanged": true,
+      "passed": true
+    },
+    "mobileTests": 17,
+    "receiverTests": 26,
+    "proxyTests": 2,
+    "lint": "pass",
+    "typecheck": "pass"
+  },
+  "fixed": [
+    "Read real Expo Video duration/dimensions in preview-only builds; Android keeps native metadata ownership",
+    "Remove non-Android upload action and no-copy promise; disclose preview-only/temporary-picker-copy boundary"
+  ],
+  "limits": [
+    "No iOS native upload engine, background-transfer or receipt claim",
+    "No physical iPhone",
+    "Only available iPhone Duo/iOS27.1 simulator; other devices/versions unverified",
+    "VoiceOver audio, HDR fidelity, 4K memory and Safari receiving-side playback not tested"
+  ],
+  "rawEvidence": [
+    "04-review-after-fix.png",
+    "local-preview.mp4",
+    "05-playback-1.png",
+    "06-playback-3.png",
+    "07-light.png",
+    "theme-dark.png",
+    "theme-system.png",
+    "08-large-text.png",
+    "09-large-text-scrolled.png",
+    "mobile-before-fix.tap",
+    "all-tests.tap",
+    "typecheck.log",
+    "lint.log"
+  ]
+}

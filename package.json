@@ -1,22 +1,26 @@
 {
-  "name": "mobile",
-  "version": "1.0.0",
-  "main": "index.ts",
-  "dependencies": {
-    "expo": "~58.0.21",
-    "expo-status-bar": "~58.0.4",
-    "react": "19.3.0",
-    "react-native": "0.88.1"
-  },
-  "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3"
+  "name": "footage",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": "^22.13.0 || ^24.3.0 || ^26.0.0 || >=27.0.0"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "server": "npm run dev --workspace=@footage/server",
+    "test": "npm test --workspace=@footage/server && npm run test:mobile && npm run test:device-tools",
+    "test:mobile": "tsx --test scripts/test/mobile-presentation.test.ts",
+    "test:device-tools": "node --test scripts/test/*.test.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mobile": "npm run start --workspace=footage-mobile --",
+    "lint": "npm run lint --workspace=footage-mobile",
+    "android:build": "bash scripts/build-android.sh",
+    "android:demo": "bash scripts/build-android.sh --standalone",
+    "ios:build": "bash scripts/build-ios.sh"
   },
-  "private": true
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
 }

@@ -1,0 +1,62 @@
+[
+  {
+    "title": "Name",
+    "required": true,
+    "type": "String",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Email",
+    "required": true,
+    "type": "Email",
+    "descriptionHtml": null
+  },
+  {
+    "title": "LinkedIn",
+    "required": true,
+    "type": "Url",
+    "descriptionHtml": null
+  },
+  {
+    "title": "GitHub",
+    "required": true,
+    "type": "Url",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Your personal website",
+    "required": true,
+    "type": "String",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Resume",
+    "required": false,
+    "type": "File",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Years of Experience\u00a0 and Graduation Year",
+    "required": true,
+    "type": "String",
+    "descriptionHtml": "<p>Example: 3 YOE (2023 grad)</p>"
+  },
+  {
+    "title": "One product or piece of software you think is exceptionally well built and one sentence on why?",
+    "required": true,
+    "type": "LongText",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Something you shipped end to end that you're proud of?",
+    "required": true,
+    "type": "String",
+    "descriptionHtml": null
+  },
+  {
+    "title": "Optional: If you'd like, record and send us a quick video : )",
+    "required": false,
+    "type": "Url",
+    "descriptionHtml": null
+  }
+]

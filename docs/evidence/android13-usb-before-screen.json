@@ -1,0 +1,119 @@
+{
+  "recordedAt": "2026-10-29T12:01:04.135712+00:00",
+  "device": {
+    "manufacturer": "Samsung",
+    "model": "SM-N981U1",
+    "android": "13",
+    "api": 33,
+    "execution": "foreground-service",
+    "connection": "USB reverse; phone plugged in"
+  },
+  "fixture": {
+    "name": "footage-generated-test.mp4",
+    "provenance": "Generated test pattern and sine wave; not personal camera footage",
+    "bytes": 299779969,
+    "durationSeconds": 60,
+    "resolution": "1280x720",
+    "codecs": [
+      "h264",
+      "aac"
+    ],
+    "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+  },
+  "jobId": "51d200ee-3ad5-439f-ab03-98a0716d0516",
+  "receipt": {
+    "id": "62319ed1-cc6a-418b-af21-a6754430c2d9",
+    "jobId": "51d200ee-3ad5-439f-ab03-98a0716d0516",
+    "bytes": 299779969,
+    "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da",
+    "verifiedAt": "2026-10-29T11:56:27.084Z"
+  },
+  "passed": [
+    "app launch and native bridge",
+    "system picker and review",
+    "native stable copy and hashing",
+    "physical-phone upload over USB",
+    "server byte growth after Home",
+    "native waiting after actual USB transport disconnect",
+    "same-identity continuation after USB route restoration",
+    "independent received-file length and SHA-256 check",
+    "matching native and server receipt"
+  ],
+  "pending": [
+    "screen non-interactive progress; assertion corrected for Samsung AOD Dozing but not rerun",
+    "Wi-Fi and cellular interruption",
+    "unplugged background execution",
+    "real camera footage and 4K/HDR",
+    "process death and force-stop distinctions",
+    "offline cancellation on this device"
+  ],
+  "runError": "Screen-off state was not observed",
+  "runEvents": [
+    {
+      "at": "2026-10-29T11:56:01.027478+00:00",
+      "event": "confirmed_upload_in_real_ui"
+    },
+    {
+      "at": "2026-10-29T11:56:14.668910+00:00",
+      "event": "receiver_registered",
+      "id": "51d200ee-3ad5-439f-ab03-98a0716d0516"
+    },
+    {
+      "at": "2026-10-29T11:56:14.867557+00:00",
+      "event": "pressed_home",
+      "serverBytes": 12582912,
+      "foregroundServiceObserved": true
+    },
+    {
+      "at": "2026-10-29T11:56:14.968807+00:00",
+      "event": "server_progress_after_home",
+      "serverBytes": 20922368
+    },
+    {
+      "at": "2026-10-29T11:56:14.983696+00:00",
+      "event": "removed_usb_upload_route",
+      "serverBytes": 20922368
+    },
+    {
+      "at": "2026-10-29T11:56:19.909715+00:00",
+      "event": "usb_transport_reconnected_without_upload_route"
+    },
+    {
+      "at": "2026-10-29T11:56:20.104658+00:00",
+      "event": "native_waiting_observed",
+      "id": "51d200ee-3ad5-439f-ab03-98a0716d0516",
+      "confirmedBytes": 20971520,
+      "serverBytes": 20971520
+    },
+    {
+      "at": "2026-10-29T11:56:20.129790+00:00",
+      "event": "restored_usb_upload_route"
+    },
+    {
+      "at": "2026-10-29T11:56:22.505088+00:00",
+      "event": "server_progress_after_route_restored",
+      "id": "51d200ee-3ad5-439f-ab03-98a0716d0516",
+      "serverBytes": 27262976
+    },
+    {
+      "at": "2026-10-29T11:56:22.869734+00:00",
+      "event": "run_failed",
+      "error": "Screen-off state was not observed",
+      "nativeState": {
+        "id": "51d200ee-3ad5-439f-ab03-98a0716d0516",
+        "confirmed": 46137344,
+        "phase": {
+          "kind": "uploading"
+        },
+        "bytes": 299779969,
+        "sha256": "297f52087a50b9e741bb007ea66b8b1ef46ee3b45fa652f557392bc441d694da"
+      }
+    }
+  ],
+  "postRunVerification": {
+    "nativeState": "received",
+    "serverState": "received",
+    "independentHashMatch": true,
+    "wholeScenarioPassed": false
+  }
+}

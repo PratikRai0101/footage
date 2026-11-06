@@ -1,0 +1,26 @@
+
+> footage@0.1.0 test:device-tools
+> node --test scripts/test/*.test.mjs
+
+TAP version 13
+# Subtest: limiter preserves override PATCH bytes, authorization and tus HEAD control responses
+ok 1 - limiter preserves override PATCH bytes, authorization and tus HEAD control responses
+  ---
+  duration_ms: 1067.1915
+  type: 'test'
+  ...
+# Subtest: aborting a limited upload aborts the upstream body and leaves control requests usable
+ok 2 - aborting a limited upload aborts the upstream body and leaves control requests usable
+  ---
+  duration_ms: 554.372625
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1685.650541

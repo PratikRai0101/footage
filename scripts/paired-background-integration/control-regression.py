@@ -8,9 +8,4 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('control_proof', root / 'scripts/pairing-control-probe/run.py')
 p = importlib.util.module_from_spec(spec); spec.loader.exec_module(p)
-native = p.r.NATIVE
-class G1Sources:
-    def glob(self, pattern): return [f for f in native.glob(pattern) if f.name != 'PairingBackgroundControl.swift']
-    def __truediv__(self, name): return native / name
-p.r.NATIVE = G1Sources()
 p.main()

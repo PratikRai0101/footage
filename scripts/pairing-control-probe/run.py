@@ -41,12 +41,13 @@ def main():
     try:
         certificates()
         native = OUT / 'native'; native.mkdir()
-        for file in r.NATIVE.glob('Pairing*.swift'): shutil.copyfile(file, native / file.name)
+        for file in r.pairing_sources(): shutil.copyfile(file, native / file.name)
         shutil.copyfile(r.NATIVE / 'SealedProtocol.swift', native / 'PairingSealedCodec.swift')
         source = OUT / 'source'; source.mkdir()
         shutil.copyfile(r.SOURCE / 'project.pbxproj', source / 'project.pbxproj')
         shutil.copyfile(SOURCE / 'Probe.swift', source / 'Probe.swift')
         r.SOURCE = source; r.NATIVE = native
+        r.EXTRA_SOURCES = ('PairingSealedCodec.swift',)
         r.build()
         device = r.cmd('xcrun', 'simctl', 'create', 'Isolated Paired Control Proof', 'com.apple.CoreSimulator.SimDeviceType.iPhone-16', 'com.apple.CoreSimulator.SimRuntime.iOS-26-2')
         (OUT / 'owned-simulator.txt').write_text(device)

@@ -44,7 +44,13 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
     const keyStore = DesktopKeyStore.initialize({ helper: join(out, 'helper'), namespace, allowTestKeychain: true });
     // Register exact-item cleanup BEFORE any later constructor can fail.
     let closeService = async () => {};
-    t.after(async () => { await closeService(); keyStore.deleteTestItem(); await rm(join(base, namespace + '.cleanup.json')); });
+    t.after(async () => {
+      try { await closeService(); }
+      finally {
+        keyStore.deleteTestItem();
+        await rm(join(base, namespace + '.cleanup.json'));
+      }
+    });
     const reserve = reservePort(); await new Promise<void>(r => reserve.listen(0, '127.0.0.1', r));
     const address = reserve.address(); assert(address && typeof address !== 'string');
     await new Promise<void>(r => reserve.close(() => r()));

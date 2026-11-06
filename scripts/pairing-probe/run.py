@@ -13,6 +13,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = Path(__file__).resolve().parent
 NATIVE = ROOT / 'apps/mobile/modules/footage-transfer/ios'
+# These are the G1-only owner sources. The paired BackgroundControl adapter is
+# compiled by the integrated runtime harness, not by this standalone G1 target.
+PAIRING_SOURCES = ('PairingClient.swift', 'PairingControl.swift', 'PairingTrust.swift', 'PairingWire.swift')
+EXTRA_SOURCES = ()
+
+
+def pairing_sources():
+    return [NATIVE / name for name in (*PAIRING_SOURCES, *EXTRA_SOURCES)]
 OUT = ROOT / 'artifacts/pairing-probe' / str(uuid.uuid4())
 BUNDLE = 'test.footage.pairingprobe'
 
@@ -72,9 +80,9 @@ def certs():
 
 
 def build():
-    sources = ['Probe.swift'] + [p.name for p in sorted(NATIVE.glob('Pairing*.swift'))]
+    sources = ['Probe.swift'] + [p.name for p in pairing_sources()]
     shutil.copyfile(SOURCE / 'Probe.swift', OUT / 'Probe.swift')
-    for p in NATIVE.glob('Pairing*.swift'): shutil.copyfile(p, OUT / p.name)
+    for p in pairing_sources(): shutil.copyfile(p, OUT / p.name)
     # Small checked-in template; independent native source compilation, no package/config edits.
     project = (SOURCE / 'project.pbxproj').read_text()
     refs, builds, groups, files = [], [], [], []

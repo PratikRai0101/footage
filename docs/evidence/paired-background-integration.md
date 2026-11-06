@@ -92,9 +92,15 @@ npx --no-install tsc -p scripts/test/sealed-ingest/tsconfig.json
 
 The existing Keychain root test requires its helper compiled at ignored `artifacts/desktop-key-store/helper`. The root suite passes all 105 tests with that test opted in. The focused service suite passes seven TAP tests, including its parent test. It covers authentic enrollment, no remote approval, wrong credentials/device/scope, expired and revoked enrollment, reserved interfaces, unknown routes, Host/forwarded-header denial, chunked streaming caps, automatic finalization retry, access/revocation cleanup, late receipt, and shutdown during body reception and finalization. The native control regression passes all 28 trust/redirect/permission cases with zero control secrets at redirect sinks. The runtime unit regression passes 37 cases.
 
-The G1-only proof builders previously globbed every `Pairing*.swift` file. The new adapter also requires G4 protocols. `control-regression.py` reuses the existing test runner while excluding only that G4 adapter from its G1-only source set. The integrated proof separately compiles all production pairing, codec, and background sources together. The combined sources also compile for the iPhoneOS SDK at deployment target iOS 17 with Swift 6 warnings-as-errors. No warning suppression, Expo build, Pods install, or package change is used.
+The G1-only proof builders previously globbed every `Pairing*.swift` file. The new adapter also requires G4 protocols. Parent integration changed the ordinary G1 probe builder to an explicit owner-source list, with an explicit G2 codec addition in the control probe. Both direct runners now exclude the G4 adapter by construction, without a wrapper monkeypatch. The first parent control-probe build exposed a missing explicit G2 source; that source-list error was fixed and all 28 actual Simulator cases passed on the next run. `control-regression.py` now delegates to the ordinary fixed runner. The integrated proof separately compiles all production pairing, codec, and background sources together. The combined sources also compile for the iPhoneOS SDK at deployment target iOS 17 with Swift 6 warnings-as-errors. No warning suppression, Expo build, Pods install, or package change is used.
 
 Python syntax, Node syntax, diff whitespace, root typecheck/lint, both test-tool typechecks, and public-history preflight are checked. No 4 GiB fixture is allocated.
+
+## Parent verification
+
+The parent integrated the native adapter and supervised service, reran all 105 root tests with the fresh-item Keychain test opted in and all seven focused service tests, typecheck/lint, service-tool typecheck and combined Swift 6 iPhoneOS compilation. It also independently reran all 28 native control cases in a fresh owned Simulator; that Simulator and listener were cleaned up. The multi-group daemon/paired-receipt proof above remains the worker's recorded run, not a new parent run.
+
+Parent hardened test teardown so a service shutdown exception cannot skip deletion of that test's exact known Keychain item. Cleanup metadata is removed only after deletion succeeds. Its local artifact check found no retained exact-account cleanup record for the six early leaked service-test entries. No Keychain enumeration or broad deletion was performed; that incident remains unresolved.
 
 ## Cleanup incident and remaining gates
 

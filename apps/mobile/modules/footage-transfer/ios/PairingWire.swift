@@ -92,7 +92,7 @@ struct PairingOffer {
     guard let text = String(data: try r.lp16(512), encoding: .utf8) else { throw PairingFailure.rejected }
     origin = try PairingOrigin(text); id = try r.take(16); secret = try r.take(32); expires = try r.integer(8)
     mask = UInt32(try r.integer(4)); try r.end()
-    try pairingRequire(!ca.isEmpty && mask > 0 && mask & ~31 == 0)
+    try pairingRequire(!ca.isEmpty && mask & ~31 == 0)
     if requireFresh { try pairingRequire(expires > now && expires - now <= 120) }
     self.bytes = bytes
   }

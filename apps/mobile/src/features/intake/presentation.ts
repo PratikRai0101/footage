@@ -38,11 +38,11 @@ export function copyFor(stage: Stage, mode: 'transfer' | 'preview' = 'transfer')
   const cancel: Action = { label: 'Cancel upload', command: 'cancel' };
   const normal = { tone: 'normal', primary: null, secondary: null } satisfies Pick<Copy, 'tone' | 'primary' | 'secondary'>;
   if (mode === 'preview' && (stage.kind === 'import' || stage.kind === 'review')) {
-    return { ...normal, title: stage.kind === 'import' ? 'Bring your footage.' : 'Your clip, up close.', label: 'Preview only', body: 'Uploads are available in the Android app.', primary: stage.kind === 'import' ? choose : { label: 'Choose another video', command: 'choose' } };
+    return { ...normal, title: stage.kind === 'import' ? 'Choose an original.' : 'Ready to preview.', label: 'Preview only', body: 'Uploads are available in the Android app.', primary: stage.kind === 'import' ? choose : { label: 'Choose another video', command: 'choose' } };
   }
   switch (stage.kind) {
-    case 'import': return { ...normal, title: 'Bring your footage.', label: null, body: 'Choose a video to upload in its original quality. Your original stays on your phone.', primary: choose };
-    case 'review': return { ...normal, title: 'Ready when you are.', label: null, body: 'Original file. No compression or conversion.', primary: { label: 'Upload video', command: 'upload' }, secondary: { label: 'Choose another video', command: 'choose' } };
+    case 'import': return { ...normal, title: 'Choose an original.', label: null, body: 'Your original stays on your phone.', primary: choose };
+    case 'review': return { ...normal, title: 'Ready to upload.', label: null, body: 'Original · No compression or conversion', primary: { label: 'Upload original', command: 'upload' }, secondary: { label: 'Choose another video', command: 'choose' } };
     case 'preparing': return { ...normal, title: 'Preparing your clip.', label: 'Saving a local copy', body: 'Keep the app open while we prepare the file.', secondary: { label: 'Cancel preparation', command: 'cancel' } };
     case 'preparation_cancelled': return { ...normal, title: 'Your original stays with you.', label: 'Preparation cancelled', body: 'Nothing was uploaded. Your original is unchanged.', primary: choose };
     case 'preparation_failed': return { ...normal, title: 'Let’s try that again.', label: 'Could not prepare this video', body: stage.message, tone: 'error', primary: choose };
@@ -53,7 +53,7 @@ export function copyFor(stage: Stage, mode: 'transfer' | 'preview' = 'transfer')
         case 'uploading': return { ...normal, title: 'Sending your clip.', label: 'Uploading original', body: null, secondary: cancel };
         case 'waiting': return { ...normal, title: 'Waiting for a connection.', label: 'Your progress is saved', body: value.executionActive ? 'We’ll resume when you’re back online.' : 'Reconnect, then tap Continue.', tone: 'warning', primary: value.executionActive ? null : { label: 'Continue upload', command: 'resume' }, secondary: cancel };
         case 'verifying': return { ...normal, title: 'Checking your clip.', label: 'Verifying the original', body: `All ${formatBytes(value.bytes)} received. Checking the file before marking it complete.`, secondary: cancel };
-        case 'received': return { ...normal, title: 'Your clip arrived.', label: 'Original verified', body: `${formatBytes(value.bytes)} received. File matches the original.`, primary: { label: 'View received file', command: 'viewer' }, secondary: { label: 'Send another clip', command: 'choose' } };
+        case 'received': return { ...normal, title: 'Original verified.', label: 'File matches the original.', body: null, primary: { label: 'View received file', command: 'viewer' }, secondary: { label: 'Send another clip', command: 'choose' } };
         case 'cancelled': return { ...normal, title: 'Your original stays with you.', label: value.cleanupPending ? 'Cancelled on this phone' : 'Upload cancelled', body: value.cleanupPending ? 'Uploaded data is waiting to be removed. Reconnect to finish cleanup.' : 'Uploaded data was removed. Your original is unchanged.', tone: value.cleanupPending ? 'warning' : 'normal', primary: value.cleanupPending ? { label: 'Retry cleanup', command: 'cleanup' } : choose };
         case 'failed': return { ...normal, title: 'This clip needs attention.', label: 'Upload not completed', body: value.message, tone: 'error', primary: value.retryable ? { label: 'Try again', command: 'resume' } : null, secondary: cancel };
         default: { const exhaustive: never = value; return exhaustive; }

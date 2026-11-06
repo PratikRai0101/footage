@@ -129,8 +129,9 @@ test('unknown and indefinite playback metadata stays unavailable rather than dis
 test('core upload copy is short and keeps protocol details out of the main flow', () => {
   const review = copyFor({ kind: 'review', clip });
   assert.equal(review.label, null);
-  assert.equal(review.primary?.label, 'Upload video');
-  assert.equal(review.body, 'Original file. No compression or conversion.');
+  assert.equal(review.primary?.label, 'Upload original');
+  assert.equal(review.title, 'Ready to upload.');
+  assert.equal(review.body, 'Original · No compression or conversion');
   const sending = copyFor(present(snapshotSchema.parse({ kind: 'uploading', ...base }), none));
   assert.equal(sending.body, null);
   const verifying = copyFor(present(snapshotSchema.parse({ kind: 'verifying', ...base, confirmedBytes: 1000 }), none));
@@ -138,6 +139,23 @@ test('core upload copy is short and keeps protocol details out of the main flow'
   assert.equal(verifying.primary, null);
   const waiting = copyFor(present(snapshotSchema.parse({ kind: 'waiting', ...base, message: 'java.net.SocketTimeoutException' }), none));
   assert.equal(waiting.body, 'We’ll resume when you’re back online.');
+});
+
+test('verified original keeps the real receiver action without pretending a T3 handoff exists', () => {
+  const stage = present(snapshotSchema.parse({ kind: 'received', ...base, confirmedBytes: 1000, receipt }), none);
+  const copy = copyFor(stage);
+  assert.equal(copy.title, 'Original verified.');
+  assert.equal(copy.label, 'File matches the original.');
+  assert.equal(copy.body, null);
+  assert.equal(copy.primary?.command, 'viewer');
+  assert.equal(copy.secondary?.command, 'choose');
+});
+
+test('the empty screen retains the approved short original-file assurance', () => {
+  const copy = copyFor({ kind: 'import' });
+  assert.equal(copy.title, 'Choose an original.');
+  assert.equal(copy.body, 'Your original stays on your phone.');
+  assert.equal(copy.primary?.command, 'choose');
 });
 
 test('protocol and capability fields do not become public UI snapshot state', () => {

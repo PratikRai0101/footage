@@ -28,8 +28,9 @@ export function origin(text: string): string {
 // Only the canonical 91-byte named-curve, uncompressed P-256 SPKI is accepted.
 const P256_PREFIX = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d03010703420004', 'hex');
 export function p256(bytes: Uint8Array): KeyObject {
+  requirePairing(bytes.length === 91);
   const der = Buffer.from(bytes);
-  requirePairing(der.length === 91 && der.subarray(0, P256_PREFIX.length).equals(P256_PREFIX));
+  requirePairing(der.subarray(0, P256_PREFIX.length).equals(P256_PREFIX));
   const key = createPublicKey({ key: der, format: 'der', type: 'spki' });
   requirePairing(key.asymmetricKeyDetails?.namedCurve === 'prime256v1' && key.export({ format: 'der', type: 'spki' }).equals(der));
   return key;
@@ -46,7 +47,7 @@ export class PairingReader {
   private offset = 0;
   readonly bytes: Buffer;
   constructor(bytes: Uint8Array, magic: string, limit = PAIRING_LIMIT) {
-    this.bytes = Buffer.from(bytes); requirePairing(bytes.length <= limit);
+    requirePairing(bytes.length <= limit); this.bytes = Buffer.from(bytes);
     requirePairing(this.take(8).equals(Buffer.from(magic)));
   }
   take(n: number): Buffer {

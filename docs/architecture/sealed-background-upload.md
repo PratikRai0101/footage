@@ -211,6 +211,16 @@ Accepted native API reconciliation: canonical local `FTCTX001` outcome context c
 
 Actual paired control, desktop OS wrapping, Expo subscriber/cold launch, receiver supervision and all shared-app/physical gates remain open. These components are not registered with live app upload controls.
 
+### Integrated paired control and macOS wrapping
+
+The [paired-control slice](../evidence/paired-control.md) adds native per-job frozen installed authority and `PairingClient.control` by immutable binding or job ID, plus explicit macOS `DesktopKeyStore.initialize/load`. Parent compiled the wrapping helper and reran all 105 current root tests with the real-Keychain test opted in (one fresh test-only item, deleted by the test), typecheck/lint, the paired-listener typecheck and combined Swift 6 iPhoneOS compilation. The worker's 28 Simulator and 28 JVM control cases are recorded evidence, not parent device reruns.
+
+Accepted adapter handoff: setup builds `PairingControlBinding` from its canonical manifest and an already native-confirmed standalone intake, freezes installed authority, then sends through G1. Status/revoke use the saved job-ID confirmation and canonical G2 query, without opening display metadata. A changed current pairing cannot replace an old job's authority. G2 still authenticates responses; a successful paired HTTP exchange is not received progress or a receipt. A production `BackgroundControl` adapter and shared-app confirmation UI remain unfinished.
+
+View/list route names added by this slice are **reserved, default-off transport interfaces**, not accepted reply schemas or live receiver endpoints: `POST /sealed/v1/view` uses `FTQUERY1`; `POST /pair/v1/destinations` uses `FTLIST01 || device16 || epoch:u64 || nonce32`. Do not expose them to the app until receiver authorization and canonical reply validation are specified and tested. No caller may treat arbitrary returned bytes as an authorized destination/viewing grant.
+
+Wrapping supports macOS only and requires explicit local initialization and a trusted installed native helper. Missing/locked/replaced keys fail closed; Linux/Windows have no fallback. Normal app/receiver routing is still disabled. AndroidKeyStore execution, private LAN/denial, native scanning/confirmation, Expo and physical-device gates remain open.
+
 ## G1 — pairing and control authority (must prove before real uploads)
 
 ### Private-desktop onboarding

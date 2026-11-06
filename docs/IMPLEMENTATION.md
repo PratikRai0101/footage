@@ -24,9 +24,19 @@ A standalone native probe proved Apple's background URLSession follows redirects
 
 **Corrected requirement:** background upload remains mandatory. The foreground-only milestone was an assistant-selected tradeoff, not user approval to remove that requirement. Keep its tested code as a foundation on a separate branch; do not activate it on `main` or present it as the finished iPhone feature.
 
-Next, prove a safe background transport against real receiving listeners before adopting it. Both original-file confidentiality and write authority must stay within the chosen receiver. Test different-origin HTTPS redirects, HTTPS-to-HTTP downgrade, the same certificate on another origin, and actual background continuation. Do not describe background URLSession as rejecting redirects when it does not.
+The [standalone background proof](evidence/ios-background-transport-probe.md) rejected TLS/ATS pinning alone: an HTTP downgrade still disclosed the generated original. Sealed upload content and authenticated acknowledgments passed the bounded proof, including daemon-owned transfer while the test app was stopped. This is not integrated app behavior, durable multi-chunk recovery, pairing, or final-receipt acceptance.
+
+Review that changed transport/authority model before adopting it. It allows encrypted content to follow redirects, not original plaintext or reusable authority. Do not describe background URLSession as rejecting redirects when it does not. The received original must still match the original bytes and hash.
 
 A server promise not to redirect, checking the final response URL, or merely stripping Authorization is not an adequate fix for original-file disclosure. Any different transport/authority design must be explicitly reviewed and verified before integration. Force-quit must never be presented as a guaranteed automatic restart.
+
+## Background architecture gate
+
+- [x] Ground: existing native ownership, SQLite/tus outcomes and receipt boundary; see `architecture/engineering-walkthrough.md` and the upload-core branch.
+- [ ] Sketch: independently review the sealed-content proof and specify implementable interfaces, framing, limits, pairing, native lifecycle and durable server commits. Compare full presealed transfer groups with a bounded refill window.
+- [ ] Agree: record the engineering/security review outcome and accepted contract. No foreground-only substitution and no silent weakening of confidentiality or authority.
+- [ ] Implement: local native/receiver vertical slices, actual built Expo lifecycle and whole-job background acceptance on the shared app.
+- [ ] Scrap when needed: reject a design if concrete failures contradict its model; do not paper over them with unverified success states. The TLS/ATS-only candidate is already rejected.
 
 ## Delivery discipline
 

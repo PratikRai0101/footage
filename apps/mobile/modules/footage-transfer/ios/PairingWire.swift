@@ -67,8 +67,10 @@ struct PairingOrigin: Equatable {
       try pairingRequire(host.count <= 253 && !host.isEmpty)
       if host.allSatisfy({ $0.isNumber || $0 == "." }) {
         var address = in_addr(); try pairingRequire(inet_pton(AF_INET, host, &address) == 1)
-        var result = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN)); inet_ntop(AF_INET, &address, &result, socklen_t(result.count))
-        try pairingRequire(String(cString: result) == host)
+        var result = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+        try pairingRequire(inet_ntop(AF_INET, &address, &result, socklen_t(result.count)) != nil)
+        let canonical = String(decoding: result.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        try pairingRequire(canonical == host)
       } else {
         for label in host.split(separator: ".", omittingEmptySubsequences: false) {
           try pairingRequire(!label.isEmpty && label.count <= 63 && label.first != "-" && label.last != "-" && label.utf8.allSatisfy { (97...122).contains($0) || (48...57).contains($0) || $0 == 45 })

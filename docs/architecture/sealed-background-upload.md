@@ -221,6 +221,22 @@ View/list route names added by this slice are **reserved, default-off transport 
 
 Wrapping supports macOS only and requires explicit local initialization and a trusted installed native helper. Missing/locked/replaced keys fail closed; Linux/Windows have no fallback. Normal app/receiver routing is still disabled. AndroidKeyStore execution, private LAN/denial, native scanning/confirmation, Expo and physical-device gates remain open.
 
+### Integrated paired runtime and supervised HTTPS receiver
+
+The [paired runtime integration](../evidence/paired-background-integration.md) now supplies `PairingBackgroundControl`, frozen-job cold recovery and shared `PairingPinnedTrust`, plus an explicitly constructed `PairedService`. The recorded two-group Simulator run uses real G1 enrollment/control and a fresh macOS OS-wrapping item, not mailbox control. Receiver supervision resolves transient finalization without a phone retry; native recovery obtains the same hash-matched receipt after receiver restart/offline cancel. This is still standalone native evidence, not Expo activation or physical lock.
+
+Accepted service/profile reconciliation:
+
+- New jobs require `PairingNativeConfirmedIntake` from explicit native confirmation and installed identity; the adapter freezes that exact manifest authority before setup. Cold status/revoke restore the already saved job confirmation/trust, never the current selection or protected display manifest.
+- The HTTPS service is explicitly opened/listened by a trusted local owner. It is not imported by default startup. Its separate local controller is the only enrollment approval path. View/list remain 503; no reply schema or fake destination is invented.
+- This service advertises and enforces a **1 GiB original admission cap**, below the 4 GiB binary ceiling and subject to remaining storage/quota. Existing Android/tus behavior is unchanged. The app must use negotiated real limits before enabling this receiver profile.
+- Receiver-owned bounded-backoff supervision now retries durable finalization/cleanup and authority sweeps, and close drains storage work before closing Jobs. This closes the earlier isolated receiver's missing supervisor component, but production operator startup/UX, retention/repair, supported filesystem and platform acceptance remain open.
+- Parent reran 105 root tests with the real-Keychain test opted in, seven focused service tests and all 28 native control Simulator cases, typecheck/lint and combined Swift compilation. The multi-group paired-receipt run is the worker's recorded evidence, not a parent rerun.
+
+Cleanup incident: six early test-only Keychain entries remain from a failed fixture before cleanup registration, without retained exact account IDs. Safe local records did not recover those IDs; no existing Keychain metadata was enumerated or broadly deleted. Current fixtures retain exact cleanup metadata before initialization, register deletion before later constructors and attempt it even when shutdown fails. Do not claim historical cleanup is complete.
+
+Actual Expo host/bridge, scanner/confirmation/re-pair UX, private-LAN denial, AndroidKeyStore runtime and physical-device gates remain unfinished. Normal app uploads remain disabled on iPhone.
+
 ## G1 — pairing and control authority (must prove before real uploads)
 
 ### Private-desktop onboarding

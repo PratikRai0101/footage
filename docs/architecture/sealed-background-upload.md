@@ -201,6 +201,16 @@ Accepted **isolated-slice restrictions**, not waivers of activation gates:
 
 Production sealed routing, HTTPS admission, OS wrapping provider, revocation notification service and all G4–G7 app/device gates remain disabled or unfinished. Filesystem proof is scoped to the tested macOS environment. No TLS/paired API or background-upload activation follows from these unit/integration results.
 
+### Integrated protected-context and native/receiver proof
+
+The [native/receiver integration](../evidence/ios-background-integration.md) now reaches a shared durable G3 receipt using the production background runtime. Its owned Simulator proof covers two fully presealed groups transferred while Home-backgrounded and SIGSTOPed, a deliberately forged acknowledgment, lost final response, receiver restart, exact-packet retry and receipt-wins offline cancellation. The private manifest remained permission-denied. The listener's control/wrapping adapter is synthetic and test-only, not G1 integration or Expo lifecycle proof.
+
+Accepted native API reconciliation: canonical local `FTCTX001` outcome context contains bound receiver/origin/job/generation/device/epoch, manifest/destination digests, original identity, expiry and partition—not filename, private destination IDs, selected URI or frame-hash list. It is extracted while unlocked and storage-authenticated with the retained generation master before restoring from the minimal after-first-unlock ledger. Outcome verifiers and keys use that context; body operations/setup still require the complete protected manifest. No network format or KDF domain changed. Ledger version 2 rejects version 1 instead of manufacturing a context or weakening protection.
+
+`BackgroundControl.status/revoke` now accept `SealedProtocol.OutcomeContext` and a fresh query; `setup` still accepts `Manifest`. The G1 adapter must resolve its installed native credential and immutable setup binding without opening display metadata or following the current UI destination. Parent reran 37 native fault tests in an owned Simulator, all 104 root tests, combined Swift 6 iPhoneOS compilation and Swift/Node interop after integration. The multi-group daemon/final-receipt run remains the recorded worker run; it was not repeated by the parent.
+
+Actual paired control, desktop OS wrapping, Expo subscriber/cold launch, receiver supervision and all shared-app/physical gates remain open. These components are not registered with live app upload controls.
+
 ## G1 — pairing and control authority (must prove before real uploads)
 
 ### Private-desktop onboarding

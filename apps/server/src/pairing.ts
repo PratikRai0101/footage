@@ -193,5 +193,9 @@ export class PairingAuthority {
       this.db.prepare('UPDATE pairing_meta SET value = ? WHERE id = ?').run(Buffer.from(input.epoch.toString()), 'rotationEpoch'); return bytes;
     });
   }
+  /** Explicit listener provisioning check; never learn authority from HTTP headers. */
+  assertListenerBinding(serviceOrigin: string, ca: Buffer, pin: Buffer): void {
+    requirePairing(serviceOrigin === this.serviceOrigin && ca.equals(this.config.ca) && pin.equals(this.config.pin));
+  }
   close(): void { this.db.close(); this.offers.clear(); }
 }

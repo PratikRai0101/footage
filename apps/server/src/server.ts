@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { fileIdentity, originalPath, prepareOriginal, privateDirectory, repairOriginalOrphans } from './originals.js';
+import { chmod } from 'node:fs/promises';
+import { fileIdentity, originalPath, prepareOriginal, privateDirectory, repairOriginalOrphans, syncDirectory } from './originals.js';
 import { join } from 'node:path';
 import { once } from 'node:events';
 import { FileStore } from '@tus/file-store';
@@ -42,15 +43,16 @@ export async function createReceiver(directory: string, options: ViewerOptions =
   await privateDirectory(directory);
   const viewer = new ViewerAccess(options);
   const jobs = new Jobs(join(directory, 'jobs.sqlite'));
-  if (jobs.all().some(job => job.transport === 'sealed-v1')) {
-    jobs.close();
-    throw new Error('Sealed storage requires explicit authenticated ingest owner and wrapping provider.');
-  }
+  try {
+    if (jobs.all().some(job => job.transport === 'sealed-v1')) throw new Error('Sealed storage requires explicit authenticated ingest owner and wrapping provider.');
+    await privateDirectory(join(directory, 'uploads'));
+  } catch (error) { jobs.close(); throw error; }
   const store = new FileStore({ directory: join(directory, 'uploads') });
   const tus = new Server({ path: '/files', datastore: store, allowedOrigins: [], maxSize: 4 * 1024 ** 3 });
   const exclusive = jobs.exclusive.bind(jobs);
   try {
     await repairOriginalOrphans(directory, jobs.all());
+    await syncDirectory(directory);
     for (const job of jobs.all()) {
       if (job.status !== 'received') continue;
       try {
@@ -66,10 +68,12 @@ export async function createReceiver(directory: string, options: ViewerOptions =
       // Only absence permits creation; never replace data after an I/O failure.
       if (typeof error !== 'object' || error === null || !('status_code' in error) || error.status_code !== 404) throw error;
       await store.create(new Upload({ id: job.id, size: job.bytes, offset: 0, metadata: {} }));
+      await chmod(join(store.directory, job.id), 0o600);
     }
   }
 
   async function snapshot(job: StoredJob) {
+    if (job.storageFault) throw new HttpError(503, 'Original storage integrity requires recovery.');
     const offset = job.status === 'cancelled' ? 0 : (await store.getUpload(job.id)).offset;
     return { id: job.id, name: job.name, bytes: job.bytes, confirmedBytes: offset, status: job.status, receipt: job.receipt, uploadPath: `/files/${job.id}` };
   }
@@ -179,12 +183,14 @@ export async function createReceiver(directory: string, options: ViewerOptions =
       }
       if (req.method === 'DELETE' && !match[3]) {
         // Commit wins if a receipt was already published. Deletion of received artifacts is a separate operation.
-        if (job.status === 'received') { json(res, 409, { error: 'Already received; cancellation cannot revoke a receipt.', receipt: job.receipt }); return; }
-        jobs.save({ ...job, status: 'cancelled' });
+        if (job.status === 'received') { requireReceived(job); json(res, 409, { error: 'Already received; cancellation cannot revoke a receipt.', receipt: job.receipt }); return; }
+        jobs.save({ ...job, status: 'cancelled', cleanupPending: true });
         try { await store.remove(id); }
         catch (error) {
           if (typeof error !== 'object' || error === null || !('status_code' in error) || error.status_code !== 404) throw error;
         }
+        await syncDirectory(store.directory);
+        jobs.save({ ...job, status: 'cancelled', cleanupPending: false });
         json(res, 200, { id, status: 'cancelled', cleanup: 'complete' });
         return;
       }

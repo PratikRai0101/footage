@@ -49,6 +49,7 @@ export const storedJobSchema = registrationSchema.extend({
   transport: z.enum(['tus', 'sealed-v1']).default('tus'),
   contentReference: z.literal('original').optional(),
   storageFault: z.boolean().optional(),
+  cleanupPending: z.boolean().optional(),
   sealed: sealedStateSchema.optional(),
 });
 export type StoredJob = z.infer<typeof storedJobSchema>;

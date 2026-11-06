@@ -134,6 +134,34 @@ actor PairingClient {
     try pairingRequire(binding.job == job)
     return try await control(operation, binding: binding, canonicalBody: canonicalBody)
   }
+  // Minimal native integration accessors. No credential, private key or master escapes.
+  // Job recovery uses the frozen snapshot, never the current installation.
+  func confirmedJobBinding(_ job: Data) throws -> PairingControlBinding {
+    try pairingRequire(job.count == 16)
+    guard let bytes = try vault.job(job).read() else { throw PairingFailure.storage }
+    let saved = try PairingControlInstallation(bytes)
+    try pairingRequire(saved.binding.job == job)
+    return saved.binding
+  }
+  func confirmedJobIdentity(_ job: Data) throws -> PairingInstalledIdentity {
+    try pairingRequire(job.count == 16)
+    guard let bytes = try vault.job(job).read() else { throw PairingFailure.storage }
+    let saved = try PairingControlInstallation(bytes)
+    try pairingRequire(saved.binding.job == job)
+    return PairingInstalledIdentity(receiver: saved.binding.receiver, origin: saved.binding.origin,
+      device: saved.binding.device, epoch: saved.record.epoch, expires: saved.record.expires, permissions: saved.mask)
+  }
+  func installedTrust() throws -> PairingPinnedTrust {
+    let (s, _) = try installed()
+    return PairingPinnedTrust(offer: s.offer)
+  }
+  func confirmedJobTrust(_ job: Data) throws -> PairingPinnedTrust {
+    try pairingRequire(job.count == 16)
+    guard let bytes = try vault.job(job).read() else { throw PairingFailure.storage }
+    let saved = try PairingControlInstallation(bytes)
+    try pairingRequire(saved.binding.job == job)
+    return PairingPinnedTrust(offer: saved.offer)
+  }
   func listDestinations() async throws -> Data {
     let (s, record) = try installed(); try pairingRequire(s.mask & 0x10 != 0)
     let body = try Data("FTLIST01".utf8) + s.device + pairingU64(record.epoch) + pairingRandom(32)

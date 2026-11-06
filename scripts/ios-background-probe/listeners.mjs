@@ -103,6 +103,8 @@ function handler(role) {
     if (u.pathname === '/sealed' || u.pathname === '/slow-sealed' || u.pathname === '/replay') {
       receive(req, b => {
         try {
+          // Synthetic negative checks must never repair and commit an unauthenticated request.
+          authenticate(b);
           const checks = adversarialChecks(b), ack = accept(b), replay = accept(b);
           log({ kind: 'sealedAccepted', bytes: ack.length, sha256: ack.sha256, wireBytes: b.length, checks, idempotentReplay: ack.ack === replay.ack, plaintextFileVerified: true, auth: !!req.headers.authorization });
           res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ack: ack.ack, mac: ack.mac }));
@@ -112,6 +114,7 @@ function handler(role) {
     if (u.pathname === '/verify-captured') {
       try {
         const wire = readFileSync(`${dir}/captured-sealed.bin`);
+        authenticate(wire);
         const checks = adversarialChecks(wire), ack = accept(wire);
         log({ kind: 'capturedAcceptedByReceiver', bytes: ack.length, sha256: ack.sha256, checks });
         res.end(JSON.stringify(ack));

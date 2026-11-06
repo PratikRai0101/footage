@@ -98,18 +98,19 @@ test('cancelled preparation never redisplays the previous receipt for a new sele
   assert.notEqual(copyFor(stage).label, 'Original verified');
 });
 
-test('preview-only import does not promise an upload', () => {
+test('preview-only import stays explicit without adding platform paragraphs', () => {
   const copy = copyFor({ kind: 'import' }, 'preview');
-  assert.match(copy.body ?? '', /Android/);
+  assert.equal(copy.body, null);
+  assert.equal(copy.label, 'Preview only');
   assert.equal(copy.primary?.command, 'choose');
   assert.doesNotMatch(copy.body ?? '', /to send/);
 });
 
-test('preview-only review clearly limits uploads to Android', () => {
+test('preview-only review offers no upload and keeps its disclosure concise', () => {
   const copy = copyFor({ kind: 'review', clip }, 'preview');
   assert.equal(copy.primary?.command, 'choose');
   assert.equal(copy.secondary, null);
-  assert.match(copy.body ?? '', /Android/);
+  assert.equal(copy.body, null);
   assert.match(copy.label ?? '', /Preview only/);
   assert.doesNotMatch(copy.body ?? '', /Nothing is copied/);
 });

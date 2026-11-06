@@ -91,7 +91,7 @@ export function ScreeningRoom() {
 
   return <View style={styles.safe}>
     <StatusBar style="light" />
-    <Preview sample={stage.kind === 'import'} uri={clip && playable ? clip.uri : null} interactive={stage.kind === 'review' || received !== null} onMetadata={flow.available ? undefined : flow.recordPreviewMetadata}>
+    <Preview reducedMotion={reducedMotion} sample={stage.kind === 'import'} uri={clip && playable ? clip.uri : null} interactive={stage.kind === 'review' || received !== null} onMetadata={flow.available ? undefined : flow.recordPreviewMetadata}>
       {preview => <>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
           <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

@@ -38,7 +38,7 @@ export function copyFor(stage: Stage, mode: 'transfer' | 'preview' = 'transfer')
   const cancel: Action = { label: 'Cancel upload', command: 'cancel' };
   const normal = { tone: 'normal', primary: null, secondary: null } satisfies Pick<Copy, 'tone' | 'primary' | 'secondary'>;
   if (mode === 'preview' && (stage.kind === 'import' || stage.kind === 'review')) {
-    return { ...normal, title: stage.kind === 'import' ? 'Choose an original.' : 'Ready to preview.', label: 'Preview only', body: 'Uploads are available in the Android app.', primary: stage.kind === 'import' ? choose : { label: 'Choose another video', command: 'choose' } };
+    return { ...normal, title: stage.kind === 'import' ? 'Choose an original.' : 'Ready to preview.', label: 'Preview only', body: null, primary: stage.kind === 'import' ? choose : { label: 'Choose another video', command: 'choose' } };
   }
   switch (stage.kind) {
     case 'import': return { ...normal, title: 'Choose an original.', label: null, body: 'Your original stays on your phone.', primary: choose };

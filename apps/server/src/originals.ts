@@ -1,13 +1,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open, readdir, rename, rm, type FileHandle } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { HttpError, type StoredJob } from './contracts.js';
 
 export async function privateDirectory(path: string): Promise<void> {
-  await mkdir(path, { recursive: true, mode: 0o700 });
+  const firstCreated = await mkdir(path, { recursive: true, mode: 0o700 });
   const info = await lstat(path);
   if (!info.isDirectory() || (process.platform !== 'win32' && (info.mode & 0o077) !== 0)) throw new Error('Storage must be a private real directory.');
+  if (firstCreated !== undefined) {
+    for (let current = resolve(path); ; current = dirname(current)) {
+      await syncDirectory(current);
+      if (current === resolve(firstCreated)) { await syncDirectory(dirname(current)); break; }
+    }
+  }
 }
 
 export async function syncDirectory(path: string): Promise<void> {

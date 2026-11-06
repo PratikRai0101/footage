@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { z } from 'zod';
 import { createReceiver } from '../src/server.js';
-import { receiptSchema } from '../src/contracts.js';
+import { DatabaseSync } from 'node:sqlite';
+import { receiptSchema, storedJobSchema } from '../src/contracts.js';
 import { Jobs } from '../src/jobs.js';
 
 const snapshotSchema = z.object({ status: z.string(), confirmedBytes: z.number(), receipt: receiptSchema.nullable() });
@@ -244,8 +245,33 @@ test('tus publishes a private common original; corruption after restart blocks c
   assert.equal(download.status, 503); await download.text();
   const retry = await complete(f, s); assert.equal(retry.status, 503); await retry.text();
   // A storage incident never rewrites the authoritative issued receipt.
-  const snapshot = snapshotSchema.parse(await (await fetch(f.url(`/jobs/${s.id}`), { headers: s.authorization })).json());
-  assert.deepEqual(snapshot.receipt, receipt);
+  const db = new DatabaseSync(join(f.directory, 'jobs.sqlite'));
+  try {
+    const row = db.prepare('SELECT document FROM jobs WHERE id = ?').get(s.id);
+    if (typeof row?.document !== 'string') throw new Error('Missing stored job');
+    const decoded: unknown = JSON.parse(row.document);
+    assert.deepEqual(storedJobSchema.parse(decoded).receipt, receipt);
+  } finally { db.close(); }
+});
+
+test('legacy receipt rows migrate without binding invention or losing their tus content reference', async (t) => {
+  const f = await fixture(t); const s = sample(); await register(f, s);
+  const uploaded = await patch(f, s, 0); await uploaded.text();
+  const receipt = receiptSchema.parse(await (await complete(f, s)).json());
+  const db = new DatabaseSync(join(f.directory, 'jobs.sqlite'));
+  try {
+    const row = db.prepare('SELECT document FROM jobs WHERE id = ?').get(s.id);
+    assert.equal(typeof row?.document, 'string');
+    if (typeof row?.document !== 'string') throw new Error('Missing test job');
+    const decoded: unknown = JSON.parse(row.document);
+    const { transport: _transport, contentReference: _reference, ...legacy } = storedJobSchema.parse(decoded);
+    db.prepare('UPDATE jobs SET document = ? WHERE id = ?').run(JSON.stringify(legacy), s.id);
+  } finally { db.close(); }
+  await f.restart();
+  const result = receiptSchema.parse(await (await complete(f, s)).json());
+  assert.deepEqual(result, receipt); assert.equal(result.binding, undefined);
+  const content = await fetch(f.url(`/jobs/${s.id}/content`), { headers: s.authorization });
+  assert.equal(content.status, 200); assert.deepEqual(Buffer.from(await content.arrayBuffer()), s.bytes);
 });
 
 test('malformed metadata and oversized files are rejected at registration', async (t) => {

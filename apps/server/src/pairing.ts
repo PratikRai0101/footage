@@ -1,5 +1,7 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes, timingSafeEqual, type KeyObject } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { closeSync, constants, fstatSync, lstatSync, openSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { z } from 'zod';
 import { enrollment, fixed, lp16, lp32, origin, p256, pairingRecord, PairingReader, permission, qr, requirePairing, rotationRecord, sha256, u64, verifySignature } from './pairing-wire.js';
 
@@ -36,6 +38,11 @@ export class PairingAuthority {
   readonly serviceOrigin: string;
   private constructor(private readonly config: PairingConfig) {
     this.serviceOrigin = origin(config.origin);
+    const directory = lstatSync(dirname(config.path));
+    requirePairing(directory.isDirectory() && (directory.mode & 0o077) === 0);
+    const descriptor = openSync(config.path, constants.O_RDWR | constants.O_CREAT | constants.O_NOFOLLOW, 0o600);
+    try { const file = fstatSync(descriptor); requirePairing(file.isFile() && (file.mode & 0o077) === 0); }
+    finally { closeSync(descriptor); }
     this.db = new DatabaseSync(config.path);
     try {
       this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS pairing_meta (id TEXT PRIMARY KEY, value BLOB NOT NULL); CREATE TABLE IF NOT EXISTS pairing_devices (id TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE IF NOT EXISTS pairing_challenges (id TEXT PRIMARY KEY, nonce BLOB NOT NULL, challenge BLOB NOT NULL, expires TEXT NOT NULL); CREATE TABLE IF NOT EXISTS pairing_rate (id TEXT PRIMARY KEY, window TEXT NOT NULL, count INTEGER NOT NULL)');
@@ -118,9 +125,12 @@ export class PairingAuthority {
     });
     this.offers.delete(e.offer.toString('hex')); return reply;
   }
-  private device(id: Buffer, offer?: Buffer): Device {
+  private storedDevice(id: Buffer): Device {
     fixed(id, 16); const row = this.db.prepare('SELECT value FROM pairing_devices WHERE id = ?').get(id.toString('hex'));
-    requirePairing(row && typeof row.value === 'string'); const device = deviceSchema.parse(JSON.parse(row.value));
+    requirePairing(row && typeof row.value === 'string'); return deviceSchema.parse(JSON.parse(row.value));
+  }
+  private device(id: Buffer, offer?: Buffer): Device {
+    const device = this.storedDevice(id);
     requirePairing(!device.revoked && this.now() < BigInt(device.expires) && (!offer || device.offer === offer.toString('hex'))); return device;
   }
   private reply(device: Device, credential: Buffer, nonce: Buffer): Buffer {
@@ -152,8 +162,13 @@ export class PairingAuthority {
       return this.reply(device, credential, nonce);
     });
   }
+  /** Receiver job-lock owner rechecks this immediately before uncommitted ingest.
+   * This check alone does not cancel generations or replace the common Jobs lock. */
+  assertActiveEpoch(device: Buffer, epoch: bigint): void {
+    requirePairing(BigInt(this.device(device).epoch) === epoch);
+  }
   authorize(input: { device: Buffer; credential: Buffer; epoch: bigint; permission: number; destination: PairingDestination; owner: Buffer }): PairingScopes {
-    const device = this.device(input.device); permission(input.permission);
+    const device = this.device(input.device); permission(input.permission); fixed(input.credential, 32);
     requirePairing(input.owner.equals(input.device) && input.epoch === BigInt(device.epoch) && (input.permission & device.mask) === input.permission && timingSafeEqual(sha256(input.credential), Buffer.from(device.credentialHash, 'hex')));
     const dest = input.destination;
     requirePairing(dest.kind === 'intake' ? device.scopes.intakes.includes(dest.intake) : device.scopes.projects.some(p => p.environment === dest.environment && p.project === dest.project));
@@ -161,7 +176,9 @@ export class PairingAuthority {
   }
   private revoke(id: Buffer): { device: Buffer; epoch: bigint } {
     return this.transaction(() => {
-      const device = this.device(id); device.revoked = true; device.epoch = (BigInt(device.epoch) + 1n).toString();
+      const device = this.storedDevice(id);
+      if (device.revoked) return { device: Buffer.from(id), epoch: BigInt(device.epoch) };
+      device.revoked = true; device.epoch = (BigInt(device.epoch) + 1n).toString();
       this.db.prepare('UPDATE pairing_devices SET value = ? WHERE id = ?').run(JSON.stringify(device), device.device);
       this.db.prepare('DELETE FROM pairing_challenges WHERE id = ?').run(device.device);
       return { device: Buffer.from(id), epoch: BigInt(device.epoch) };

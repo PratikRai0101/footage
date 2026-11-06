@@ -46,14 +46,46 @@ internal class PairingAndroidVault(context: Context) : PairingDeviceVault {
     val key = keyStore.getKey(signing, null); pairingCheck(key is PrivateKey)
     val signature = Signature.getInstance("SHA256withECDSA"); signature.initSign(key as PrivateKey); signature.update(bytes); return signature.sign()
   }
+  private fun bounded(input: java.io.InputStream, cap: Int): ByteArray = input.use {
+    val output = java.io.ByteArrayOutputStream(); val buffer = ByteArray(1024)
+    while (true) { val n = it.read(buffer); if (n < 0) break; pairingCheck(n <= cap - output.size()); output.write(buffer, 0, n) }
+    output.toByteArray()
+  }
   private fun secretKey(): SecretKey = requireNotNull(keyStore.getKey(wrapping, null) as? SecretKey) { "Pairing key unavailable." }
   @Synchronized override fun read(): ByteArray? {
     if (!file.baseFile.exists() && !File(file.baseFile.path + ".bak").exists()) {
       pairingCheck(!keyStore.containsAlias(signing) && !keyStore.containsAlias(wrapping)); return null
     }
-    val bytes = file.readFully(); pairingCheck(bytes.size in 28..16412); publicKey()
+    val bytes = bounded(file.openRead(), 16412); pairingCheck(bytes.size in 28..16412); publicKey()
     val cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12))); cipher.updateAAD(aad)
     return cipher.doFinal(bytes.copyOfRange(12, bytes.size))
+  }
+  private fun jobFile(job: ByteArray): File {
+    pairingCheck(job.size == 16)
+    return File(dir, "job-" + job.joinToString("") { "%02x".format(it) })
+  }
+  @Synchronized override fun readJob(job: ByteArray): ByteArray? {
+    val item = jobFile(job)
+    if (!item.exists()) return null
+    pairingCheck(Os.lstat(item.absolutePath).st_mode and OsConstants.S_IFMT == OsConstants.S_IFREG)
+    val bytes = bounded(item.inputStream(), 4124); pairingCheck(bytes.size in 28..4124)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12))); cipher.updateAAD(aad + job)
+    return cipher.doFinal(bytes.copyOfRange(12, bytes.size))
+  }
+  @Synchronized override fun addJob(job: ByteArray, bytes: ByteArray) {
+    pairingCheck(bytes.size <= 4096)
+    val existing = readJob(job)
+    if (existing != null) { pairingCheck(existing.contentEquals(bytes)); return }
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, secretKey()); cipher.updateAAD(aad + job)
+    val encrypted = cipher.iv + cipher.doFinal(bytes); pairingCheck(cipher.iv.size == 12)
+    val item = jobFile(job)
+    // Exclusive creation: an interrupted write stays corrupt/blocked, not absent
+    // authority that can be silently rebound to another confirmation.
+    val fd = Os.open(item.absolutePath, OsConstants.O_WRONLY or OsConstants.O_CREAT or OsConstants.O_EXCL or OsConstants.O_NOFOLLOW, 384)
+    java.io.FileOutputStream(fd).use { it.write(encrypted); it.fd.sync() }
+    val directory = Os.open(dir.absolutePath, OsConstants.O_RDONLY, 0)
+    try { Os.fsync(directory) } finally { Os.close(directory) }
   }
   @Synchronized override fun save(bytes: ByteArray) {
     pairingCheck(bytes.size <= 16384); publicKey()

@@ -8,6 +8,8 @@ internal interface PairingDeviceVault {
   fun publicKey(): ByteArray
   fun sign(bytes: ByteArray): ByteArray
   fun save(bytes: ByteArray)
+  fun readJob(job: ByteArray): ByteArray?
+  fun addJob(job: ByteArray, bytes: ByteArray)
 }
 internal class PairingClient(private val vault: PairingDeviceVault) {
   private class Saved(val offer: PairingOffer, val device: ByteArray, val mask: Int, val installed: ByteArray) {
@@ -46,4 +48,41 @@ internal class PairingClient(private val vault: PairingDeviceVault) {
     vault.save(s.encode(reply))
   }
   @Synchronized fun isInstalled(): Boolean = saved().installed.isNotEmpty()
+  private class Installed(val saved: Saved, val credential: ByteArray, val epoch: ULong, val expires: ULong)
+  private fun installed(): Installed {
+    val s = saved(); val r = PairingReader(s.installed, "FTENRO01"); val credential = r.take(32); val p = PairingReader(r.lp32(16384), "FTPAIR01"); r.end()
+    p.take(32); p.lp16(512); p.take(16); p.lp16(128); p.u32(); val epoch = p.u64(); val expires = p.u64(); p.take(32); val nonce = p.take(32)
+    pairingVerifyReply(s.installed, s.offer, s.device, vault.publicKey(), s.mask, nonce)
+    return Installed(s, credential, epoch, expires)
+  }
+  @Synchronized fun nativeIdentity(): PairingInstalledIdentity {
+    val i = installed(); return PairingInstalledIdentity(i.saved.offer.receiver, i.saved.offer.origin.text, i.saved.device, i.epoch, i.expires, i.saved.mask)
+  }
+  @Synchronized fun confirmStandaloneAfterNativeConfirmation(binding: PairingControlBinding) {
+    val i = installed(); binding.validate(i.saved.offer, i.saved.device, i.epoch, i.expires, true)
+    val item = PairingControlInstallation(binding, i.saved.offer, vault.publicKey(), i.saved.mask, i.saved.installed)
+    val existing = vault.readJob(binding.job)
+    if (existing == null) vault.addJob(binding.job, item.bytes())
+    else {
+      val saved = PairingControlInstallation.fromSaved(existing)
+      pairingCheck(saved.binding.bytes().contentEquals(binding.bytes()) && saved.authorityDigest().contentEquals(item.authorityDigest()))
+    }
+  }
+  @Synchronized fun control(operation: PairingControlOperation, binding: PairingControlBinding, canonicalBody: ByteArray): ByteArray {
+    val installed = PairingControlInstallation.fromSaved(requireNotNull(vault.readJob(binding.job)))
+    pairingCheck(installed.binding.bytes().contentEquals(binding.bytes()) && installed.mask and operation.permission == operation.permission)
+    binding.validate(installed.offer, binding.deviceBytes(), installed.epoch, installed.expires, operation == PairingControlOperation.SETUP)
+    binding.validateBody(canonicalBody, operation)
+    return PairingTransport(installed.offer).send(operation.route, canonicalBody, installed.credential)
+  }
+  @Synchronized fun control(operation: PairingControlOperation, job: ByteArray, canonicalBody: ByteArray): ByteArray {
+    pairingCheck(job.size == 16)
+    val saved = requireNotNull(vault.readJob(job))
+    val binding = PairingControlInstallation.fromSaved(saved).binding; pairingCheck(binding.job.contentEquals(job))
+    return control(operation, binding, canonicalBody)
+  }
+  @Synchronized fun listDestinations(): ByteArray {
+    val i = installed(); pairingCheck(i.saved.mask and 0x10 != 0)
+    return PairingTransport(i.saved.offer).send(PairingRoute.DESTINATIONS, "FTLIST01".toByteArray() + i.saved.device + pairingU64(i.epoch) + pairingRandom(32), i.credential)
+  }
 }

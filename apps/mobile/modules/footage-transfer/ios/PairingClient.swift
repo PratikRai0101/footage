@@ -7,15 +7,23 @@ import CryptoKit
 // key material. It is not synchronized/backed up/migrated to a different device.
 final class PairingVault {
   private let service: String
-  init(service: String) { self.service = service }
-  private var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: "pairing.v1", kSecAttrSynchronizable as String: false] }
+  private let account: String
+  init(service: String, account: String = "pairing.v1") { self.service = service; self.account = account }
+  func job(_ id: Data) -> PairingVault { PairingVault(service: service, account: "control.job." + id.map { String(format: "%02x", $0) }.joined()) }
+  func addImmutable(_ bytes: Data) throws {
+    if let existing = try read() { try pairingRequire(existing == bytes); return }
+    var q = query; q[kSecValueData as String] = bytes; q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw PairingFailure.storage }
+  }
+  private var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account, kSecAttrSynchronizable as String: false] }
   func read() throws -> Data? {
     var q = query; q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
     var result: CFTypeRef?; let status = SecItemCopyMatching(q as CFDictionary, &result)
     if status == errSecItemNotFound { return nil }
-    guard status == errSecSuccess, let data = result as? Data else { throw PairingFailure.storage }; return data
+    guard status == errSecSuccess, let data = result as? Data, data.count <= 16384 else { throw PairingFailure.storage }; return data
   }
   func save(_ bytes: Data) throws {
+    try pairingRequire(bytes.count <= 16384)
     let attrs: [String: Any] = [kSecValueData as String: bytes, kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
     let status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
     if status == errSecItemNotFound {
@@ -83,4 +91,52 @@ actor PairingClient {
     try vault.save(s.encode(installed: reply))
   }
   func isInstalled() throws -> Bool { !(try saved()).installed.isEmpty }
+
+  private func installed() throws -> (Saved, PairingVerifiedRecord) {
+    let s = try saved()
+    let verified = try PairingVerifiedRecord(installedReply: s.installed, offer: s.offer, device: s.device, spki: s.key.publicKey.derRepresentation, mask: s.mask)
+    return (s, verified)
+  }
+  func nativeIdentity() throws -> PairingInstalledIdentity {
+    let (s, record) = try installed()
+    return PairingInstalledIdentity(receiver: s.offer.receiver, origin: s.offer.origin.text, device: s.device, epoch: record.epoch, expires: record.expires, permissions: s.mask)
+  }
+  // Native confirmation boundary only. No JS export. Caller must display the exact
+  // standalone intake before this call; no active-target lookup or inferred scope.
+  // Receiver scope enforcement remains authoritative: signed G1 records omit scopes.
+  func confirmStandaloneAfterNativeConfirmation(_ binding: PairingControlBinding) throws {
+    let (s, record) = try installed()
+    try binding.validate(offer: s.offer, device: s.device, epoch: record.epoch, expires: record.expires)
+    let item = try PairingControlInstallation(binding: binding, offer: s.offer, spki: s.key.publicKey.derRepresentation, mask: s.mask, reply: s.installed)
+    let account = vault.job(binding.job)
+    if let existing = try account.read() {
+      // Fresh recovery nonces may change signed reply bytes, never authority.
+      let saved = try PairingControlInstallation(existing)
+      try pairingRequire(saved.binding == binding && saved.authorityDigest == item.authorityDigest)
+    } else { try account.addImmutable(item.bytes) }
+  }
+  // Canonical bodies are produced by the native G2 wrapper, never JS. HTTP 200
+  // merely makes bounded bytes eligible for that wrapper's cryptographic verifier.
+  func control(_ operation: PairingControlOperation, binding: PairingControlBinding, canonicalBody: Data) async throws -> Data {
+    guard let bytes = try vault.job(binding.job).read() else { throw PairingFailure.storage }
+    let installed = try PairingControlInstallation(bytes)
+    try pairingRequire(installed.binding == binding && installed.mask & operation.permission == operation.permission)
+    try binding.validate(offer: installed.offer, device: binding.device, epoch: installed.record.epoch, expires: installed.record.expires, requireFreshJob: operation == .setup)
+    try binding.validateBody(canonicalBody, operation: operation)
+    return try await PairingHTTP(installed.offer).send(operation.route, body: canonicalBody, credential: installed.record.credential)
+  }
+  // Locked recovery needs only the native job ID + G2 query, not its full
+  // .complete manifest. Confirmation and installed authority stay in Keychain.
+  func control(_ operation: PairingControlOperation, job: Data, canonicalBody: Data) async throws -> Data {
+    try pairingRequire(job.count == 16)
+    guard let saved = try vault.job(job).read() else { throw PairingFailure.storage }
+    let binding = try PairingControlInstallation(saved).binding
+    try pairingRequire(binding.job == job)
+    return try await control(operation, binding: binding, canonicalBody: canonicalBody)
+  }
+  func listDestinations() async throws -> Data {
+    let (s, record) = try installed(); try pairingRequire(s.mask & 0x10 != 0)
+    let body = try Data("FTLIST01".utf8) + s.device + pairingU64(record.epoch) + pairingRandom(32)
+    return try await PairingHTTP(s.offer).send(.destinations, body: body, credential: record.credential)
+  }
 }

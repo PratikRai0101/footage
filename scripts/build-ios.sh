@@ -16,4 +16,4 @@ APP="$ROOT/artifacts/ios-simulator/build/Build/Products/Release-iphonesimulator/
 [[ -d "$APP" ]]
 mkdir -p "$ROOT/artifacts/ios-simulator"
 ditto "$APP" "$ROOT/artifacts/ios-simulator/$SCHEME.app"
-printf '\nSimulator app: %s/artifacts/ios-simulator/%s.app\nEmbedded JS/assets; no Metro. Simulator-only, not a physical iPhone build. Transfers remain Android-only.\n' "$ROOT" "$SCHEME"
+printf '\nSimulator app: %s/artifacts/ios-simulator/%s.app\nEmbedded JS/assets; no Metro. Simulator-only, not a physical iPhone build. iOS uploads require Footage to remain open.\n' "$ROOT" "$SCHEME"

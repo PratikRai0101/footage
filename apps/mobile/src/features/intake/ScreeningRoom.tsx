@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, useAnimatedValue, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Alert, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, useAnimatedValue, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { copyFor, formatBytes, fractionFor, mediaLine, present, type Command, type Stage } from './presentation';
@@ -73,8 +73,13 @@ export function ScreeningRoom() {
   const clip = stage.kind === 'import' ? null : stage.clip;
   const received = stage.kind === 'saved' && stage.snapshot.kind === 'received' ? stage.snapshot : null;
   const playable = stage.kind === 'saved' ? stage.snapshot.kind !== 'cancelled' : true;
-  const assurance = stage.kind === 'review' && flow.available ? copy.body : null;
-  const statusBody = assurance ? null : copy.body;
+  const foregroundUpload = Platform.OS === 'ios' && flow.available;
+  const assurance = stage.kind === 'review' && flow.available
+    ? foregroundUpload ? `${copy.body}\nKeep Footage open while uploading.` : copy.body : null;
+  const statusBody = foregroundUpload && stage.kind === 'saved' && stage.snapshot.kind === 'waiting'
+    ? 'Keep Footage open while uploading. Tap Continue to resume.'
+    : foregroundUpload && stage.kind === 'saved' && ['ready', 'uploading', 'verifying'].includes(stage.snapshot.kind)
+      ? 'Keep Footage open while uploading.' : assurance ? null : copy.body;
   const showStatus = copy.label !== null || statusBody !== null || stage.kind === 'preparing' || stage.kind === 'saved';
   const blockedUpload = copy.primary?.command === 'upload' && (!flow.available || flow.device?.supportsTransfer === false);
 

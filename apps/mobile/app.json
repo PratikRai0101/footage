@@ -13,7 +13,11 @@
     "ios": {
       "bundleIdentifier": "dev.footage.spike",
       "buildNumber": "4",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSLocalNetworkUsageDescription": "Upload your confirmed original to your chosen local receiver."
+      }
     },
     "android": {
       "package": "dev.footage.spike",

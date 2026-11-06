@@ -14,9 +14,9 @@ declare class FootageTransferModule extends NativeModule {
   cancel(): Promise<void>;
 }
 
-const native = Platform.OS === 'android' ? requireOptionalNativeModule<FootageTransferModule>('FootageTransfer') : null;
+const native = Platform.OS === 'android' || Platform.OS === 'ios' ? requireOptionalNativeModule<FootageTransferModule>('FootageTransfer') : null;
 function owner(): FootageTransferModule {
-  if (!native) throw new Error('Original transfer requires the Android development build. iOS and web can preview only.');
+  if (!native) throw new Error('Original transfer requires a native Footage build. Web can preview only.');
   return native;
 }
 function parseJson(input: string): unknown { return JSON.parse(input); }

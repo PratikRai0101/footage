@@ -41,8 +41,8 @@ export function SettingsSheet({ visible, settings, theme, reducedMotion, onClose
           <Pressable onPress={() => setAboutVisible(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: aboutVisible }} style={styles.about}><Text style={[styles.body, { color: c.secondary }]}>About Footage</Text><Icon name="arrow" color={c.secondary} size={16} /></Pressable>
           {aboutVisible && <>
             <Text style={[styles.note, { color: c.secondary }]}>An independent prototype. Not an official Cardboard app or integration.</Text>
-            <Text style={[styles.note, { color: c.secondary }]}>Uploads are available on Android. iOS and web support local preview; their system pickers may create temporary copies.</Text>
-            <Text style={[styles.note, { color: c.secondary }]}>Use a trusted private network for local HTTP. Background behavior depends on Android, network and power settings. Notifications depend on permission.</Text>
+            <Text style={[styles.note, { color: c.secondary }]}>Keep Footage open while uploading on iPhone. After locking or closing it, return and tap Continue. Web supports local preview only. System pickers may create temporary copies.</Text>
+            <Text style={[styles.note, { color: c.secondary }]}>Use a trusted private network for local HTTP. Android schedules uploads; background behavior depends on network and power settings. Android notifications depend on permission.</Text>
             <Pressable onPress={() => setCreditsVisible(value => !value)} accessibilityRole="button" accessibilityState={{ expanded: creditsVisible }} style={styles.iconButton}><Text style={[styles.note, { color: c.ink }]}>Licenses and sample credit</Text></Pressable>
             {creditsVisible && <Text selectable style={[styles.note, { color: c.secondary }]}>{licenses}</Text>}
           </>}

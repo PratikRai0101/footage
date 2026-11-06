@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
+import { deviceSchema, snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
 import { previewMetadata } from '../../apps/mobile/src/features/intake/preview-metadata';
 import { canChoose, copyFor, formatBytes, fractionFor, mediaLine, present, type Draft } from '../../apps/mobile/src/features/intake/presentation';
+
+test('device contract preserves Android wire data and distinguishes real iOS versions', () => {
+  const android = deviceSchema.parse({ manufacturer: 'test', model: 'test', apiLevel: 33, androidVersion: '13', supportsTransfer: true, scheduler: 'foreground-service' });
+  assert.equal(android.platform, 'android');
+  const ios = deviceSchema.parse({ platform: 'ios', manufacturer: 'Apple', model: 'iPhone', systemVersion: '26.2', supportsTransfer: true, scheduler: 'foreground-session' });
+  assert.equal(ios.platform, 'ios');
+  assert.equal('apiLevel' in ios, false);
+  assert.equal('androidVersion' in ios, false);
+  assert.equal(deviceSchema.safeParse({ ...ios, scheduler: 'foreground-service' }).success, false);
+});
 
 const id = randomUUID();
 const sha256 = 'a'.repeat(64);

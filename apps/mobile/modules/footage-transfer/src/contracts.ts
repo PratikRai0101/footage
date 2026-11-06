@@ -38,11 +38,18 @@ export const snapshotSchema = z.discriminatedUnion('kind', [
   }
 });
 export type Snapshot = z.infer<typeof snapshotSchema>;
-export const deviceSchema = z.object({
-  manufacturer: z.string(), model: z.string(), apiLevel: z.number().int(),
-  androidVersion: z.string(), supportsTransfer: z.boolean(),
-  scheduler: z.enum(['user-initiated-job', 'foreground-service']),
-});
+export const deviceSchema = z.discriminatedUnion('platform', [
+  z.object({
+    platform: z.literal('android').default('android'),
+    manufacturer: z.string(), model: z.string(), apiLevel: z.number().int(),
+    androidVersion: z.string(), supportsTransfer: z.boolean(),
+    scheduler: z.enum(['user-initiated-job', 'foreground-service']),
+  }),
+  z.object({
+    platform: z.literal('ios'), manufacturer: z.literal('Apple'), model: z.string(),
+    systemVersion: z.string(), supportsTransfer: z.boolean(), scheduler: z.literal('foreground-session'),
+  }),
+]);
 export type Device = z.infer<typeof deviceSchema>;
 export const settingsSchema = z.object({ origin: z.string(), appearance: z.enum(['dark', 'light', 'system']) });
 export type Settings = z.infer<typeof settingsSchema>;

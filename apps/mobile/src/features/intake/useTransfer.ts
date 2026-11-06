@@ -61,7 +61,7 @@ export function useTransfer() {
         if (JSON.stringify(value) !== JSON.stringify(previous.current)) setSnapshot(value);
         previous.current = value;
       } catch {
-        if (mounted) setError('Could not read the saved transfer. Reopen Footage with the latest Android build.');
+        if (mounted) setError('Could not read the saved transfer. Reopen Footage with the latest native build. Saved data has not been discarded.');
       } finally { reading = false; }
     };
     void Promise.all([transfers.device(), transfers.settings()]).then(([device, saved]) => {
@@ -69,7 +69,7 @@ export function useTransfer() {
         setDevice(device);
         setSettings({ ...saved, origin: saved.origin || initialSettings.origin });
       }
-    }).catch(() => { if (mounted) setError('Install the latest Android build to use the native transfer module.'); });
+    }).catch(() => { if (mounted) setError('Install the latest native build to use original uploads.'); });
     void read();
     const timer = setInterval(() => { void read(); }, 750);
     const listener = AppState.addEventListener('change', state => {

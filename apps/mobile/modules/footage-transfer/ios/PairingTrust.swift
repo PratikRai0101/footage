@@ -93,27 +93,35 @@ struct PairingCertificate {
     return dns.contains(host)
   }
 }
-enum PairingRoute: String { case enroll = "/pair/v1/enroll", challenge = "/pair/v1/challenge", recover = "/pair/v1/recover" }
+enum PairingRoute: String {
+  case enroll = "/pair/v1/enroll", challenge = "/pair/v1/challenge", recover = "/pair/v1/recover"
+  case setup = "/sealed/v1/setup", status = "/sealed/v1/status", revoke = "/sealed/v1/revoke", view = "/sealed/v1/view"
+  case destinations = "/pair/v1/destinations"
+  var responseLimit: Int { switch self { case .status, .revoke, .view: return 4096; case .setup, .destinations: return 65536; default: return 16384 } }
+  var isControl: Bool { switch self { case .enroll, .challenge, .recover: return false; default: return true } }
+}
 
 final class PairingHTTP {
   private let offer: PairingOffer
   init(_ offer: PairingOffer) { self.offer = offer }
-  func send(_ route: PairingRoute, body: Data) async throws -> Data {
-    try pairingRequire(body.count <= 16384)
+  func send(_ route: PairingRoute, body: Data, credential: Data? = nil) async throws -> Data {
+    try pairingRequire(body.count <= (route.isControl ? 65536 : 16384))
+    try pairingRequire(route.isControl ? credential?.count == 32 : credential == nil)
     return try await withCheckedThrowingContinuation { continuation in
-      let exchange = PairingExchange(offer: offer, continuation: continuation)
-      exchange.start(route, body)
+      let exchange = PairingExchange(offer: offer, limit: route.responseLimit, continuation: continuation)
+      exchange.start(route, body, credential)
     }
   }
 }
 private final class PairingExchange: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate, @unchecked Sendable {
   private let offer: PairingOffer
+  private let limit: Int
   private var continuation: CheckedContinuation<Data, Error>?
   private var session: URLSession?
   private var bytes = Data()
   private var rejected = false
-  init(offer: PairingOffer, continuation: CheckedContinuation<Data, Error>) { self.offer = offer; self.continuation = continuation }
-  func start(_ route: PairingRoute, _ body: Data) {
+  init(offer: PairingOffer, limit: Int, continuation: CheckedContinuation<Data, Error>) { self.offer = offer; self.limit = limit; self.continuation = continuation }
+  func start(_ route: PairingRoute, _ body: Data, _ credential: Data?) {
     let config = URLSessionConfiguration.ephemeral
     config.urlCache = nil; config.requestCachePolicy = .reloadIgnoringLocalCacheData
     config.httpCookieStorage = nil; config.httpShouldSetCookies = false; config.urlCredentialStorage = nil
@@ -124,6 +132,7 @@ private final class PairingExchange: NSObject, URLSessionDataDelegate, URLSessio
     guard let url = URL(string: offer.origin.text + route.rawValue) else { finish(.failure(PairingFailure.rejected)); return }
     var request = URLRequest(url: url); request.httpMethod = "POST"; request.httpBody = body
     request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+    if let credential { request.setValue("Bearer " + credential.map { String(format: "%02x", $0) }.joined(), forHTTPHeaderField: "Authorization") }
     session.dataTask(with: request).resume()
   }
   func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
@@ -155,11 +164,11 @@ private final class PairingExchange: NSObject, URLSessionDataDelegate, URLSessio
     guard let response = response as? HTTPURLResponse, response.statusCode == 200,
       response.url == dataTask.originalRequest?.url,
       response.value(forHTTPHeaderField: "Content-Type") == "application/octet-stream",
-      response.expectedContentLength <= 16384 else { rejected = true; completionHandler(.cancel); return }
+      response.expectedContentLength <= Int64(limit), response.value(forHTTPHeaderField: "Content-Encoding") == nil else { rejected = true; completionHandler(.cancel); return }
     completionHandler(.allow)
   }
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-    if data.count > 16384 - bytes.count { rejected = true; dataTask.cancel() } else { bytes.append(data) }
+    if data.count > limit - bytes.count { rejected = true; dataTask.cancel() } else { bytes.append(data) }
   }
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if rejected { finish(.failure(PairingFailure.rejected)) }

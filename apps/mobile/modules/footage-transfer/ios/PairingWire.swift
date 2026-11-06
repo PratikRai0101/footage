@@ -100,6 +100,14 @@ struct PairingOffer {
   }
 }
 struct PairingVerifiedRecord {
+  init(installedReply: Data, offer: PairingOffer, device: Data, spki: Data, mask: UInt32) throws {
+    var reply = try PairingReader(installedReply, "FTENRO01"); _ = try reply.take(32)
+    var record = try PairingReader(reply.lp32(16384), "FTPAIR01"); try reply.end()
+    _ = try record.take(32); _ = try record.lp16(512); _ = try record.take(16); _ = try record.lp16(128)
+    _ = try record.integer(4); _ = try record.integer(8); _ = try record.integer(8); _ = try record.take(32)
+    let nonce = try record.take(32)
+    try self.init(reply: installedReply, offer: offer, device: device, spki: spki, mask: mask, nonce: nonce)
+  }
   let bytes: Data, credential: Data
   let epoch: UInt64, expires: UInt64
   init(reply: Data, offer: PairingOffer, device: Data, spki: Data, mask: UInt32, nonce: Data) throws {

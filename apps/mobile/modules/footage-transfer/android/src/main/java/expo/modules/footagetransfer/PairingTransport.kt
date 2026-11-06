@@ -13,15 +13,19 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
-internal enum class PairingRoute(val path: String) { ENROLL("/pair/v1/enroll"), CHALLENGE("/pair/v1/challenge"), RECOVER("/pair/v1/recover") }
+internal enum class PairingRoute(val path: String, val responseLimit: Int = 16384, val control: Boolean = false) {
+  ENROLL("/pair/v1/enroll"), CHALLENGE("/pair/v1/challenge"), RECOVER("/pair/v1/recover"),
+  SETUP("/sealed/v1/setup", 65536, true), STATUS("/sealed/v1/status", 4096, true), REVOKE("/sealed/v1/revoke", 4096, true), VIEW("/sealed/v1/view", 4096, true), DESTINATIONS("/pair/v1/destinations", 65536, true)
+}
 
 /** Dedicated raw TLS socket: no global HTTP cookie/cache/auth/proxy stores, no
  * redirect implementation, no caller-supplied URL. Handshake and independent
  * QR anchor/SAN/EKU/pin checks complete BEFORE writing any application bytes.
  * Blocking: native worker only, never the UI thread. */
 internal class PairingTransport(private val offer: PairingOffer) {
-  fun send(route: PairingRoute, body: ByteArray): ByteArray {
-    pairingCheck(body.size <= 16384)
+  fun send(route: PairingRoute, body: ByteArray, credential: ByteArray? = null): ByteArray {
+    pairingCheck(body.size <= if (route.control) 65536 else 16384)
+    pairingCheck(if (route.control) credential?.size == 32 else credential == null)
     val anchor = CertificateFactory.getInstance("X.509").generateCertificate(ByteArrayInputStream(offer.ca)) as X509Certificate
     pairingCheck(anchor.encoded.contentEquals(offer.ca) && anchor.basicConstraints >= 0); anchor.checkValidity()
     val store = KeyStore.getInstance(KeyStore.getDefaultType()); store.load(null); store.setCertificateEntry("pairing-only", anchor)
@@ -54,12 +58,13 @@ internal class PairingTransport(private val offer: PairingOffer) {
       socket.connect(InetSocketAddress(offer.origin.host, offer.origin.port), 15000)
       socket.startHandshake()
       val authority = offer.origin.text.removePrefix("https://")
-      val header = "POST ${route.path} HTTP/1.1\r\nHost: $authority\r\nContent-Type: application/octet-stream\r\nAccept: application/octet-stream\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n"
+      val auth = if (credential == null) "" else "Authorization: Bearer ${credential.joinToString("") { "%02x".format(it) }}\r\n"
+      val header = "POST ${route.path} HTTP/1.1\r\nHost: $authority\r\n${auth}Content-Type: application/octet-stream\r\nAccept: application/octet-stream\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n"
       socket.outputStream.write(header.toByteArray(Charsets.US_ASCII)); socket.outputStream.write(body); socket.outputStream.flush()
-      return readReply(socket.inputStream)
+      return readReply(socket.inputStream, route.responseLimit)
     }
   }
-  private fun readReply(input: InputStream): ByteArray {
+  private fun readReply(input: InputStream, limit: Int): ByteArray {
     var headerBytes = 0
     fun line(): String {
       val out = ByteArrayOutputStream()
@@ -80,7 +85,7 @@ internal class PairingTransport(private val offer: PairingOffer) {
     pairingCheck(headers["content-type"] == "application/octet-stream" && !headers.containsKey("content-encoding"))
     val out = ByteArrayOutputStream()
     fun copy(n: Int) {
-      pairingCheck(n >= 0 && n <= 16384 - out.size())
+      pairingCheck(n >= 0 && n <= limit - out.size())
       var remaining = n; val buffer = ByteArray(minOf(4096, maxOf(n, 1)))
       while (remaining > 0) { val read = input.read(buffer, 0, minOf(buffer.size, remaining)); pairingCheck(read > 0); out.write(buffer, 0, read); remaining -= read }
     }

@@ -298,6 +298,64 @@ enum SealedProtocol {
       return prefix
     }
   }
+  /// Native-only minimal outcome material. No filename, destination IDs or frame hashes.
+  /// Durable restore authenticates the exact canonical record with the retained native master;
+  /// a stored digest alone cannot authenticate a substituted original identity.
+  struct OutcomeContext {
+    let receiver: Data, origin: String, job: Data, generation: Data, device: Data
+    let enrollmentEpoch: UInt64, digest: Data, destinationDigest: Data
+    let originalBytes: UInt64, originalSHA256: Data, expiresAt: UInt64
+    let bytes: Data
+    var frameCount: Int { Int((originalBytes + UInt64(frameBytes) - 1) / UInt64(frameBytes)) }
+    var groupCount: Int { (frameCount + 7) / 8 }
+    private init(_ bytes: Data) throws {
+      var r = try Reader(bytes, max: 1024)
+      try r.magic("FTCTX001")
+      receiver = try r.bytes(32); origin = try SealedProtocol.origin(r.string(512))
+      job = try r.bytes(16); generation = try r.bytes(16); device = try r.bytes(16)
+      enrollmentEpoch = try r.n(8); digest = try r.bytes(32); destinationDigest = try r.bytes(32)
+      originalBytes = try r.n(8); originalSHA256 = try r.bytes(32); expiresAt = try r.n(8)
+      try check(originalBytes > 0 && originalBytes <= maxOriginal)
+      try check(r.n(4) == UInt64(frameBytes) && r.n(2) == 8)
+      try check(r.n(4) == (originalBytes + UInt64(frameBytes) - 1) / UInt64(frameBytes))
+      try r.end(); self.bytes = bytes
+    }
+    static func fromManifest(_ m: Manifest) throws -> OutcomeContext {
+      var w = Writer(); w.magic("FTCTX001"); w.bytes(m.receiver); try w.lp(Data(m.origin.utf8))
+      w.bytes(m.job); w.bytes(m.generation); w.bytes(m.device); try w.n(m.enrollmentEpoch, 8)
+      w.bytes(m.digest); w.bytes(try m.destinationDigest); try w.n(m.originalBytes, 8)
+      w.bytes(m.originalSHA256); try w.n(m.expiresAt, 8)
+      try w.n(UInt64(frameBytes), 4); try w.n(8, 2); try w.n(UInt64(m.frameHashes.count), 4)
+      return try OutcomeContext(w.data)
+    }
+    func authentication(master: Data) throws -> Data {
+      try check(master.count == 32)
+      return Data(HMAC<SHA256>.authenticationCode(for: Data("footage/sealed-v1/context-storage".utf8) + bytes,
+        using: SymmetricKey(data: master)))
+    }
+    static func restore(_ bytes: Data, master: Data, authentication: Data) throws -> OutcomeContext {
+      try check(bytes.count <= 1024 && master.count == 32 && authentication.count == 32)
+      guard HMAC<SHA256>.isValidAuthenticationCode(authentication,
+        authenticating: Data("footage/sealed-v1/context-storage".utf8) + bytes,
+        using: SymmetricKey(data: master)) else { throw Failure.authentication }
+      return try OutcomeContext(bytes)
+    }
+    func partition(_ group: Int) throws -> Partition {
+      try check(group >= 0 && group < groupCount)
+      let first = group * 8, offset = UInt64(first) * UInt64(frameBytes)
+      return Partition(group: group, firstFrame: first, frameCount: min(8, frameCount - first),
+        offset: offset, length: Int(min(originalBytes - offset, UInt64(frameBytes) * 8)))
+    }
+    func contiguous(_ bitmap: UInt64) throws -> UInt64 {
+      if groupCount < 64 { try check(bitmap >> groupCount == 0) }
+      var prefix: UInt64 = 0
+      for i in 0..<groupCount {
+        if bitmap & (UInt64(1) << i) == 0 { break }
+        prefix += UInt64(try partition(i).length)
+      }
+      return prefix
+    }
+  }
   struct Partition { let group: Int, firstFrame: Int, frameCount: Int, offset: UInt64, length: Int }
   struct Binding {
     let manifest: Manifest
@@ -346,11 +404,19 @@ enum SealedProtocol {
   enum Domain: String { case body, ack, receipt, status }
   struct Keys {
     private let master: SymmetricKey
-    let manifest: Manifest
+    private let fullManifest: Manifest?
+    let outcome: OutcomeContext
+    var manifest: Manifest { get throws {
+      guard let fullManifest else { throw Failure.invalid }; return fullManifest
+    } }
     init(master: Data, manifest: Manifest) throws {
       try check(master.count == 32)
-      self.master = SymmetricKey(data: master)
-      self.manifest = manifest
+      self.master = SymmetricKey(data: master); fullManifest = manifest
+      outcome = try OutcomeContext.fromManifest(manifest)
+    }
+    init(master: Data, outcome: OutcomeContext) throws {
+      try check(master.count == 32)
+      self.master = SymmetricKey(data: master); self.outcome = outcome; fullManifest = nil
     }
     static func fresh(_ manifest: Manifest) throws -> (keys: Keys, master: Data) {
       let master = try random(32)
@@ -369,7 +435,7 @@ enum SealedProtocol {
         try check(frame == nil && sealID == nil)
       }
       let key = HKDF<SHA256>.deriveKey(
-        inputKeyMaterial: master, salt: manifest.digest, info: w.data, outputByteCount: 32)
+        inputKeyMaterial: master, salt: outcome.digest, info: w.data, outputByteCount: 32)
       return key.withUnsafeBytes { Data($0) }
     }
   }
@@ -408,7 +474,7 @@ enum SealedProtocol {
       defer { lock.unlock() }
       if used { throw Failure.consumed }
       used = true
-      let m = keys.manifest
+      let m = try keys.manifest
       let length = try m.frameLength(frame)
       try check(plaintext.count == length && hash(plaintext) == m.frameHashes[frame])
       let nonce = try AES.GCM.Nonce(data: random(12))
@@ -491,7 +557,7 @@ enum SealedProtocol {
       }
     }
   }
-  private static func context(_ magic: String, _ m: Manifest) -> Writer {
+  private static func context(_ magic: String, _ m: OutcomeContext) -> Writer {
     var w = Writer()
     w.magic(magic)
     w.bytes(m.receiver)
@@ -500,7 +566,7 @@ enum SealedProtocol {
     w.bytes(m.digest)
     return w
   }
-  private static func readContext(_ r: inout Reader, _ magic: String, _ m: Manifest) throws {
+  private static func readContext(_ r: inout Reader, _ magic: String, _ m: OutcomeContext) throws {
     try r.magic(magic)
     try check(r.bytes(32) == m.receiver)
     try check(r.bytes(16) == m.job)
@@ -525,9 +591,9 @@ enum SealedProtocol {
     return try Reader(payload, max: 4096)
   }
   static func encodeAck(keys: Keys, group: Int, wireSHA256: Data, revision: UInt64) throws -> Data {
-    let p = try keys.manifest.partition(group)
+    let p = try keys.outcome.partition(group)
     try check(wireSHA256.count == 32)
-    var w = context("FTACK001", keys.manifest)
+    var w = context("FTACK001", keys.outcome)
     try w.n(UInt64(group), 4)
     w.bytes(wireSHA256)
     try w.n(p.offset, 8)
@@ -548,14 +614,14 @@ enum SealedProtocol {
     {
       try check(bytes.count == 192 && wireSHA256.count == 32)
       var r = try authenticated(bytes, keys: keys, domain: .ack)
-      try readContext(&r, "FTACK001", keys.manifest)
+      try readContext(&r, "FTACK001", keys.outcome)
       let group = try r.small(4, 63)
       let wire = try r.bytes(32)
       let offset = try r.n(8)
       let length = try r.small(4, 64 * 1024 * 1024)
       let revision = try r.n(8)
       try r.end()
-      let p = try keys.manifest.partition(group)
+      let p = try keys.outcome.partition(group)
       try check(
         group == expectedGroup && wire == wireSHA256 && offset == p.offset && length == p.length)
       return VerifiedAck(group: group, offset: offset, length: length, revision: revision)
@@ -565,8 +631,8 @@ enum SealedProtocol {
     -> Data
   {
     try check(id.count == 16)
-    var w = context("FTRCPT01", keys.manifest)
-    w.bytes(try keys.manifest.destinationDigest)
+    var w = context("FTRCPT01", keys.outcome)
+    w.bytes(keys.outcome.destinationDigest)
     w.bytes(id)
     try w.n(verifiedAt, 8)
     try w.n(revision, 8)
@@ -601,7 +667,7 @@ enum SealedProtocol {
     }
     let id: Data, jobID: Data, bytes: UInt64, sha256: Data, verifiedAt: UInt64, revision: UInt64,
       manifestDigest: Data, destinationDigest: Data, generation: Data, receiver: Data
-    private init(id: Data, verifiedAt: UInt64, revision: UInt64, manifest: Manifest) throws {
+    private init(id: Data, verifiedAt: UInt64, revision: UInt64, manifest: OutcomeContext) throws {
       self.id = id
       jobID = manifest.job
       bytes = manifest.originalBytes
@@ -609,20 +675,20 @@ enum SealedProtocol {
       self.verifiedAt = verifiedAt
       self.revision = revision
       manifestDigest = manifest.digest
-      destinationDigest = try manifest.destinationDigest
+      destinationDigest = manifest.destinationDigest
       generation = manifest.generation
       receiver = manifest.receiver
     }
     static func verify(_ bytes: Data, keys: Keys) throws -> VerifiedReceipt {
       var r = try authenticated(bytes, keys: keys, domain: .receipt)
-      try readContext(&r, "FTRCPT01", keys.manifest)
-      try check(r.bytes(32) == keys.manifest.destinationDigest)
+      try readContext(&r, "FTRCPT01", keys.outcome)
+      try check(r.bytes(32) == keys.outcome.destinationDigest)
       let id = try r.bytes(16)
       let verifiedAt = try r.n(8)
       let revision = try r.n(8)
       try r.end()
       return try VerifiedReceipt(
-        id: id, verifiedAt: verifiedAt, revision: revision, manifest: keys.manifest)
+        id: id, verifiedAt: verifiedAt, revision: revision, manifest: keys.outcome)
     }
   }
   static func encodeOutcome(ack: Data, receipt: Data = Data()) throws -> Data {
@@ -658,17 +724,22 @@ enum SealedProtocol {
     static func fresh(operation: Data) throws -> Query {
       try Query(operation: operation, challenge: random(32))
     }
-    func encode(_ m: Manifest) -> Data {
+    func encode(_ m: Manifest) -> Data { encode(job: m.job, generation: m.generation, digest: m.digest) }
+    func encode(_ m: OutcomeContext) -> Data { encode(job: m.job, generation: m.generation, digest: m.digest) }
+    private func encode(job: Data, generation: Data, digest: Data) -> Data {
       var w = Writer()
       w.magic("FTQUERY1")
-      w.bytes(m.job)
-      w.bytes(m.generation)
-      w.bytes(m.digest)
+      w.bytes(job)
+      w.bytes(generation)
+      w.bytes(digest)
       w.bytes(operation)
       w.bytes(challenge)
       return w.data
     }
     static func decode(_ bytes: Data, manifest m: Manifest) throws -> Query {
+      try decode(bytes, outcome: OutcomeContext.fromManifest(m))
+    }
+    static func decode(_ bytes: Data, outcome m: OutcomeContext) throws -> Query {
       var r = try Reader(bytes, max: 120)
       try r.magic("FTQUERY1")
       try check(r.bytes(16) == m.job)
@@ -689,7 +760,7 @@ enum SealedProtocol {
       self.groupBitmap = groupBitmap
     }
   }
-  private static func statusRules(_ s: StatusFields, _ m: Manifest, _ receipt: VerifiedReceipt?)
+  private static func statusRules(_ s: StatusFields, _ m: OutcomeContext, _ receipt: VerifiedReceipt?)
     throws
   {
     try check(s.state >= 4 ? s.cleanup == 1 || s.cleanup == 2 : s.cleanup == 0)
@@ -704,7 +775,7 @@ enum SealedProtocol {
   static func encodeStatus(keys: Keys, query: Query, fields: StatusFields, receipt: Data = Data())
     throws -> Data
   {
-    let m = keys.manifest
+    let m = keys.outcome
     try statusRules(fields, m, receipt.isEmpty ? nil : VerifiedReceipt.verify(receipt, keys: keys))
     var w = context("FTSTAT01", m)
     w.bytes(query.operation)
@@ -733,7 +804,7 @@ enum SealedProtocol {
       -> VerifiedStatus
     {
       var r = try authenticated(bytes, keys: keys, domain: .status)
-      let m = keys.manifest
+      let m = keys.outcome
       try readContext(&r, "FTSTAT01", m)
       try check(r.bytes(16) == query.operation)
       try check(r.bytes(32) == query.challenge)
@@ -759,7 +830,7 @@ enum SealedProtocol {
     try check(candidate.derive(.ack) == keys.derive(.ack))
     var w = Writer()
     w.magic("FTSET001")
-    w.bytes(keys.manifest.digest)
+    w.bytes(try keys.manifest.digest)
     w.bytes(master)
     try w.n(keys.manifest.expiresAt, 8)
     return w.data

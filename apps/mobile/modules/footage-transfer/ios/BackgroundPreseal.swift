@@ -12,13 +12,13 @@ struct BackgroundSelection {
 }
 
 /// No transport authority defaults. The embedding native G1 owner must authorize the exact
-/// manifest/device/epoch/destination using masks 0x01/0x02/0x04, fixed HTTPS paths,
+/// setup manifest and minimal outcome binding using masks 0x01/0x02/0x04, fixed HTTPS paths,
 /// no redirects, exact paired trust and bounded binary responses. Never a JS adapter.
-/// G1 currently exposes no installed-credential accessor; production implementation is gated.
+/// Status/revoke must not reopen private destination/display metadata. No default authority.
 protocol BackgroundControl {
   func setup(_ manifest: SealedProtocol.Manifest) throws -> Data // canonical FTSET001, <=80 bytes
-  func status(_ manifest: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data
-  func revoke(_ manifest: SealedProtocol.Manifest, query: SealedProtocol.Query) throws -> Data
+  func status(_ context: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data
+  func revoke(_ context: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data
 }
 
 final class BackgroundPreseal {
@@ -84,13 +84,16 @@ final class BackgroundPreseal {
     try m.validateSetupTime(now: UInt64(Date().timeIntervalSince1970))
     // Persist identity BEFORE setup: timeout or partial installation may not silently create a new job.
     try BackgroundFiles.save(m.bytes, to: manifestURL, complete: true)
-    try ledger.save(BackgroundState(m))
+    try ledger.save(try BackgroundState(m))
     do {
       let reply = try control.setup(m)
       _ = try SealedProtocol.decodeSetup(reply, manifest: m)
       // G2 intentionally doesn't export its master. Its exact 80-byte canonical setup
       // has already been validated; extract only its fixed master field for Keychain.
-      try keychain.install(Data(reply[40..<72]), reference: ledger.state!.keyReference)
+      let master = Data(reply[40..<72])
+      try keychain.install(master, reference: ledger.state!.keyReference)
+      let authentication = try SealedProtocol.OutcomeContext.fromManifest(m).authentication(master: master)
+      try ledger.change { $0.outcomeAuthentication = authentication }
       try boundary(.setupSaved); try checkActive()
       try seal(m)
     } catch {
@@ -99,13 +102,6 @@ final class BackgroundPreseal {
     }
   }
   static func uuid() -> Data { var id = UUID().uuid; return withUnsafeBytes(of: &id) { Data($0) } }
-  func loadManifest() throws -> SealedProtocol.Manifest {
-    guard let state = ledger.state else { throw BackgroundFailure.blocked }
-    let m = try SealedProtocol.Manifest.decode(Data(contentsOf: manifestURL))
-    try backgroundRequire(m.digest == state.digest && m.job == state.job && m.generation == state.generation
-      && m.receiver == state.receiver && m.origin == state.origin && m.device == state.device)
-    return m
-  }
   private func seal(_ m: SealedProtocol.Manifest) throws {
     let keys = try SealedProtocol.Keys(master: keychain.read(ledger.state!.keyReference), manifest: m)
     let session = SealedProtocol.SealSession(keys: keys)

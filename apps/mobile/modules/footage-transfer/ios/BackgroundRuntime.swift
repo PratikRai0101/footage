@@ -26,6 +26,18 @@ final class BackgroundRuntime: @unchecked Sendable {
     ledger = try BackgroundLedger(root: directory, create: create)
     keychain = BackgroundKeychain(service: keychainService); self.control = control; self.boundary = boundary
     try keychain.claimLedger(directory, create: create)
+    // Authenticate durable minimal metadata before even exposing a restored snapshot.
+    // Protected display/original records are deliberately not opened here.
+    if let state = ledger.state, state.outcomeAuthentication != nil {
+      let master = try keychain.read(state.keyReference)
+      let context = try state.outcome(master: master)
+      if let receipt = state.receiptOutcome {
+        let verified = try SealedProtocol.VerifiedReceipt.verify(receipt, keys: .init(master: master, outcome: context))
+        _ = try verified.toOriginalReceipt()
+        try backgroundRequire(state.phase == "received" && state.revision >= verified.revision
+          && state.confirmedBytes == state.originalBytes)
+      }
+    }
     preseal = BackgroundPreseal(ledger: ledger, keychain: keychain, control: control,
       activeUnlocked: activeUnlocked, boundary: boundary)
     // Finish startup repair before constructing a session that may immediately deliver events.
@@ -71,10 +83,11 @@ final class BackgroundRuntime: @unchecked Sendable {
       }
     }
   }
-  private func material() throws -> (SealedProtocol.Manifest, SealedProtocol.Keys) {
+  private func material() throws -> (SealedProtocol.OutcomeContext, SealedProtocol.Keys) {
     guard let state = ledger.state else { throw BackgroundFailure.blocked }
-    let m = try preseal.loadManifest()
-    return (m, try SealedProtocol.Keys(master: keychain.read(state.keyReference), manifest: m))
+    let master = try keychain.read(state.keyReference)
+    let context = try state.outcome(master: master)
+    return (context, try SealedProtocol.Keys(master: master, outcome: context))
   }
   private func reconcile(_ tasks: [BackgroundTask]) throws {
     guard let state = ledger.state else {
@@ -141,7 +154,7 @@ final class BackgroundRuntime: @unchecked Sendable {
       try ledger.change { s in s.groups[g.index].resumed = true; s.phase = "transferring" }
     }
   }
-  private func query(_ m: SealedProtocol.Manifest, keys: SealedProtocol.Keys) throws {
+  private func query(_ m: SealedProtocol.OutcomeContext, keys: SealedProtocol.Keys) throws {
     guard let state = ledger.state else { throw BackgroundFailure.blocked }
     let q = try SealedProtocol.Query.fresh(operation: state.cancelOperation ?? BackgroundPreseal.uuid())
     let bytes = try state.cancelOperation == nil ? control.status(m, query: q) : control.revoke(m, query: q)
@@ -176,7 +189,7 @@ final class BackgroundRuntime: @unchecked Sendable {
           self.queue.async {
             tasks.forEach { self.daemon.cancel($0.id) }
             do { let (m, keys) = try self.material(); try self.query(m, keys: keys); completion(true) }
-            catch { completion(false) } // local fence survives offline/missing key/locked display record
+            catch { completion(false) } // local fence survives offline/missing key/inaccessible minimal storage
           }
         }
       } catch { self.storageBlocked = true; completion(false) }

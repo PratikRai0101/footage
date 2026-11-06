@@ -43,8 +43,8 @@ def wait(check, seconds=120):
     raise TimeoutError('Timed out: ' + str(OUT))
 
 
-def build():
-    files = [SOURCE / 'Probe.swift', SOURCE / 'Tests.swift', NATIVE / 'SealedProtocol.swift', *sorted(NATIVE.glob('Background*.swift'))]
+def build(probe=None):
+    files = [probe or SOURCE / 'Probe.swift', SOURCE / 'Tests.swift', NATIVE / 'SealedProtocol.swift', *sorted(NATIVE.glob('Background*.swift'))]
     for file in files: shutil.copyfile(file, OUT / file.name)
     # Independent tiny Xcode project, not generated Expo sources.
     project = (ROOT / 'scripts/pairing-probe/project.pbxproj').read_text()

@@ -109,6 +109,8 @@ struct BackgroundState: Codable {
   let version: Int
   let keyReference: String, receiver: Data, origin: String, job: Data, generation: Data, device: Data
   let digest: Data, originalBytes: UInt64, originalHash: Data, expires: UInt64, groupCount: Int
+  let outcomeBytes: Data
+  var outcomeAuthentication: Data?
   var phase = "preparing"
   var intents: [Int: Data] = [:]
   var groups: [BackgroundGroup] = []
@@ -123,14 +125,27 @@ struct BackgroundState: Codable {
     }
     return bytes
   }
-  init(_ m: SealedProtocol.Manifest) {
-    version = 1; keyReference = UUID().uuidString; receiver = m.receiver; origin = m.origin
+  init(_ m: SealedProtocol.Manifest) throws {
+    outcomeBytes = try SealedProtocol.OutcomeContext.fromManifest(m).bytes
+    version = 2; keyReference = UUID().uuidString; receiver = m.receiver; origin = m.origin
     job = m.job; generation = m.generation; device = m.device; digest = m.digest
     originalBytes = m.originalBytes; originalHash = m.originalSHA256; expires = m.expiresAt
     groupCount = m.groupCount
   }
+  func outcome(master: Data) throws -> SealedProtocol.OutcomeContext {
+    guard let outcomeAuthentication else { throw BackgroundFailure.blocked }
+    let c = try SealedProtocol.OutcomeContext.restore(outcomeBytes, master: master, authentication: outcomeAuthentication)
+    try backgroundRequire(c.receiver == receiver && c.origin == origin && c.job == job
+      && c.generation == generation && c.device == device && c.digest == digest
+      && c.originalBytes == originalBytes && c.originalSHA256 == originalHash
+      && c.expiresAt == expires && c.groupCount == groupCount)
+    return c
+  }
   func validate() throws {
-    try backgroundRequire(version == 1 && UUID(uuidString: keyReference) != nil)
+    try backgroundRequire(version == 2 && UUID(uuidString: keyReference) != nil)
+    try backgroundRequire(outcomeBytes.count <= 1024 && !outcomeBytes.isEmpty)
+    if let authentication = outcomeAuthentication { try backgroundRequire(authentication.count == 32) }
+    try backgroundRequire(phase == "preparing" || phase == "blocked" || outcomeAuthentication != nil)
     try backgroundRequire(receiver.count == 32 && digest.count == 32 && originalHash.count == 32)
     try backgroundRequire(job.count == 16 && generation.count == 16 && device.count == 16)
     _ = try SealedProtocol.origin(origin)
@@ -215,7 +230,12 @@ final class BackgroundLedger {
   func save(_ value: BackgroundState) throws {
     try value.validate()
     if let prior = state {
-      try backgroundRequire(prior.digest == value.digest && prior.keyReference == value.keyReference
+      try backgroundRequire(prior.outcomeBytes == value.outcomeBytes
+        && (prior.outcomeAuthentication == nil || prior.outcomeAuthentication == value.outcomeAuthentication)
+        && prior.receiver == value.receiver && prior.origin == value.origin && prior.device == value.device
+        && prior.originalBytes == value.originalBytes && prior.originalHash == value.originalHash
+        && prior.expires == value.expires && prior.groupCount == value.groupCount
+        && prior.digest == value.digest && prior.keyReference == value.keyReference
         && prior.job == value.job && prior.generation == value.generation
         && (prior.cancelOperation == nil || prior.cancelOperation == value.cancelOperation)
         && (prior.receiptOutcome == nil || prior.receiptOutcome == value.receiptOutcome)

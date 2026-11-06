@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomBytes } from 'node:crypto';
-import { Binding, Manifest, GenerationKeys, SealSession, VerifiedGroup, VerifiedAck, VerifiedReceipt, VerifiedStatus, canonicalOrigin, encodeDestination, decodeDestination, groupHeader, parseGroupHeader, limits, encodeAck, encodeReceipt, encodeOutcome, verifyOutcome, freshQuery, encodeQuery, decodeQuery, encodeStatus, encodeSetup, decodeSetup, sha256, type GroupSource } from '../src/sealed-protocol.js';
+import { Binding, Manifest, OutcomeContext, GenerationKeys, SealSession, VerifiedGroup, VerifiedAck, VerifiedReceipt, VerifiedStatus, canonicalOrigin, encodeDestination, decodeDestination, groupHeader, parseGroupHeader, limits, encodeAck, encodeReceipt, encodeOutcome, verifyOutcome, freshQuery, encodeQuery, decodeQuery, encodeStatus, encodeSetup, decodeSetup, sha256, type GroupSource } from '../src/sealed-protocol.js';
 import { fixture, hex, deterministicFrame, MemorySource, PrivateQuarantine, remac } from '../../../scripts/test/sealed-protocol/fixtures.js';
 function mutate(bytes: Buffer, at: number): Buffer {
   const b = Buffer.from(bytes);
@@ -84,6 +84,41 @@ test('all manifest truncations, excessive lengths, trailing, partition and UInt6
   const h = groupHeader(max, 63);
   assert.equal(h.length, 128);
   assert.equal(h.readBigUInt64BE(116), max.partition(63).offset);
+});
+test('minimal durable outcome context retains exact KDF and partition without private display metadata', () => {
+  const f = fixture(37, true), context = OutcomeContext.fromManifest(f.manifest), authentication = context.authentication(f.master);
+  const restored = OutcomeContext.restore(context.bytes, f.master, authentication), keys = GenerationKeys.forOutcomes(f.master, restored);
+  assert.equal(restored.digest, f.manifest.digest);
+  assert.equal(restored.destinationDigest, f.manifest.destinationDigest);
+  assert(!('safeName' in restored.fields) && !('destination' in restored.fields) && !('frameHashes' in restored.fields));
+  assert(!context.bytes.includes(Buffer.from(f.fields.safeName)));
+  for (const domain of ['ack', 'receipt', 'status'] as const) assert.deepEqual(keys.derive(domain), f.keys.derive(domain));
+  assert.throws(() => keys.derive('body', { index: 0, sealID: randomBytes(16) }));
+  for (let i = 0; i < context.bytes.length; i++) {
+    assert.throws(() => OutcomeContext.restore(mutate(context.bytes, i), f.master, authentication));
+    assert.throws(() => OutcomeContext.restore(context.bytes.subarray(0, i), f.master, authentication));
+  }
+  assert.throws(() => OutcomeContext.restore(context.bytes, randomBytes(32), authentication));
+  const query = freshQuery(hex(16)), receipt = encodeReceipt(f.keys, { id: hex(16), verifiedAt: 1800000000n, revision: 9n });
+  assert.deepEqual(encodeQuery(restored, query), encodeQuery(f.manifest, query));
+  assert.deepEqual(VerifiedReceipt.verify(receipt, keys).toOriginalReceipt(), VerifiedReceipt.verify(receipt, f.keys).toOriginalReceipt());
+  const wireSHA256 = hex(32), ack = encodeAck(f.keys, { group: 0, wireSHA256, revision: 7n });
+  assert.equal(VerifiedAck.verify(ack, keys, { group: 0, wireSHA256 }).originalLength, 37);
+  assert.equal(VerifiedStatus.verify(encodeStatus(f.keys, query, { state: 3, cleanup: 0, groupBitmap: 1n, revision: 9n }, receipt), keys, query, 9n).receipt?.bytes, 37);
+  for (const originalBytes of [1n, 67108865n, limits.original]) {
+    const m = Manifest.create({ ...f.fields, originalBytes, frameHashes: Array(Number((originalBytes + 8388607n) / 8388608n)).fill(hex(32)) });
+    const c = OutcomeContext.fromManifest(m);
+    for (let group = 0; group < c.groupCount; group++) assert.deepEqual(c.partition(group), m.partition(group));
+    for (const bitmap of [0n, 1n, (1n << BigInt(c.groupCount)) - 1n]) assert.equal(c.contiguous(bitmap), m.contiguous(bitmap));
+    assert.throws(() => c.contiguous(1n << BigInt(c.groupCount)));
+  }
+  if (false) {
+    // @ts-expect-error No public arbitrary-field context constructor.
+    new OutcomeContext();
+    // @ts-expect-error A field bag cannot replace the validated immutable context.
+    const forged: OutcomeContext = { ...context.fields };
+    void forged;
+  }
 });
 test('headers and complete group authentication never expose a verified prefix', async () => {
   const f = fixture(), bytes = packet(f), q = new PrivateQuarantine();

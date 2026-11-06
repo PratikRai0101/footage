@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -22,6 +23,9 @@ def digest(path):
 
 
 def main():
+    serial = os.environ.get('ANDROID_SERIAL')
+    if not serial:
+        raise SystemExit('Set ANDROID_SERIAL to the explicitly authorized test phone.')
     capture = json.loads((ROOT / 'artifacts/demo/take-3/result.json').read_text())
     assert capture['passed'] and capture['settingsRestored'] and not capture['rateLimiterUsed']
     events = {e['event']: e for e in capture['events']}
@@ -37,8 +41,8 @@ def main():
     assert received.stat().st_size == job['receipt']['bytes'] == capture['fixture']['bytes']
     assert digest(received) == capture['fixture']['sha256'] == job['receipt']['sha256']
     apk = ROOT / 'artifacts/footage-demo.apk'
-    installed = subprocess.check_output(['adb', '-s', '<redacted-device-serial>', 'shell', 'pm', 'path', 'dev.footage.spike'], text=True).strip().removeprefix('package:')
-    installed_sha = subprocess.check_output(['adb', '-s', '<redacted-device-serial>', 'shell', 'sha256sum', installed], text=True, timeout=25).split()[0]
+    installed = subprocess.check_output(['adb', '-s', serial, 'shell', 'pm', 'path', 'dev.footage.spike'], text=True).strip().removeprefix('package:')
+    installed_sha = subprocess.check_output(['adb', '-s', serial, 'shell', 'sha256sum', installed], text=True, timeout=25).split()[0]
     assert installed_sha == capture['apkSha256'] == digest(apk)
     tap = (ROOT / 'artifacts/demo/polish-all-tests.tap').read_text()
     assert re.findall(r'^# tests (\d+)$', tap, re.M) == ['26', '18', '2']

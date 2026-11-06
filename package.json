@@ -13,6 +13,7 @@
     "test": "npm test --workspace=@footage/server && npm run test:mobile && npm run test:device-tools",
     "test:mobile": "tsx --test scripts/test/mobile-presentation.test.ts",
     "test:device-tools": "node --test scripts/test/*.test.mjs",
+    "preflight:public": "python3 scripts/public-repo-preflight.py",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "mobile": "npm run start --workspace=footage-mobile --",
     "lint": "npm run lint --workspace=footage-mobile",

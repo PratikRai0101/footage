@@ -17,9 +17,9 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parent.parent
-SERIAL = '<redacted-device-serial>'
+SERIAL = os.environ.get('ANDROID_SERIAL')
 PACKAGE = 'dev.footage.spike'
-HOST = '<private-lan-ip>'
+HOST = os.environ.get('FOOTAGE_RECEIVER_HOST')
 
 
 def digest(path):
@@ -31,6 +31,8 @@ def digest(path):
 
 
 def main(take):
+    if not SERIAL or not HOST:
+        raise SystemExit('Set ANDROID_SERIAL and FOOTAGE_RECEIVER_HOST for the authorized recording setup.')
     os.environ['ANDROID_SERIAL'] = SERIAL
     ui = runpy.run_path(str(ROOT / 'scripts/device-ui.py'))
     folder = ROOT / 'artifacts/demo' / take

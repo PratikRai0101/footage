@@ -30,7 +30,7 @@ def main():
     assert any('temporary copy for playback' in (node.get('label') or '') and node.get('hittable') for node in scrolled)
     source = ROOT / 'artifacts/ui-emulator/footage-playback-test.mp4'
     sha = hashlib.sha256(source.read_bytes()).hexdigest()
-    local = Path('<developer-home>/Library/Developer/CoreSimulator/Devices') / SIMULATOR / 'data/Containers/Shared/AppGroup/993099F3-8F18-4326-8E60-4C1468BD01B1/File Provider Storage/Footage Generated Tests/footage-ios-generated.mp4'
+    local = Path.home() / 'Library/Developer/CoreSimulator/Devices' / SIMULATOR / 'data/Containers/Shared/AppGroup/993099F3-8F18-4326-8E60-4C1468BD01B1/File Provider Storage/Footage Generated Tests/footage-ios-generated.mp4'
     assert hashlib.sha256(local.read_bytes()).hexdigest() == sha
     assert subprocess.run(['lsof', '-iTCP:8081', '-sTCP:LISTEN'], capture_output=True).returncode != 0
     record = {

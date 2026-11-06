@@ -33,7 +33,7 @@ def digest(path):
 
 
 def main(args):
-    assert args.serial == '<redacted-device-serial>', 'Only the explicitly connected Samsung is authorized by this runner.'
+    assert args.serial == os.environ.get('FOOTAGE_AUTHORIZED_ANDROID_SERIAL'), 'Set FOOTAGE_AUTHORIZED_ANDROID_SERIAL to explicitly authorize this test phone.'
     host = ipaddress.ip_address(args.host)
     assert host.version == 4 and host.is_private and not (host.is_loopback or host.is_unspecified or host.is_link_local)
     os.environ['ANDROID_SERIAL'] = args.serial
@@ -74,7 +74,7 @@ def main(args):
     assert source.name in own_text() and 'Upload video' in own_text()
     with socket.socket() as sock:
         assert sock.connect_ex((args.host, 1082)) != 0
-    result = {'case': args.case, 'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'passed': False, 'route': 'Actual physical phone WLAN → streaming limiter → unchanged primary receiver; no USB upload reverse; USB-powered', 'device': {'serial': args.serial, 'model': 'SM-N981U1', 'api': 33}, 'fixture': {'name': source.name, 'bytes': source.stat().st_size, 'sha256': expected}, 'settingsBefore': before, 'events': []}
+    result = {'case': args.case, 'startedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'passed': False, 'route': 'Actual physical phone WLAN → streaming limiter → unchanged primary receiver; no USB upload reverse; USB-powered', 'device': {'serial': '<redacted-device-serial>', 'model': 'SM-N981U1', 'api': 33}, 'fixture': {'name': source.name, 'bytes': source.stat().st_size, 'sha256': expected}, 'settingsBefore': before, 'events': []}
 
     def record(event, **fields):
         item = {'at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'event': event, **fields}
@@ -226,7 +226,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--serial', default='<redacted-device-serial>')
+    parser.add_argument('--serial', required=True)
     parser.add_argument('--host', required=True)
     parser.add_argument('--label', help='Fresh evidence label for an explicit repeat; never overwrite a failed run')
     parser.add_argument('--case', choices=['wifi-home-screen', 'cancel'], required=True)

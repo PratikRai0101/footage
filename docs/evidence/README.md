@@ -4,7 +4,7 @@ Records are specific to the app version, device and conditions named in each fil
 
 Public copies redact personal phone serials, developer home paths and recorded private LAN addresses. Original media, raw captures, runtime credentials, app binaries and the private pre-public Git backup are excluded from this repository. Historical source hashes describe the originally recorded build; privacy-redacted source text is not claimed to be byte-identical to those private snapshots.
 
-The current iPhone UI rebuild is documented in `full-frame-ios-rebuild.md`. Native iOS uploads and T3 delivery remain unimplemented.
+The current foreground-native iPhone upload slice is documented in `ios-foreground-upload.md`. The earlier UI rebuild is in `full-frame-ios-rebuild.md`. Background iOS uploads and T3 delivery remain unfinished.
 
 Run `npm run preflight:public` before publishing. It checks reachable Git history and reports filenames/categories without printing matched values. Pattern checks cannot guarantee the absence of every possible secret.
 

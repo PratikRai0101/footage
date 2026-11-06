@@ -1,0 +1,127 @@
+{
+  "recordedAt": "2026-11-06T16:40:38.210966+00:00",
+  "scope": "Owned iPhone 16 Simulator, iOS 26.2. Foreground native uploads only. No physical phone, account credentials, cloud build, or T3 dispatch.",
+  "build": {
+    "bundleId": "dev.footage.spike",
+    "version": "0.4.0",
+    "configuration": "Release arm64 iphonesimulator, embedded JavaScript/assets, no Metro dependency",
+    "xcode": "27.2",
+    "sdk": "iPhoneSimulator27.2",
+    "expo": "58.0.21",
+    "executableSha256": "2b76435075c775dfae4dd2d4775a108e1a94876f51f7c6bfe8abd23533e72ec2",
+    "javascriptSha256": "180302c90c03c2362d8a88488964a594990e8358fefbcc05dcb1ff9e18337227",
+    "backgroundModes": []
+  },
+  "fixture": {
+    "name": "generated-original.mp4",
+    "bytes": 12741748,
+    "sha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e",
+    "durationMs": 12000,
+    "width": 1280,
+    "height": 720,
+    "kind": "Generated H264/AAC test pattern"
+  },
+  "releaseUI": {
+    "realFilesPicker": true,
+    "explicitUploadOriginalTap": true,
+    "nativeMetadataAfterStaging": true,
+    "matchingNativeReceiptVisible": true,
+    "receipt": {
+      "id": "f7e03e88-e716-4405-9047-a67c48538b5e",
+      "jobId": "07fc8144-3ab9-4e1a-aef1-4844a424fe4d",
+      "bytes": 12741748,
+      "sha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e",
+      "verifiedAt": "2026-11-06T16:37:16.142Z"
+    },
+    "independentReceiverFileSha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e",
+    "stagedFullFrameMovingPlayback": {
+      "changedPixels": 50917,
+      "stagedPlayback": true
+    }
+  },
+  "nativeOwnerChecks": [
+    {
+      "test": "native-origin-storage-receipt-corruption-tests"
+    },
+    {
+      "test": "uncertain-patch-head-reconcile-and-relaunch",
+      "id": "4b85f9f2-cc68-46fb-a808-41315ba18f7b",
+      "localConfirmedBeforeRelaunch": 2097152,
+      "serverAcceptedBeforeRelaunch": 4194304,
+      "firstResumedPatchOffset": 4194304,
+      "receipt": {
+        "bytes": 12741748,
+        "id": "f2264908-9a1d-4422-b3ea-5e049df18b12",
+        "jobId": "4b85f9f2-cc68-46fb-a808-41315ba18f7b",
+        "sha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e",
+        "verifiedAt": "2026-11-06T16:30:34.732Z"
+      },
+      "independentSha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e"
+    },
+    {
+      "test": "viewer-and-received-cancellation-does-not-promise-deletion"
+    },
+    {
+      "test": "new-preparation-cancel-does-not-revive-prior-receipt-after-relaunch"
+    },
+    {
+      "test": "preparation-error-distinct-from-cancellation"
+    },
+    {
+      "test": "offline-cancellation-persists-until-confirmed-cleanup"
+    },
+    {
+      "test": "native-background-transition-stops-and-manual-continue-retains-job",
+      "id": "3fb61cc0-f902-4d6e-a7a8-0d1d642bc28e",
+      "checkpoint": 2097152,
+      "serverStoppedAt": 3801088
+    },
+    {
+      "test": "mismatching-receipt-rejected-and-committed-receipt-wins-late-cancel"
+    },
+    {
+      "test": "redirect-patch-rejected-by-production-native-owner",
+      "id": "12eca629-1837-42a1-b0a1-b3304afea3be"
+    },
+    {
+      "test": "redirect-metadata-rejected-by-production-native-owner",
+      "id": "467cf699-84a3-4978-b6f2-ea1cd6f7571c"
+    },
+    {
+      "test": "oversized-rejected-by-production-native-owner",
+      "id": "c9da6c37-def1-4c93-8f89-d4879d62fb15"
+    },
+    {
+      "test": "actual-native-transport-307-rejected-without-any-authorization-header"
+    },
+    {
+      "test": "cross-origin-307-sink-zero-requests-and-zero-original-bytes",
+      "sinkBytes": 0,
+      "sinkRequests": 0
+    },
+    {
+      "test": "generated-source-preserved",
+      "sha256": "38687a69e1f04a027dc9d6354208000f158f8448203af5c072eb1e286c60f73e"
+    }
+  ],
+  "redirects": {
+    "metadata307Rejected": true,
+    "file307Rejected": true,
+    "sameProductionTransportWithoutAuthorizationAlsoRejected307": true,
+    "sinkRequests": 0,
+    "sinkBytes": 0
+  },
+  "localChecks": {
+    "npmCi": "pass",
+    "npmTest": "53 pass: 26 receiver, 21 mobile, 6 device-tool",
+    "typecheck": "pass",
+    "lint": "pass"
+  },
+  "limits": [
+    "Not background upload completion or automatic restart after force-quit.",
+    "Lifecycle evidence uses a real app transition and a throttled local proxy, not physical lock, Wi-Fi loss, deep suspension, or power testing.",
+    "Only one generated 12.7 MB video, one simulator model and OS. No 4 GiB, HDR, physical device, memory benchmark, or accessibility recertification.",
+    "No T3 destination binding, thread delivery, dispatch, or Cardboard integration. Android was not built or tested."
+  ],
+  "rawArtifacts": "artifacts/ios-foreground/ (ignored; build logs remain local)"
+}

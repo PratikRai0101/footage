@@ -4,7 +4,7 @@
 
 Implementation stopped before changing the app. Apple's background URLSession cannot enforce the current no-redirect authority boundary through its redirect delegate. A standalone iPhone Simulator probe confirmed that a background PATCH forwarded the generated file to a different origin.
 
-This is not a Footage upload, receipt, or background lifecycle success. iOS remains preview-only. No native module, JS contract, server, workflow, or UI changed.
+This was not a Footage upload, receipt, or background lifecycle success. At the time of this probe, iOS remained preview-only and no app code changed. The subsequent foreground implementation is recorded separately in [iOS foreground upload evidence](ios-foreground-upload.md). The background blocker remains.
 
 ## Existing boundary and platform behavior
 
@@ -48,7 +48,9 @@ The standalone native probe built with `xcodebuild -project artifacts/ios-redire
 
 No full Footage iOS build, end-to-end receiver receipt, interruption recovery, cancellation, persisted settings, or UI preview validation is claimed.
 
-## Decision needed
+## Decision subsequently accepted
+
+`docs/IMPLEMENTATION.md` accepts the foreground milestone. This section records why that change was needed, not an outstanding request to revisit background URLSession.
 
 A native foreground owner can use file-backed URLSession uploads, reject redirects, preserve durable jobs, and reconcile server offsets after interruption. A bounded UIKit background execution grace period does not promise continued transfer after suspension. That changes the requested lifecycle behavior and needs a decision before implementation resumes.
 

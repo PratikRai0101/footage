@@ -11,6 +11,12 @@ import java.security.spec.ECGenParameterSpec
 private class TestVault : PairingDeviceVault {
   private var state: ByteArray? = null
   private var key: KeyPair? = null
+  private val jobs = mutableMapOf<String, ByteArray>()
+  override fun readJob(job: ByteArray): ByteArray? = jobs[job.joinToString(",")]?.clone()
+  override fun addJob(job: ByteArray, bytes: ByteArray) {
+    val id = job.joinToString(","); val old = jobs[id]
+    if (old == null) jobs[id] = bytes.clone() else pairingCheck(old.contentEquals(bytes))
+  }
   override fun read(): ByteArray? = state?.clone()
   override fun beginKeys() {
     pairingCheck(key == null)

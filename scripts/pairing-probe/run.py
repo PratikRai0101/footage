@@ -106,6 +106,12 @@ def main():
         cmd('xcrun', 'simctl', 'boot', device); cmd('xcrun', 'simctl', 'bootstatus', device, '-b')
         cmd('xcrun', 'simctl', 'install', device, OUT / 'PairingProbe.app')
         container = Path(cmd('xcrun', 'simctl', 'get_app_container', device, BUNDLE, 'data')); docs = container / 'Documents'; docs.mkdir(exist_ok=True)
+        # A fresh Simulator's first app launch can take longer than the QR's
+        # strict two-minute lifetime. Warm UIKit before minting any offer. Missing
+        # config fails without creating keys or sending a request.
+        cmd('xcrun', 'simctl', 'launch', device, BUNDLE)
+        wait(lambda: read_json(docs / 'result.json'), 180)
+        cmd('xcrun', 'simctl', 'terminate', device, BUNDLE)
         with (OUT / 'listener.log').open('w') as log:
             listener = subprocess.Popen([str(ROOT / 'node_modules/.bin/tsx'), str(SOURCE / 'listener.mts'), str(OUT)], stdout=log, stderr=subprocess.STDOUT)
         ready = wait(lambda: read_json(OUT / 'ready.json'))

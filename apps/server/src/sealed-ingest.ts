@@ -298,6 +298,30 @@ export class SealedIngest {
     }
   }
 
+  /** Receiver-owned bounded pass. Durable verifying/cleanup state is the queue;
+   * no credential is synthesized and no phone /complete request is required. */
+  async retryPending(): Promise<{ pending: number }> {
+    let pending = 0;
+    await this.reconcileAuthority();
+    for (const initial of this.config.jobs.all()) {
+      if (initial.transport !== 'sealed-v1' || sealed(initial).frozen) continue;
+      try {
+        await this.config.jobs.exclusive(initial.id, async () => {
+          const job = this.config.jobs.get(initial.id);
+          if (job.status !== 'received' && this.manifest(job).fields.expiresAt <= this.now()) await this.terminate(job, 'expired');
+          else if (sealed(job).cleanup === 1) await this.cleanup(job);
+        });
+        await this.finalize(initial.id);
+      } catch { /* Durable state remains pending/recovery-required, never success. */ }
+      const current = sealed(this.config.jobs.get(initial.id));
+      if (current.state === 'verifying' || current.cleanup === 1) pending++;
+    }
+    return { pending };
+  }
+
+  /** Caller must stop admissions and drain request operations first. */
+  async drain(): Promise<void> { await Promise.allSettled([...this.finalizers.values()]); }
+
   private async terminate(job: StoredJob, outcome: 'cancelled' | 'expired' | 'failed'): Promise<StoredJob> {
     const state = sealed(job);
     if (job.status === 'received') return job;
@@ -334,6 +358,15 @@ export class SealedIngest {
     const initial = this.config.jobs.get(id), state = sealed(initial);
     if (state.state !== 'verifying' || state.frozen) return;
     const manifest = this.manifest(initial), keys = this.keys(initial, manifest);
+    // Supervision has no bearer bypass: check live enrollment/access before work,
+    // and again under the common publication lock after hashing.
+    if (manifest.fields.expiresAt <= this.now()) {
+      await this.config.jobs.exclusive(id, async () => { await this.terminate(this.config.jobs.get(id), 'expired'); }); throw new HttpError(410, 'Expired.');
+    }
+    try { this.active(manifest); }
+    catch (error) {
+      await this.config.jobs.exclusive(id, async () => { await this.terminate(this.config.jobs.get(id), 'cancelled'); }); throw error;
+    }
     // Validate receipt UUID/time/profile BEFORE writing a publishable original.
     const receipt = { ...this.config.jobs.newReceipt(initial, this.now()), binding: { receiver: manifest.fields.receiver, generation: manifest.fields.generation, manifestDigest: manifest.digest, destinationDigest: manifest.destinationDigest } };
     const envelope = encodeReceipt(keys, { id: receipt.id.replaceAll('-', ''), verifiedAt: BigInt(Date.parse(receipt.verifiedAt) / 1000), revision: BigInt(next(state)) });
@@ -410,7 +443,9 @@ export class SealedIngest {
         if (current.status !== 'received' && this.manifest(current).fields.expiresAt <= this.now()) await this.terminate(current, 'expired');
         else if (sealed(current).cleanup === 1) await this.cleanup(current);
       });
-      await this.finalize(job.id);
+      // Transient storage failure is a durable pending job, not failure to reopen
+      // the listener forever. The service supervisor retries without phone traffic.
+      try { await this.finalize(job.id); } catch { /* state retained for retryPending */ }
     }
   }
 }

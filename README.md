@@ -23,7 +23,7 @@ The Android upload flow remains: choose a clip, review its preview/metadata, con
 
 The app and receiver share the public repository [PratikRai0101/footage](https://github.com/PratikRai0101/footage). Expo's original scaffold commit and the small implementation commits are preserved. Personal device identifiers and local machine paths were redacted from unpublished history before the first push. Media, recordings, build outputs and runtime credentials are excluded from Git.
 
-GitHub checks run the public-history preflight, typecheck, lint and tests. Before pushing locally, run `npm run preflight:public` from a clean working tree. See [evidence scope and privacy](docs/evidence/README.md).
+GitHub CI/CD is disabled by request. Run typecheck, lint and tests locally. Before pushing, run `npm run preflight:public` from a clean working tree. See [evidence scope and privacy](docs/evidence/README.md).
 
 ## Run locally
 

@@ -35,6 +35,7 @@ fun main(args: Array<String>) {
       for (value in listOf("http://localhost:443", "https://LOCALHOST:443", "https://localhost", "https://localhost:0443", "https://localhost.:443", "https://localhost:443/", "https://127.01.0.1:443", "https://[0:0:0:0:0:0:0:1]:443")) {
         var rejected = false; try { PairingOrigin(value) } catch (_: Exception) { rejected = true }; pairingCheck(rejected)
       }
+      val zeroMask = qr.clone(); pairingU32(0).copyInto(zeroMask, zeroMask.size - 4); pairingCheck(PairingOffer(zeroMask).mask == 0)
       for (n in qr.indices) {
         var rejected = false; try { PairingOffer(qr.copyOfRange(0, n)) } catch (_: Exception) { rejected = true }; pairingCheck(rejected)
       }

@@ -87,7 +87,7 @@ internal class PairingOffer(val bytes: ByteArray, fresh: Boolean = true) {
     val r = PairingReader(bytes, "FTQR0001", 2048); spki = r.lp16(128); pairingP256(spki); receiver = pairingHash(spki)
     ca = r.lp16(1024); pin = r.take(32); origin = PairingOrigin(pairingText(r.lp16(512)))
     id = r.take(16); secret = r.take(32); expires = r.u64(); mask = r.u32(); r.end()
-    pairingCheck(ca.isNotEmpty() && mask in 1..31)
+    pairingCheck(ca.isNotEmpty() && mask in 0..31)
     val now = (System.currentTimeMillis() / 1000).toULong(); if (fresh) pairingCheck(expires > now && expires - now <= 120u)
   }
 }

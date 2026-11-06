@@ -56,7 +56,7 @@ test('canonical QR and proof: bounds, origin, reserved permissions, trailing/tru
     assert.throws(() => f.a.inspectEnrollment(Buffer.concat([e.body, Buffer.from([0])])));
     for (const text of ['http://localhost:443', 'https://LOCALHOST:443', 'https://localhost', 'https://localhost:0443', 'https://localhost.:443', 'https://localhost:443/', 'https://127.01.0.1:443', 'https://[0:0:0:0:0:0:0:1]:443']) assert.throws(() => origin(text));
     for (const text of ['https://localhost:443', 'https://127.0.0.1:443', 'https://[::]:443', 'https://[2001:db8::1]:443', 'https://[::ffff:c000:201]:443']) assert.equal(origin(text), text);
-    for (const mask of [0, 32, -1, 1.5, 4294967297]) assert.throws(() => permission(mask));
+    for (const mask of [32, -1, 1.5, 4294967297]) assert.throws(() => permission(mask));
     assert.throws(() => qr({ spki: f.a.identitySPKI, ca: randomBytes(1025), pin: randomBytes(32), origin: f.config.origin, offer: randomBytes(16), secret: randomBytes(32), expires: 3n, mask: 1 }));
     assert.throws(() => f.a.enroll(e.body)); // no trusted local approval
     const tampered = Buffer.from(e.body); tampered[tampered.length - 1] = (tampered.at(-1) ?? 0) ^ 1;
@@ -76,6 +76,9 @@ test('concurrent consumption: exactly one enrolled device, no response replay/re
 
 test('two-minute expiry, exact trusted approval, scope/permission subset and own-device authority', () => {
   const f = fixture(); try {
+    const noPermissions = f.enroll(f.offer(0), f.device(), 0); f.local.approve(noPermissions.body, f.scopes);
+    const zero = record(f.a.enroll(noPermissions.body), f, noPermissions); assert.equal(zero.mask, 0);
+    for (const bit of [0, 1, 2, 4, 8, 16]) assert.throws(() => f.a.authorize({ device: noPermissions.d.id, owner: noPermissions.d.id, epoch: 1n, credential: zero.credential, permission: bit, destination: { kind: 't3', environment: 'env', project: 'project' } }));
     const restricted = f.offer(3); assert.throws(() => f.a.inspectEnrollment(f.enroll(restricted, f.device(), 4).body));
     const e = f.enroll(); assert.throws(() => f.local.approve(e.body, { intakes: [], projects: [{ environment: 'env', project: 'other' }] }));
     f.local.approve(e.body, f.scopes); const changed = f.enroll(e.o, e.d, 1); assert.throws(() => f.a.enroll(changed.body));

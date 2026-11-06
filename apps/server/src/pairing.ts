@@ -20,7 +20,7 @@ const scopesSchema = z.object({
 export type PairingScopes = z.infer<typeof scopesSchema>;
 const hex16 = z.string().regex(/^[0-9a-f]{32}$/);
 const deviceSchema = z.object({
-  device: hex16, offer: hex16, spki: z.string(), mask: z.number().int().min(1).max(31),
+  device: hex16, offer: hex16, spki: z.string(), mask: z.number().int().min(0).max(31),
   epoch: z.string().regex(/^[1-9][0-9]*$/), expires: z.string().regex(/^[0-9]+$/), revoked: z.boolean(), scopes: scopesSchema,
   wrapped: z.string(), credentialHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
@@ -168,7 +168,7 @@ export class PairingAuthority {
     requirePairing(BigInt(this.device(device).epoch) === epoch);
   }
   authorize(input: { device: Buffer; credential: Buffer; epoch: bigint; permission: number; destination: PairingDestination; owner: Buffer }): PairingScopes {
-    const device = this.device(input.device); permission(input.permission); fixed(input.credential, 32);
+    const device = this.device(input.device); permission(input.permission); requirePairing(input.permission > 0); fixed(input.credential, 32);
     requirePairing(input.owner.equals(input.device) && input.epoch === BigInt(device.epoch) && (input.permission & device.mask) === input.permission && timingSafeEqual(sha256(input.credential), Buffer.from(device.credentialHash, 'hex')));
     const dest = input.destination;
     requirePairing(dest.kind === 'intake' ? device.scopes.intakes.includes(dest.intake) : device.scopes.projects.some(p => p.environment === dest.environment && p.project === dest.project));

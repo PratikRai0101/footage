@@ -42,7 +42,7 @@ actor PairingClient {
       var r = try PairingReader(bytes, "FTNATV01")
       offer = try PairingOffer(r.lp16(2048), requireFresh: false); device = try r.take(16)
       key = try P256.Signing.PrivateKey(rawRepresentation: r.take(32)); mask = UInt32(try r.integer(4)); installed = try r.lp16(16384); try r.end()
-      try pairingRequire(mask > 0 && mask & ~offer.mask == 0)
+      try pairingRequire(mask & ~offer.mask == 0)
     }
   }
   private func saved() throws -> Saved { guard let bytes = try vault.read() else { throw PairingFailure.storage }; return try Saved(bytes) }
@@ -51,7 +51,7 @@ actor PairingClient {
   func prepareAfterNativeConfirmation(qr: Data, permissions: UInt32) throws {
     try pairingRequire(try vault.read() == nil) // replacing a device requires a separate explicit re-pair flow
     let offer = try PairingOffer(qr)
-    try pairingRequire(permissions > 0 && permissions & ~offer.mask == 0)
+    try pairingRequire(permissions & ~offer.mask == 0)
     let s = Saved(offer: offer, device: try pairingRandom(16), key: P256.Signing.PrivateKey(), mask: permissions, installed: Data())
     try vault.save(s.encode(installed: Data()))
   }

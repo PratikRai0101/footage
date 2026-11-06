@@ -7,7 +7,7 @@ export function requirePairing(ok: unknown): asserts ok {
   if (!ok) throw new Error('Pairing rejected.');
 }
 export function permission(mask: number): number {
-  requirePairing(Number.isInteger(mask) && mask > 0 && mask <= 31 && (mask & ~31) === 0);
+  requirePairing(Number.isInteger(mask) && mask >= 0 && mask <= 31 && (mask & ~31) === 0);
   return mask;
 }
 export function origin(text: string): string {

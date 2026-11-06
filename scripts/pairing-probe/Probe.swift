@@ -20,6 +20,9 @@ import CryptoKit
         for value in ["http://localhost:443", "https://LOCALHOST:443", "https://localhost", "https://localhost:0443", "https://localhost.:443", "https://localhost:443/", "https://127.01.0.1:443", "https://[0:0:0:0:0:0:0:1]:443"] {
           var rejected = false; do { _ = try PairingOrigin(value) } catch { rejected = true }; try pairingRequire(rejected)
         }
+        var zeroMask = bytes
+        zeroMask.replaceSubrange((zeroMask.count - 4)..<zeroMask.count, with: pairingU32(0))
+        try pairingRequire(try PairingOffer(zeroMask).mask == 0)
         for count in 0..<bytes.count {
           var rejected = false
           do { _ = try PairingOffer(bytes.prefix(count)) } catch { rejected = true }

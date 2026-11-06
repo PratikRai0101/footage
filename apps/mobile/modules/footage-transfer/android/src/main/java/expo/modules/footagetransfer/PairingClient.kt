@@ -15,14 +15,14 @@ internal class PairingClient(private val vault: PairingDeviceVault) {
     companion object {
       fun parse(bytes: ByteArray): Saved {
         val r = PairingReader(bytes, "FTANDR01"); val offer = PairingOffer(r.lp16(2048), fresh = false)
-        val device = r.take(16); val mask = r.u32(); val installed = r.lp16(16384); r.end(); pairingCheck(mask in 1..31 && mask and offer.mask == mask)
+        val device = r.take(16); val mask = r.u32(); val installed = r.lp16(16384); r.end(); pairingCheck(mask in 0..31 && mask and offer.mask == mask)
         return Saved(offer, device, mask, installed)
       }
     }
   }
   private fun saved(): Saved = Saved.parse(requireNotNull(vault.read()) { "Native pairing unavailable." }).also { pairingP256(vault.publicKey()) }
   @Synchronized fun prepareAfterNativeConfirmation(qr: ByteArray, mask: Int) {
-    pairingCheck(vault.read() == null); val offer = PairingOffer(qr); pairingCheck(mask in 1..31 && mask and offer.mask == mask)
+    pairingCheck(vault.read() == null); val offer = PairingOffer(qr); pairingCheck(mask in 0..31 && mask and offer.mask == mask)
     vault.beginKeys(); vault.save(Saved(offer, pairingRandom(16), mask, byteArrayOf()).encode(byteArrayOf()))
   }
   @Synchronized fun enroll() {

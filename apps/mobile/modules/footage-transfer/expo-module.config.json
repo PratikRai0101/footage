@@ -1,5 +1,9 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "ios"],
+  "apple": {
+    "modules": ["FootageTransferModule"],
+    "appDelegateSubscribers": ["FootageTransferAppDelegateSubscriber"]
+  },
   "android": {
     "modules": ["expo.modules.footagetransfer.FootageTransferModule"]
   }

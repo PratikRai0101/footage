@@ -30,6 +30,29 @@ private struct PairingDER {
     return result
   }
 }
+private func pairingCertificateDates(_ bytes: Data, now: Date) throws {
+  let root = try PairingDER(bytes), cert = try root.children(); try pairingRequire(cert.count == 3)
+  let tbs = try cert[0].children(), shift = tbs.first?.tag == 0xa0 ? 1 : 0
+  try pairingRequire(tbs.count > 3 + shift)
+  let validity = try tbs[3 + shift].children(); try pairingRequire(validity.count == 2)
+  func date(_ field: PairingDER) throws -> Date {
+    let yearDigits = field.tag == 0x17 ? 2 : 4
+    try pairingRequire(field.tag == 0x17 || field.tag == 0x18)
+    let b = Array(field.content)
+    try pairingRequire(b.count == yearDigits + 11 && b.last == 90 && b.dropLast().allSatisfy { (48...57).contains($0) })
+    func number(_ start: Int, _ n: Int) -> Int { b[start..<(start + n)].reduce(0) { $0 * 10 + Int($1 - 48) } }
+    var year = number(0, yearDigits)
+    if yearDigits == 2 { year += year >= 50 ? 1900 : 2000 }
+    let calendar = Calendar(identifier: .gregorian), zone = TimeZone(secondsFromGMT: 0)!
+    let c = DateComponents(calendar: calendar, timeZone: zone, year: year, month: number(yearDigits, 2), day: number(yearDigits + 2, 2), hour: number(yearDigits + 4, 2), minute: number(yearDigits + 6, 2), second: number(yearDigits + 8, 2))
+    guard let result = calendar.date(from: c) else { throw PairingFailure.rejected }
+    var utc = calendar; utc.timeZone = zone
+    let back = utc.dateComponents([.year,.month,.day,.hour,.minute,.second], from: result)
+    try pairingRequire(back.year == c.year && back.month == c.month && back.day == c.day && back.hour == c.hour && back.minute == c.minute && back.second == c.second)
+    return result
+  }
+  try pairingRequire(try date(validity[0]) <= now && now <= date(validity[1]))
+}
 struct PairingCertificate {
   let spki: Data
   let dns: [String]
@@ -113,7 +136,9 @@ private final class PairingExchange: NSObject, URLSessionDataDelegate, URLSessio
       try pairingRequire(SecTrustSetAnchorCertificatesOnly(trust, true) == errSecSuccess)
       try pairingRequire(SecTrustSetNetworkFetchAllowed(trust, false) == errSecSuccess)
       try pairingRequire(SecTrustEvaluateWithError(trust, nil))
+      try pairingCertificateDates(offer.ca, now: Date())
       guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate], let leaf = chain.first else { throw PairingFailure.rejected }
+      for certificate in chain { try pairingCertificateDates(SecCertificateCopyData(certificate) as Data, now: Date()) }
       let cert = try PairingCertificate(SecCertificateCopyData(leaf) as Data)
       try pairingRequire(cert.matches(offer.origin.host) && pairingHash(cert.spki) == offer.pin)
       completionHandler(.useCredential, URLCredential(trust: trust))

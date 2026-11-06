@@ -15,11 +15,31 @@ import CryptoKit
       let config = try JSONSerialization.jsonObject(with: Data(contentsOf: docs.appendingPathComponent("config.json"))) as! [String: String]
       let name = config["name"]!, mode = config["mode"]!
       let bytes = try Data(contentsOf: docs.appendingPathComponent("offer.bin"))
+      if name == "positive" {
+        for value in ["https://localhost:443", "https://127.0.0.1:443", "https://[::]:443", "https://[2001:db8::1]:443", "https://[::ffff:c000:201]:443"] { _ = try PairingOrigin(value) }
+        for value in ["http://localhost:443", "https://LOCALHOST:443", "https://localhost", "https://localhost:0443", "https://localhost.:443", "https://localhost:443/", "https://127.01.0.1:443", "https://[0:0:0:0:0:0:0:1]:443"] {
+          var rejected = false; do { _ = try PairingOrigin(value) } catch { rejected = true }; try pairingRequire(rejected)
+        }
+        for count in 0..<bytes.count {
+          var rejected = false
+          do { _ = try PairingOffer(bytes.prefix(count)) } catch { rejected = true }
+          try pairingRequire(rejected)
+        }
+        var rejected = false
+        do { _ = try PairingOffer(bytes + Data([0])) } catch { rejected = true }
+        try pairingRequire(rejected); output["qrBoundsVerified"] = true
+      }
+      if let offer = try? PairingOffer(bytes) {
+        let space = URLProtectionSpace(host: offer.origin.host, port: offer.origin.port, protocol: "https", realm: "Synthetic", authenticationMethod: NSURLAuthenticationMethodHTTPBasic)
+        URLCredentialStorage.shared.setDefaultCredential(URLCredential(user: "synthetic", password: "not-a-real-secret", persistence: .forSession), for: space)
+        if let cookie = HTTPCookie(properties: [.domain: offer.origin.host, .path: "/", .name: "synthetic", .value: "not-a-real-secret", .secure: "TRUE"]) { HTTPCookieStorage.shared.setCookie(cookie) }
+      }
       let client = PairingClient(vault: PairingVault(service: "test.footage.pairing." + name))
       try await client.prepareAfterNativeConfirmation(qr: bytes, permissions: 3)
       if mode == "lost" {
-        do { try await client.enroll(); throw PairingFailure.rejected }
-        catch { output["enrollReplyLost"] = true }
+        var replyLost = false
+        do { try await client.enroll() } catch { replyLost = true }
+        try pairingRequire(replyLost); output["enrollReplyLost"] = true
         // A new client instance reads the same native pending key, not a replacement.
         let restored = PairingClient(vault: PairingVault(service: "test.footage.pairing." + name))
         try await restored.recoverLostReply(); output["installed"] = try await restored.isInstalled()

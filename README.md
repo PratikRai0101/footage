@@ -21,7 +21,9 @@ The Android upload flow remains: choose a clip, review its preview/metadata, con
 
 ## Source history
 
-The app and receiver now share this repository. Expo's original scaffold commit was preserved before establishing the workspace baseline. Small local commits have started. No GitHub remote, repository creation or push has been configured; publishing requires confirmation. Media, recordings, build outputs and runtime credentials are excluded from Git.
+The app and receiver share the public repository [PratikRai0101/footage](https://github.com/PratikRai0101/footage). Expo's original scaffold commit and the small implementation commits are preserved. Personal device identifiers and local machine paths were redacted from unpublished history before the first push. Media, recordings, build outputs and runtime credentials are excluded from Git.
+
+GitHub checks run the public-history preflight, typecheck, lint and tests. Before pushing locally, run `npm run preflight:public` from a clean working tree. See [evidence scope and privacy](docs/evidence/README.md).
 
 ## Run locally
 

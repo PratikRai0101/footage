@@ -9,7 +9,7 @@ The user approved C's photographic layout with A's Instrument Serif, charcoal an
 - [x] Implement the full-frame canvas and full-frame playback.
 - [x] Carry existing upload, recovery, receipt and settings controls into the canvas.
 - [x] Run tests, build locally and inspect the running iPhone app.
-- [x] Commit verified units. GitHub creation/publication still requires confirmation.
+- [x] Commit verified units. The user subsequently approved public GitHub publication.
 
 ## Existing ownership
 
@@ -36,7 +36,7 @@ T3 thread selection and dispatch have not been implemented or configured. Do not
 
 ## Git findings
 
-Initially the workspace root was not a repository. `apps/mobile` contained only Expo's initial commit `ff4fc2e`, with no remote. Its original metadata was preserved under ignored `artifacts/git-history/`; that commit is the parent of the new workspace baseline. The application and server now share root history. No accessible Footage/Cardboard-named GitHub repository was found, and no GitHub repository was created or pushed. Do not invent historical micro-commits.
+Initially the workspace root was not a repository. `apps/mobile` contained only Expo's initial commit `ff4fc2e`, with no remote. Its original metadata was preserved under ignored `artifacts/git-history/`; that commit is the parent of the new workspace baseline. The application and server now share root history. No accessible Footage/Cardboard-named GitHub repository was found at the start. The user subsequently approved creating `PratikRai0101/footage` publicly. Before publication, a private local bundle preserved the unredacted development record, and only unpublished workspace history was sanitized. Expo's original initial commit remains an ancestor. Do not invent historical micro-commits.
 
 ## API grounding
 

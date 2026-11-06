@@ -15,4 +15,4 @@ The Android test session and receiver were stopped when the user requested iPhon
 
 **Limits:** iPhone upload and T3 destination/delivery are still unimplemented. No uploaded/received receipt is invented in this iOS build. Appearance modes, VoiceOver, physical iPhone behavior, 4K/HDR fidelity and whole-pipeline memory are not newly certified by this record. The Simulator GUI app is not installed here; the actual CoreSimulator instance runs headlessly and is driven through local automation.
 
-Git history now covers both the app and receiver, retaining Expo's original initial commit. No GitHub remote or push was configured during this work. Build/media artifacts and runtime credentials stay out of Git.
+Git history covers both the app and receiver, retaining Expo's original initial commit. This rebuild was recorded before GitHub publication; the user subsequently approved the public `PratikRai0101/footage` repository. Build/media artifacts and runtime credentials stay out of Git, and public evidence redacts private device/network identifiers.

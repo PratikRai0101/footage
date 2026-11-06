@@ -29,7 +29,7 @@ final class TransferHTTP: NSObject, URLSessionDataDelegate, URLSessionTaskDelega
     lock.lock(); cancelled = true; let current = task; lock.unlock()
     current?.cancel()
   }
-  func execute(method: String, path: String, capability: String, body: Data? = nil, file: URL? = nil,
+  func execute(method: String, path: String, capability: String? = nil, body: Data? = nil, file: URL? = nil,
                offset: Int64? = nil) throws -> TransferResponse {
     try requireTransfer(try receiverOrigin(origin) == origin && path.hasPrefix("/") && !path.hasPrefix("//") &&
                         !path.contains("\\") && !path.contains("%") && !path.contains("?") && !path.contains("#"),
@@ -38,7 +38,7 @@ final class TransferHTTP: NSObject, URLSessionDataDelegate, URLSessionTaskDelega
     var request = URLRequest(url: url)
     request.httpMethod = method
     request.timeoutInterval = 30
-    request.setValue("Bearer \(capability)", forHTTPHeaderField: "Authorization")
+    if let capability { request.setValue("Bearer \(capability)", forHTTPHeaderField: "Authorization") }
     request.setValue("1.0.0", forHTTPHeaderField: "Tus-Resumable")
     if let offset {
       request.setValue(String(offset), forHTTPHeaderField: "Upload-Offset")

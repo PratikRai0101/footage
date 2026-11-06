@@ -15,7 +15,7 @@ func receiverOrigin(_ input: String) throws -> String {
   guard let c = URLComponents(string: raw), let scheme = c.scheme, ["http", "https"].contains(scheme),
         let host = c.host?.lowercased(), !host.isEmpty, c.user == nil, c.password == nil,
         c.query == nil, c.fragment == nil, c.path == "" || c.path == "/",
-        !raw.contains("\\"), !host.contains("%"), c.url != nil else {
+        !raw.contains("\\"), !raw.contains("%"), c.url != nil else {
     throw TransferFailure(message: "Enter only the HTTP or HTTPS receiver origin.")
   }
   try requireTransfer(c.port == nil || (1...65535).contains(c.port!), "Choose a receiver port between 1 and 65535.")
@@ -24,6 +24,7 @@ func receiverOrigin(_ input: String) throws -> String {
     let parts = h.split(separator: ".", omittingEmptySubsequences: false)
     let octets = parts.compactMap { Int($0) }
     let v4 = parts.count == 4 && octets.count == 4 && octets.allSatisfy { (0...255).contains($0) } &&
+      zip(parts, octets).allSatisfy { String($0.1) == $0.0 } &&
       (octets[0] == 10 || octets[0] == 127 || (octets[0] == 172 && (16...31).contains(octets[1])) ||
        (octets[0] == 192 && octets[1] == 168) || (octets[0] == 169 && octets[1] == 254))
     let v6 = h == "::1" || (h.contains(":") && h.range(of: "^(fc|fd|fe[89ab])[0-9a-f:]+$", options: .regularExpression) != nil)
@@ -79,6 +80,7 @@ struct TransferJob: Codable {
   let origin: String
   let capability: String
   let media: TransferMedia
+  let fileExtension: String?
   var confirmed: Int64 = 0
   var phase: TransferPhase = .ready
   func validate() throws {
@@ -87,6 +89,9 @@ struct TransferJob: Codable {
                         capability.range(of: "^[a-f0-9]{64}$", options: .regularExpression) != nil,
                         "Saved transfer is invalid. It has not been discarded.")
     try requireTransfer(try receiverOrigin(origin) == origin, "Saved destination is invalid. It has not been discarded.")
+    if let fileExtension {
+      try requireTransfer(fileExtension.range(of: "^[a-z0-9]{1,12}$", options: .regularExpression) != nil, "Saved file identity is invalid.")
+    }
     if case .received(let receipt) = phase {
       try receipt.validate(self)
       try requireTransfer(confirmed == bytes, "Saved receipt has incomplete confirmation.")
@@ -129,7 +134,10 @@ final class TransferStore {
       try validateSettings(settings)
     }
   }
-  func original(_ id: String) -> URL { directory.appendingPathComponent("\(id).original") }
+  func original(_ id: String, fileExtension: String? = nil) -> URL {
+    directory.appendingPathComponent("\(id).original" + (fileExtension.map { "." + $0 } ?? ""))
+  }
+  func original(_ job: TransferJob) -> URL { original(job.id, fileExtension: job.fileExtension) }
   func save(_ value: TransferJob) throws {
     try value.validate()
     try JSONEncoder().encode(State(job: value, preparation: nil)).write(to: jobURL, options: [.atomic, .completeFileProtection])

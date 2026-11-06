@@ -27,8 +27,11 @@ final class TransferOwner {
       job.phase = .waiting
       try store.save(job)
     }
-    for file in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-      where ["partial", "chunk"].contains(file.pathExtension) { try FileManager.default.removeItem(at: file) }
+    let retained = store.job.map { store.original($0).lastPathComponent }
+    for file in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+      let orphan = file.lastPathComponent.range(of: "^[a-f0-9-]{36}\\.original(?:\\.[a-z0-9]{1,12})?$", options: .regularExpression) != nil && file.lastPathComponent != retained
+      if ["partial", "chunk"].contains(file.pathExtension) || orphan { try FileManager.default.removeItem(at: file) }
+    }
     if observeLifecycle {
       foreground = DispatchQueue.main.syncIfNeeded { UIApplication.shared.applicationState == .active }
       observers.append(NotificationCenter.default.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.suspend() })
@@ -55,7 +58,7 @@ final class TransferOwner {
         }
       }
       guard let job = store.job else { return try transferJSON(["kind": "empty"]) }
-      let file = store.original(job.id)
+      let file = store.original(job)
       var value: [String: Any] = ["id": job.id, "name": job.name, "bytes": job.bytes, "sha256": job.sha256,
         "confirmedBytes": job.confirmed, "media": job.media.json, "executionActive": executionActive,
         "localUri": FileManager.default.fileExists(atPath: file.path) ? file.absoluteString : NSNull()]
@@ -89,7 +92,9 @@ final class TransferOwner {
     worker.async { [self] in
       let id = UUID().uuidString.lowercased()
       let partial = store.directory.appendingPathComponent("\(id).partial")
-      let destination = store.original(id)
+      let suffix = sourceURL.pathExtension.lowercased()
+      let fileExtension = suffix.range(of: "^[a-z0-9]{1,12}$", options: .regularExpression) != nil ? suffix : nil
+      let destination = store.original(id, fileExtension: fileExtension)
       do {
         let access = sourceURL.startAccessingSecurityScopedResource()
         defer { if access { sourceURL.stopAccessingSecurityScopedResource() } }
@@ -126,9 +131,9 @@ final class TransferOwner {
         try locked {
           try requireTransfer(!stopped && foreground, "Preparation cancelled.")
           let previous = store.job
-          try store.save(TransferJob(id: id, name: safeName, bytes: count, sha256: digest, origin: origin, capability: capability, media: media))
+          try store.save(TransferJob(id: id, name: safeName, bytes: count, sha256: digest, origin: origin, capability: capability, media: media, fileExtension: fileExtension))
           preparation = nil
-          if let previous { try? FileManager.default.removeItem(at: store.original(previous.id)) }
+          if let previous { try? FileManager.default.removeItem(at: store.original(previous)) }
         }
       } catch {
         try? FileManager.default.removeItem(at: partial)
@@ -196,7 +201,7 @@ final class TransferOwner {
               guard var current = store.job, current.id == job.id else { return }
               if case .cancelled = current.phase {
                 // Do not claim cleanup complete if the private staged copy could not be removed.
-                if FileManager.default.fileExists(atPath: store.original(job.id).path) { try FileManager.default.removeItem(at: store.original(job.id)) }
+                if FileManager.default.fileExists(atPath: store.original(job).path) { try FileManager.default.removeItem(at: store.original(job)) }
                 current.phase = .cancelled(false); try store.save(current)
               }
             }
@@ -229,9 +234,9 @@ final class TransferOwner {
     try requireTransfer(length == job.bytes && (job.confirmed...job.bytes).contains(offset), "The destination lost or changed the saved upload. Cancel before choosing another original.")
     try update(job, phase: .uploading, confirmed: offset)
     var confirmed = offset
-    let input = try FileHandle(forReadingFrom: store.original(job.id))
+    let input = try FileHandle(forReadingFrom: store.original(job))
     defer { try? input.close() }
-    let actualSize = try FileManager.default.attributesOfItem(atPath: store.original(job.id).path)[.size] as? NSNumber
+    let actualSize = try FileManager.default.attributesOfItem(atPath: store.original(job).path)[.size] as? NSNumber
     try requireTransfer(actualSize?.int64Value == job.bytes, "The staged original is no longer complete.")
     try input.seek(toOffset: UInt64(confirmed))
     let chunk = store.directory.appendingPathComponent("\(job.id).chunk")
@@ -304,17 +309,26 @@ final class TransferOwner {
   }
   private static func inspectURL(_ url: URL) -> TransferMedia {
     // Called only on a native worker, never the main thread. No transcoding or video Data read.
-    let asset = AVURLAsset(url: url)
-    let duration = CMTimeGetSeconds(asset.duration)
+    let done = DispatchSemaphore(value: 0)
     var media = TransferMedia()
-    if duration.isFinite && duration > 0 && duration < Double(Int.max / 1000) { media.durationMs = max(1, Int(duration * 1000)) }
-    if let track = asset.tracks(withMediaType: .video).first {
-      let size = track.naturalSize.applying(track.preferredTransform)
-      if size.width.isFinite && size.height.isFinite && abs(size.width) > 0 && abs(size.height) > 0 {
-        media.width = Int(abs(size.width)); media.height = Int(abs(size.height))
+    Task.detached {
+      defer { done.signal() }
+      let asset = AVURLAsset(url: url)
+      media.mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+      if let time = try? await asset.load(.duration) {
+        let duration = CMTimeGetSeconds(time)
+        if duration.isFinite && duration > 0 && duration < Double(Int.max / 1000) { media.durationMs = max(1, Int(duration * 1000)) }
+      }
+      if let track = try? await asset.loadTracks(withMediaType: .video).first,
+         let (naturalSize, transform) = try? await track.load(.naturalSize, .preferredTransform) {
+        let size = naturalSize.applying(transform)
+        if size.width.isFinite && size.height.isFinite && abs(size.width) >= 1 && abs(size.height) >= 1 &&
+           abs(size.width) <= Double(Int32.max) && abs(size.height) <= Double(Int32.max) {
+          media.width = Int(abs(size.width)); media.height = Int(abs(size.height))
+        }
       }
     }
-    media.mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+    done.wait()
     return media
   }
 }

@@ -50,9 +50,18 @@ struct PairingOrigin: Equatable {
     if hostText.hasPrefix("[") && hostText.hasSuffix("]") {
       host = String(hostText.dropFirst().dropLast()); var address = in6_addr()
       try pairingRequire(inet_pton(AF_INET6, host, &address) == 1)
-      var result = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-      try pairingRequire(inet_ntop(AF_INET6, &address, &result, socklen_t(result.count)) != nil)
-      try pairingRequire(String(cString: result) == host)
+      let bytes = withUnsafeBytes(of: &address) { Array($0) }
+      let groups = (0..<8).map { Int(bytes[$0 * 2]) * 256 + Int(bytes[$0 * 2 + 1]) }
+      var bestStart = -1, bestLength = 1, i = 0
+      while i < 8 {
+        if groups[i] != 0 { i += 1; continue }
+        let start = i; while i < 8 && groups[i] == 0 { i += 1 }
+        if i - start > bestLength { bestStart = start; bestLength = i - start }
+      }
+      let canonical: String
+      if bestStart < 0 { canonical = groups.map { String($0, radix: 16) }.joined(separator: ":") }
+      else { canonical = groups.prefix(bestStart).map { String($0, radix: 16) }.joined(separator: ":") + "::" + groups.dropFirst(bestStart + bestLength).map { String($0, radix: 16) }.joined(separator: ":") }
+      try pairingRequire(canonical == host)
     } else {
       host = hostText
       try pairingRequire(host.count <= 253 && !host.isEmpty)

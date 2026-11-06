@@ -64,6 +64,11 @@ def certs():
         if name == 'expired': dates = ['-startdate', '20200101000000Z', '-enddate', '20200102000000Z']
         if name == 'future': dates = ['-startdate', '20400101000000Z', '-enddate', '20400102000000Z']
         cmd('openssl', 'ca', '-batch', '-notext', '-config', conf, '-in', OUT / (name + '.csr'), '-out', OUT / (name + '.pem'), '-extfile', ext, '-extensions', 'leaf', *dates)
+    # Same CA key/name, but an expired independently acquired anchor. Some trust
+    # stacks exempt anchor validity, so production code must check it explicitly.
+    cmd('openssl', 'req', '-new', '-key', OUT / 'root.key', '-subj', '/CN=Disposable Pairing CA', '-out', OUT / 'expired-anchor.csr')
+    cmd('openssl', 'ca', '-batch', '-selfsign', '-notext', '-config', conf, '-in', OUT / 'expired-anchor.csr', '-out', OUT / 'expired-anchor.pem', '-extfile', OUT / 'root.cnf', '-extensions', 'ca', '-startdate', '20200101000000Z', '-enddate', '20200102000000Z')
+    cmd('openssl', 'x509', '-in', OUT / 'expired-anchor.pem', '-outform', 'DER', '-out', OUT / 'expired-anchor.der')
 
 
 def build():
@@ -91,7 +96,7 @@ def build():
 
 def main():
     if shutil.disk_usage(ROOT).free < 6 * 1024**3: raise SystemExit('Need 6 GiB free; no shared-resource deletion allowed')
-    OUT.mkdir(parents=True); cmd('git', 'check-ignore', OUT / 'private.key')
+    OUT.mkdir(parents=True, mode=0o700); cmd('git', 'check-ignore', OUT / 'private.key')
     device, listener = None, None
     summary = {'platform': {'xcode': cmd('xcodebuild', '-version'), 'runtime': 'iOS 26.2', 'arch': 'arm64'}, 'globalTrustChanged': False, 'cases': []}
     try:
@@ -123,12 +128,12 @@ def main():
             counts = read_json(OUT / 'state.json')[name]
             safe = {'name': name, **result, **counts}; summary['cases'].append(safe)
             (OUT / 'safe-summary.json').write_text(json.dumps(summary, indent=2))
-            assert counts['sinkBytes'] == 0, safe
+            assert counts['sinkBytes'] == 0 and counts['cookieRequests'] == 0 and counts['authorizationRequests'] == 0, safe
             if name in ['positive', 'lost']:
                 assert result['success'] and result['installed'] and counts['enrollments'] == 1 and counts['recoveries'] == 1 and counts['localApprovals'] == 1, safe
             else:
                 assert not result['success'], safe
-                if not name.startswith('redirect-'): assert counts['receiverBytes'] == 0, safe
+                if not name.startswith('redirect-') and not name.endswith('-reply') and name != 'http-auth': assert counts['receiverBytes'] == 0, safe
             print(name, 'PASS', flush=True)
     finally:
         if listener:

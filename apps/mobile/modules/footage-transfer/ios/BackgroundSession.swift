@@ -46,6 +46,9 @@ final class BackgroundSession: NSObject, URLSessionDataDelegate, @unchecked Send
     super.init()
     let config = URLSessionConfiguration.background(withIdentifier: Self.identifier)
     config.sessionSendsLaunchEvents = true; config.isDiscretionary = false
+    // The paired HTTP/1.1 receiver admits one authenticated group at a time.
+    // Queue the full batch in the daemon without racing its quarantine budget.
+    config.httpMaximumConnectionsPerHost = 1
     config.httpCookieStorage = nil; config.httpShouldSetCookies = false
     config.urlCredentialStorage = nil; config.urlCache = nil
     config.requestCachePolicy = .reloadIgnoringLocalCacheData

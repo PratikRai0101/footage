@@ -30,6 +30,9 @@ public final class FootageTransferModule: Module {
       guard origin == connected else { throw NativeAppFailure(message: "Connect the computer using its connection file. An address alone cannot authorize uploads.") }
       UserDefaults.standard.set(appearance, forKey: "footage.appearance")
     }
+    AsyncFunction("pickOriginal") { () async throws -> String in
+      try await NativeOriginalPicker.choose()
+    }
     AsyncFunction("inspect") { (uri: String) async throws -> String in
       guard let url = URL(string: uri), url.isFileURL else { throw NativeAppFailure(message: "Choose an accessible original video.") }
       let metadata = await NativeClipMetadata.inspect(url)
@@ -46,7 +49,8 @@ public final class FootageTransferModule: Module {
       await MainActor.run {
         NativeBackgroundHost.shared.activity.set(activeUnlocked: UIApplication.shared.applicationState == .active && UIApplication.shared.isProtectedDataAvailable)
       }
-      try owner.prepare(uri: uri, name: name, origin: origin)
+      let selection = try await MainActor.run { try NativeOriginalPicker.selected(uri) }
+      try owner.prepare(selection: selection, name: name, origin: origin)
     }
     AsyncFunction("start") { () async throws in
       guard let owner = await Self.owner() else { throw NativeAppFailure(message: "Connect your computer first.") }

@@ -60,17 +60,21 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
   func restoreAndStart(completion: @escaping @Sendable (Bool) -> Void) { runtime.restoreAndStart(completion: completion) }
   func handleBackgroundEvents(_ identifier: String, completion: @escaping @MainActor @Sendable () -> Void) { runtime.handleBackgroundEvents(identifier, completion: completion) }
   private func locked<T>(_ body: () throws -> T) rethrows -> T { lock.lock(); defer { lock.unlock() }; return try body() }
-  func prepare(uri: String, name: String, origin: String) throws {
-    guard let url = URL(string: uri), url.isFileURL else { throw NativeAppFailure(message: "Choose an accessible original video.") }
+  func prepare(selection: NativeOriginalSelection, name: String, origin: String) throws {
+    let url = selection.url
+    guard url.isFileURL else { throw NativeAppFailure(message: "Choose an accessible original video.") }
     let connection = connection
     try pairingRequire(origin == connection.origin)
     try locked {
       guard preparing == nil else { throw NativeAppFailure(message: "Wait for preparation to finish.") }
       preparing = name; preparationError = nil; preparationCancelled = false; cancelledDuringPreparation = false
     }
-    Task.detached(priority: .utility) { [self] in
+    Task.detached(priority: .utility) { [self, selection] in
       let access = url.startAccessingSecurityScopedResource()
-      defer { if access { url.stopAccessingSecurityScopedResource() } }
+      defer {
+        if access { url.stopAccessingSecurityScopedResource() }
+        withExtendedLifetime(selection) {}
+      }
       do {
         let identity = try await client.nativeIdentity()
         try pairingRequire(identity.receiver == connection.receiver && identity.device == connection.device && identity.origin == connection.origin)

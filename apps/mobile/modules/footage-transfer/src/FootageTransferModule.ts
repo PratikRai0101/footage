@@ -1,5 +1,6 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
+import { z } from 'zod';
 import { connectionSchema, deviceSchema, mediaSchema, settingsSchema, snapshotSchema, type Device, type MediaInfo, type Settings, type Snapshot } from './contracts';
 
 declare class FootageTransferModule extends NativeModule {
@@ -14,6 +15,7 @@ declare class FootageTransferModule extends NativeModule {
   start(): Promise<void>;
   cancel(): Promise<void>;
   connect(uri: string): Promise<string>;
+  pickOriginal(): Promise<string>;
 }
 
 const native = Platform.OS === 'android' || Platform.OS === 'ios' ? requireOptionalNativeModule<FootageTransferModule>('FootageTransfer') : null;
@@ -35,4 +37,5 @@ export const transfers = {
   start: () => owner().start(),
   cancel: () => owner().cancel(),
   async connect(uri: string) { return connectionSchema.parse(parseJson(await owner().connect(uri))); },
+  async pickOriginal() { return z.object({ uri: z.string(), name: z.string(), size: z.number().int().positive().nullable() }).strict().nullable().parse(parseJson(await owner().pickOriginal())); },
 };

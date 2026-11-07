@@ -87,9 +87,11 @@ export function useTransfer() {
 
   const choose = () => act(async () => {
     if (!canChoose(snapshot)) throw new Error('Finish this transfer or confirm its cancellation first.');
-    const result = await DocumentPicker.getDocumentAsync({ type: 'video/*', multiple: false, copyToCacheDirectory: false, base64: false });
-    if (result.canceled) return;
-    const asset = result.assets[0];
+    const asset = await (async () => {
+      if (Platform.OS === 'ios' && transfers.available) return transfers.pickOriginal();
+      const result = await DocumentPicker.getDocumentAsync({ type: 'video/*', multiple: false, copyToCacheDirectory: false, base64: false });
+      return result.canceled ? null : result.assets[0];
+    })();
     if (!asset) return;
     const key = ++selectionKey.current;
     const clip = { key, uri: asset.uri, name: asset.name, bytes: asset.size && asset.size > 0 ? asset.size : null, media: unknownMedia, inspecting: transfers.available };

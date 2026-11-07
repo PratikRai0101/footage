@@ -35,7 +35,7 @@ View received file opens a read-only, app-scoped-trust viewer. Share links are o
 
 Changing a connection cannot redirect an active upload. Finish or confirm cancellation first. Completed originals and receipts are archived natively before a new upload occupies the active slot.
 
-## Deliver to a T3 thread
+## Choose and send to a T3 thread
 
 T3 must run on this **same computer**, so the chosen agent workspace can access the verified original. Provision a writable **outside-client MCP credential** yourself and save only the raw token on one line in a private file (`chmod 600`), without JSON or a `Bearer` prefix. A normal T3 bearer is not an MCP token. Do not put a token in command arguments or the phone.
 
@@ -46,12 +46,13 @@ npm run receiver:paired -- \
   --host "$(scutil --get LocalHostName).local" \
   --mcp http://127.0.0.1:T3_PORT/mcp \
   --token-file /path/to/private-mcp-credential \
-  --environment ENVIRONMENT_ID --project PROJECT_ID --thread THREAD_ID
+  --environment ENVIRONMENT_ID --project PROJECT_ID \
+  --thread THREAD_ID_A --thread THREAD_ID_B
 ```
 
 Replace the placeholders with the T3 instance you authorize. The receiver reads that environment/project/thread, rejects an archived or mismatched target, and resolves the actual thread worktree or registered project root. It does not discover credentials, choose an active thread, create a project, or increase T3's attachment cap.
 
-Export a fresh connection file with `pair`, then explicitly choose that destination on the phone. Existing uploads retain their original intake mapping; changing CLI arguments cannot repoint them.
+Repeat `--thread` for the threads you authorize (up to 16 retained destinations). Each is resolved against the real T3 environment/project/thread/workspace, not an active-thread guess. Export a fresh connection file with `pair` and connect either phone. **Settings → Choose destination** browses this authenticated, pre-authorized catalog. New destinations require a fresh explicit enrollment grant; the list is not itself permission to expand scopes. Existing uploads retain their original intake mapping; changing CLI arguments or the next phone destination cannot repoint them.
 
 After upload, terminal commands are:
 
@@ -60,20 +61,24 @@ After upload, terminal commands are:
 - `send JOB_ID`: explicitly publish that workspace reference using `t3_thread_send`, `mode: queue` and a persisted retry identity. This can start or queue agent work. It is not passive transcript storage.
 - `quit`: stop admissions and drain receiver storage work before closing.
 
-The phone currently performs intake and viewing; **T3 send is a computer-side command**, not a phone dispatch button. Upload/verification never automatically starts T3 or Cardboard. The message asks the agent to inspect the original with `$cardboard`; no automatic media generation or credit spending is authorized.
+On **both phones**, a matching received original exposes **Send to thread**. A separate native confirmation names that original's frozen destination and warns that agent work can start. Verification details also offers **Save to thread without starting agent**. Cancel the confirmation to do nothing. An uncertain send stays unconfirmed; Retry send uses the same original/request identity, even after changing the next destination or reopening the app.
+
+Upload/verification never automatically starts T3 or Cardboard. The message asks the agent to inspect the original with `$cardboard`; paid media generation is not authorized. The desktop `deliver`/`send` commands remain available as explicit operator alternatives.
 
 If a send response is lost, retry `send` for the **same job**. Do not change the token or destination. The same immutable message/request identity is replayed. Changing the MCP credential namespace during an uncertain send blocks automatic retry until the old message is reconciled. Live T3 authentication/delivery must be verified against your chosen instance; repository tests use an owned contract fixture and do not claim a message was sent to your account.
 
 ## Android
 
-The existing native Android tus uploader remains available with the original private receiver:
+The normal Android 0.6 app uses **the same paired connection-file and phone-side T3 flow** described above. Its native owner fully preseals G2 groups, wraps job authority in AndroidKeyStore and uses the existing OS service/job scheduler. Neither video bytes nor credentials are uploaded through JS.
+
+For an explicitly unpaired legacy setup only, the native tus uploader remains available with the original private receiver:
 
 ```sh
 npm run server
 npm run android:demo
 ```
 
-Enter that receiver address in Android Settings. The Android uploader and iPhone uploader use different native transports; there is no JS video uploader. Current Android paired-HTTPS/Keystore execution and physical-device release acceptance are not certified by the iPhone tests. Existing Android evidence remains version-scoped.
+Enter that receiver address in Android Settings. The Android uploader and iPhone uploader use different native transports; there is no JS video uploader. Current paired HTTPS/AndroidKeyStore, background upload and phone handoff were exercised on an owned API36 emulator; physical-device/hardware-backed storage acceptance remains separate. A paired saved job cannot silently switch to the legacy receiver. Existing older Android evidence remains version-scoped.
 
 ## Local checks
 
@@ -82,6 +87,7 @@ npm test
 npm run typecheck
 npm run lint
 python3 scripts/test/ios-background-runtime/run.py --unit-only
+python3 scripts/test/sealed-android/run.py
 ```
 
 The optional actual macOS wrapping test needs the native helper built first and `FOOTAGE_TEST_KEYCHAIN=1`; it creates/deletes only its own recorded test item. GitHub CI/CD remains disabled. Before pushing, commit the intended files and run `npm run preflight:public` from a clean tree.

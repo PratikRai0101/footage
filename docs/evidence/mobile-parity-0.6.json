@@ -1,0 +1,119 @@
+{
+  "version": "0.6.0",
+  "build": 6,
+  "sourceCommit": "42f4337f23cb1d56eeb8c695a6a8cb1d75d832f5",
+  "ordinaryReleaseApps": true,
+  "fixtureAppAssembly": false,
+  "generatedMediaOnly": true,
+  "uploads": [
+    {
+      "platform": "android",
+      "bytes": 4098434,
+      "sha256": "869746acddbe7ad25970ac92b55d1a156b21f2bd7af5d33229534ece7f4dcab5",
+      "sourceReceiverNativeMatch": true
+    },
+    {
+      "platform": "ios",
+      "bytes": 4098434,
+      "sha256": "869746acddbe7ad25970ac92b55d1a156b21f2bd7af5d33229534ece7f4dcab5",
+      "sourceReceiverNativeMatch": true
+    },
+    {
+      "platform": "android",
+      "bytes": 79595914,
+      "sha256": "8c7615c1b7a0bff8f74a3979c39cf5daed127670fbc33c694d2cbf1af777e5bd",
+      "sourceReceiverNativeMatch": true
+    },
+    {
+      "platform": "ios",
+      "bytes": 79595914,
+      "sha256": "8c7615c1b7a0bff8f74a3979c39cf5daed127670fbc33c694d2cbf1af777e5bd",
+      "sourceReceiverNativeMatch": true
+    }
+  ],
+  "background": [
+    {
+      "platform": "ios",
+      "ordinaryRelease": true,
+      "testAssembly": false,
+      "jobId": "f7df0532-a088-45e1-af5b-6f84cf212bf6",
+      "originalBytes": 79595914,
+      "confirmedBeforeHome": 0,
+      "nativeScheduledBeforeHome": true,
+      "homeObservedAt": 1794047802.905667,
+      "receiverResumedAt": 1794047802.905809,
+      "receiptId": "de1b06d1-64cd-4c85-b6d7-cd90580ddeb2",
+      "receiverReceivedWhileBackgrounded": true,
+      "nativeReceivedBeforeReturn": true
+    },
+    {
+      "platform": "android",
+      "ordinaryRelease": true,
+      "testAssembly": false,
+      "jobId": "af9f43db-ae5d-406b-a4b8-8516b37047f1",
+      "originalBytes": 79595914,
+      "confirmedBeforeHome": 0,
+      "nativeScheduledBeforeHome": true,
+      "homeObservedAt": 1794047724.8012211,
+      "receiverResumedAt": 1794047724.801399,
+      "receiptId": "117c23bb-3e71-4f22-b361-165b66704cb4",
+      "receiverReceivedWhileBackgrounded": true,
+      "nativeReceivedBeforeReturn": true
+    }
+  ],
+  "androidCancellation": {
+    "platform": "android",
+    "jobId": "df4278b9-8fa9-499d-b3de-7602216053b9",
+    "nativeSocketCancellation": true,
+    "receiverUnreachableDuringCancel": true,
+    "cleanupPendingBeforeReconnect": true,
+    "confirmedBeforeCancel": 0,
+    "authenticatedCleanupConfirmed": true,
+    "sourceUnchanged": true,
+    "receivedReceiptInvented": false
+  },
+  "phoneHandoff": {
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "nativeConfirmationCancellationStartedNoAgent": true,
+    "desktopWorkspaceHashesMatch": true,
+    "lostReplyAndExplicitColdReopen": true,
+    "nextDestinationChangedToAOriginalStayedB": true,
+    "sendRequests": 4,
+    "acceptedMessages": 2,
+    "automaticSendsFromUploads": 0,
+    "liveT3Account": false,
+    "cardboardActions": 0
+  },
+  "checks": {
+    "root": 109,
+    "nativeSwift": 52,
+    "pairedService": 9,
+    "plugin": 3,
+    "kotlinNodeVectorCases": 2,
+    "pairingJVM": 17,
+    "typecheck": true,
+    "lint": true
+  },
+  "finalBuild": {
+    "iosExecutableSha256": "c72a098dfcf965e8ae4674a7d1d21f7aa9e5cfbe060335b4a6a09f31e510bd75",
+    "androidApkSha256": "149082f3e7e7a21a9ad5474bf4c7ac3667affe3567119d3af2802a9b8bcc27a6",
+    "bothColdLaunchSmokeChecked": true,
+    "androidDebugSymbolExtractionSkipped": true
+  },
+  "scope": [
+    "Owned iOS 26.2 Simulator and API36 Android emulator, not physical devices.",
+    "Android test used loopback ADB reverse and own rootable emulator for state observations.",
+    "Background/cancel/send acceptance preceded final job-bound socket/recovery and bridge-sanitization hardening; final builds compiled and cold-smoked.",
+    "No live personal T3 credentials, threads, paid generation, deployment or GitHub CI were used."
+  ],
+  "cleanup": {
+    "exactFreshMacKeychainItemDeleted": true,
+    "ownedReceiverClosed": true,
+    "ownedAcceptanceSimulatorAndAvdDeleted": true,
+    "parentSimulatorAndHistoricalAvdPreserved": true,
+    "nativeFilesystemEvidencePreservedWithoutDeviceKeystores": true
+  }
+}

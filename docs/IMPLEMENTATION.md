@@ -1,39 +1,34 @@
-# Implementation status — 0.5.0
+# Implementation status — 0.6.0
 
-Status describes the actual local prototype, not store/physical-device certification. GitHub CI/CD remains disabled; checks run locally.
+The remaining requested implementation is complete: **paired Android upload parity and phone-side T3 destination selection/delivery/send controls**. This is a working shared local prototype, not production/store certification.
 
-## Implemented and exercised
+## Implemented
 
-- Approved full-frame layout, Instrument Serif and charcoal/warm-white styling, unchanged.
-- **Ordinary iPhone Release app:** native Files selection with retained original URL grant, real metadata/preview, private computer connection import, explicit native trust/destination confirmation and operator-approved enrollment. Before connection, Preview only is deliberate.
-- **Native original ownership:** after Upload original, stage/hash/full-preseal, durable ledger, encrypted file-backed background URLSession tasks, original-byte confirmed progress and authenticated matching receipt. No video bytes, signing keys or upload credentials cross the JS bridge.
-- **Actual ordinary-app background completion:** a generated 79,595,914-byte, two-group MP4 completed at the receiver and reached native `received` while the app remained backgrounded after Home. The receiver was paused until background state was observed. This was not a lifecycle-fixture app or a foreground-only uploader. See [current evidence](evidence/normal-app-0.5.md).
-- Consecutive uploads durably archive earlier originals/receipts before reusing the active slot. Cold relaunch restores the current receipt. Cancellation records intent; offline cleanup is not represented as completed deletion.
-- **Mac receiver:** explicit HTTPS provisioning, app-scoped trust, local enrollment approval, macOS Keychain wrapping, bounded sealed ingest, shared durable Jobs receipts, supervised finalization and receipt-gated read-only viewing. Conservative admission is **1 GiB**, within quota/disk budgets; the binary 4-GiB ceiling is not advertised capacity.
-- **Explicit T3 handoff on the computer:** allowlisted same-host environment/project/thread/workspace selected at receiver configuration. `deliver JOB_ID` streams and independently hashes the original into the exact workspace without starting an agent. `send JOB_ID` separately queues a text reference, with durable target/receipt/request/auth-namespace identity and uncertain-result reconciliation. No active-thread following, large-attachment limit bypass or direct T3 database modification.
-- T3 handoff uses an explicitly supplied outside-client credential. The owned MCP contract fixture tests lost replies, restart, duplicate/concurrent retry, wrong/archived targets and original integrity. **No live T3 account was sent a message, and no Cardboard action was run.** There is no phone-side send button.
-- One shared Expo app retains the existing Android native tus/foreground-service/user-initiated-job path. Android paired connection/T3 workflow parity is not claimed; Android still uses its existing receiver setup.
+- One Expo iPhone/Android app, preserving the approved full-frame layout, Instrument Serif and charcoal/warm-white palette. Coral identifies an actual confirmed destination, never an example thread.
+- Native private connection-file import, explicit trust/destination confirmation and desktop-approved enrollment on both platforms. The phone chooses only from the computer's authorized destination catalog; changing the next destination cannot redirect an existing original.
+- Both platforms stage/hash and fully preseal originals after Upload original. Swift and Kotlin implement the same canonical G2 format and use the same HTTPS receiver, shared original publication and matching Jobs receipt. No video bytes, upload credentials, signing keys or generation masters cross the JS bridge.
+- iOS retains the tested native background URLSession/ledger lifecycle. Android retains its existing native TransferOwner and API26–33 foreground-service/API34+ user-initiated-job schedulers, with AndroidKeyStore-wrapped pairing/job state, durable seal intents, immutable ciphertext retries, authenticated original-byte progress and final receipts. A saved paired job never falls back to plaintext tus.
+- Android closes the job-bound active data socket on cancellation/scheduler stop. Cancellation remains pending while the receiver is unreachable; cleanup is reported only after authenticated confirmation. A matching committed receipt wins. Received originals/receipts are archived rather than replaced by the next job.
+- Both ordinary Release apps completed a **79,595,914-byte/two-group** upload after Home; receiver and native state reached received before returning to the app. Generated fixtures only. These are Simulator/emulator results, not physical lock/Doze evidence.
+- **Phone-side T3:** Settings → Choose destination selects a real desktop-allowlisted thread. After a matching original receipt, Send to thread requires a separate native confirmation. Save to thread without starting agent is separate. Purpose-bound native HMAC requests prevent replaying a view/status query as send consent.
+- Desktop T3 delivery verifies the exact same-host environment/project/thread/workspace, streams/hash-checks the original into `.footage-originals/`, and persists immutable target/receipt/message/request/credential-namespace state. Explicit send queues a text reference without interrupting active work. There is no large-attachment limit bypass or direct T3 database edit.
+- Both apps exercised lost send replies, changed the next destination, explicitly cold-reopened, and retried the original destination without duplicate accepted messages against an owned local MCP fixture. No live T3 account was sent a message; no Cardboard action or paid generation was run.
+- Paired read-only viewing remains separate from write authority. iPhone uses the pinned viewer; Android downloads through pinned native sockets, independently hashes the received bytes, and plays/shares a private cached copy without installing a global CA.
 
-## Run it
+## Boundaries retained
 
-See **[RUN.md](RUN.md)** for the private connection-file flow, Mac receiver, operator commands, explicit T3 configuration and platform limits. Build outputs remain ignored local artifacts, not a store distribution.
+Apple background URLSession may redirect; only immutable ciphertext/public framing may follow it. Exact-origin pinned, nonredirecting control and authenticated G2 outcomes remain mandatory. Preparation needs the app open. No user-force-quit automatic-restart guarantee is made; explicit reopen reconciles the same job.
 
-## Background safety and activation scope
+The paired service admits up to **1 GiB**, within quota/disk budgets—not the binary 4-GiB ceiling. The legacy Android private-network receiver remains available as an explicit separate setup, never a paired-job fallback. Desktop wrapping currently supports macOS only. The phone catalog is an explicit allowlist (up to 16 destinations), not unrestricted T3 browsing or credential discovery.
 
-Apple background URLSession can follow redirects without consulting the redirect-veto callback. TLS/ATS-only protection was experimentally rejected. The implemented transport allows **immutable ciphertext/public framing** to redirect, never original plaintext or reusable write/delete authority. Exact-origin pinned nonredirecting control and authenticated G2 outcomes remain mandatory.
+## Verification still required
 
-The integrated engine has native ledger/recovery/fault tests and actual paired Expo OS wakes before JS, including durable handoff while a separate remote control response remains pending. Exact session-ID AppDelegate routing preserves unrelated Expo behavior. The held-control lifecycle fixture has its documented startup rendezvous; it is not silently relabelled as natural scheduling or ordinary production configuration.
+- Physical iPhone/Android lock, LAN denial, network switching, Android power/Doze and sustained large-original behavior. Emulator AndroidKeyStore execution does not certify hardware backing.
+- Live T3 compatibility/delivery using the user's chosen credential/target, then a separately authorized Cardboard inspection/edit. The owned contract fixture does not certify a personal account.
+- Broader release operations: retention/repair, replacement-generation migration, Windows/Linux wrapping and private-CA sharing across external browsers. These are not claimed as production-ready.
 
-**Scoped activation decision:** normal 0.5 local-prototype controls are enabled only after explicit authorized native connection, following the ordinary-app acceptance above. This supersedes the earlier blanket "normal controls remain disabled" milestone. It does not assert that all [G1–G7 release gates](architecture/sealed-background-upload.md) passed or weaken any cryptographic/authority check. Production/store acceptance remains **NO-GO** pending the following work.
+Six historical test-only macOS Keychain items still lack exact IDs. Do not enumerate/delete unrelated credentials. Current fixtures record exact namespaces before initialization and delete only their own item, even when shutdown fails.
 
-## Still required for broader release
+## Run and evidence
 
-- Physical iPhone protection/lock, LAN permission denial, network changes and sustained large-file behavior; no user-force-quit automatic-restart guarantee.
-- Current Android native/device acceptance and paired T3 workflow parity. Historical Samsung/API33 results are version-scoped, not current release certification; JVM pairing does not prove AndroidKeyStore.
-- Live, explicitly authorized T3 compatibility/dispatch acceptance and separately requested Cardboard inspection/edit. Contract-fixture success is not a real-account end-to-end claim.
-- Viewer sharing across devices with private-CA trust, receiver retention/repair, replacement-generation/operator migration workflows, and Windows/Linux wrapping backends. Reserved destination-list transport remains unavailable; selected destinations currently come from the authenticated private connection export.
-- Six historical test-only macOS Keychain entries lack exact IDs and remain unresolved. Do not enumerate/delete unrelated credentials. Current fixtures record their exact namespace before initialization, refuse to overwrite unresolved cleanup metadata, and delete only that item.
-
-## Delivery discipline
-
-Small coherent commits; local tests/typecheck/lint and public-history preflight before push; clean worktree. No GitHub automation, billing changes, deployment, personal-media inspection or real agent/Cardboard action is implied by this implementation. Earlier design/probe documents remain historical and version-scoped.
+See [RUN.md](RUN.md) and [0.6 acceptance](evidence/mobile-parity-0.6.md). Earlier version-scoped evidence remains historical. Local checks and public-history preflight precede push. GitHub CI/CD stays disabled; no billing, deployment, app-store submission or personal-device/media access is authorized by these tests.

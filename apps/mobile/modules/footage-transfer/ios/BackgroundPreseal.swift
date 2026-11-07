@@ -90,8 +90,11 @@ final class BackgroundPreseal {
   }
   func finishPreparation(_ m: SealedProtocol.Manifest, reply: Data) throws {
     do {
-      try checkActive()
-      try backgroundRequire(ledger.state?.digest == m.digest && ledger.state?.phase == "preparing")
+      // A late setup reply still supplies recovery authority for this SAME job,
+      // even if cancel won while the socket waited. Save it before checking the
+      // cancel/activity fence. Never seal or schedule across that fence.
+      try backgroundRequire(ledger.state?.digest == m.digest
+        && (ledger.state?.phase == "preparing" || ledger.state?.cancelOperation != nil))
       _ = try SealedProtocol.decodeSetup(reply, manifest: m)
       // G2 intentionally doesn't export its master. Its exact 80-byte canonical setup
       // has already been validated; extract only its fixed master field for Keychain.

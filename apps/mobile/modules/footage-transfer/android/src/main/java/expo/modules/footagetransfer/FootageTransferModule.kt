@@ -28,6 +28,16 @@ class FootageTransferModule : Module() {
         .put("scheduler", if (Build.VERSION.SDK_INT >= 34) "user-initiated-job" else "foreground-service").toString()
     }
     AsyncFunction("current") { owner().snapshot() }
+    AsyncFunction("connection") {
+      val value = owner().paired.connection()
+      if (value == null) "null" else JSONObject().put("origin", value.getString("origin")).put("title", value.getString("title")).toString()
+    }
+    AsyncFunction("connect") Coroutine { uri: String ->
+      try { NativeAndroidConnection.connect(appContext.currentActivity ?: error("Return to Footage first."), owner(), uri) }
+      catch (_: Exception) { throw IllegalStateException("Connection not completed. Check the private file and approve this phone on your computer.") }
+    }
+    AsyncFunction("selectDestination") Coroutine { -> NativeAndroidConnection.select(appContext.currentActivity ?: error("Return to Footage first."), owner()) }
+    AsyncFunction("handoff") Coroutine { operation: String -> NativeAndroidConnection.handoff(appContext.currentActivity ?: error("Return to Footage first."), owner(), operation) }
     AsyncFunction("inspect") Coroutine { source: String ->
       withContext(Dispatchers.IO) {
         VideoMetadata.inspect(appContext.reactContext ?: error("Android context is unavailable."), Uri.parse(source)).json().toString()
@@ -35,14 +45,22 @@ class FootageTransferModule : Module() {
     }
     AsyncFunction("settings") {
       val preferences = preferences()
-      JSONObject().put("origin", preferences.getString("origin", ""))
+      JSONObject().put("origin", owner().paired.connection()?.getString("origin") ?: preferences.getString("origin", ""))
         .put("appearance", preferences.getString("appearance", "dark")).toString()
     }
     AsyncFunction("configure", fun(origin: String, appearance: String): Unit {
       require(appearance in listOf("dark", "light", "system")) { "Choose a supported appearance." }
-      val normalized = if (origin.isBlank()) "" else receiverOrigin(origin)
+      val paired = owner().paired.connection()
+      val normalized = if (paired != null) { check(origin == paired.getString("origin")) { "Use Change connection; a paired upload never falls back to an address." }; origin } else if (origin.isBlank()) "" else receiverOrigin(origin)
       check(preferences().edit().putString("origin", normalized).putString("appearance", appearance).commit()) { "Could not save receiver settings." }
     })
+    AsyncFunction("openViewer") Coroutine { ->
+      val context = appContext.reactContext ?: error("Android context unavailable.")
+      val job = owner().store.current() ?: error("Open a verified original first.")
+      check(job.transport == TransferProtocol.Sealed)
+      val file = withContext(Dispatchers.IO) { owner().paired.receivedCopy(job) }
+      withContext(Dispatchers.Main) { context.startActivity(Intent(context, ReceivedOriginalActivity::class.java).putExtra("path", file.absolutePath).putExtra("name", job.asset.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
     AsyncFunction("viewer") Coroutine { -> withContext(Dispatchers.IO) { owner().viewer() } }
     AsyncFunction("prepare") { uri: String, name: String, endpoint: String -> owner().prepare(uri, name, endpoint) }
     AsyncFunction("cancel") { owner().cancel() }

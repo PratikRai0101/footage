@@ -14,9 +14,12 @@ import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
 internal enum class PairingRoute(val path: String, val responseLimit: Int = 16384, val control: Boolean = false) {
+  INGEST("/sealed/v1/ingest", 4096), HANDOFF_STATUS("/sealed/v1/handoff/status", 4096, true), DELIVER("/sealed/v1/handoff/deliver", 4096, true), SEND("/sealed/v1/handoff/send", 4096, true),
   ENROLL("/pair/v1/enroll"), CHALLENGE("/pair/v1/challenge"), RECOVER("/pair/v1/recover"),
   SETUP("/sealed/v1/setup", 65536, true), STATUS("/sealed/v1/status", 4096, true), REVOKE("/sealed/v1/revoke", 4096, true), VIEW("/sealed/v1/view", 4096, true), DESTINATIONS("/pair/v1/destinations", 65536, true)
 }
+
+internal class PairingHTTPFailure(val status: Int) : java.io.IOException("Private computer request unavailable ($status).")
 
 /** Dedicated raw TLS socket: no global HTTP cookie/cache/auth/proxy stores, no
  * redirect implementation, no caller-supplied URL. Handshake and independent
@@ -26,6 +29,32 @@ internal class PairingTransport(private val offer: PairingOffer) {
   fun send(route: PairingRoute, body: ByteArray, credential: ByteArray? = null): ByteArray {
     pairingCheck(body.size <= if (route.control) 65536 else 16384)
     pairingCheck(if (route.control) credential?.size == 32 else credential == null)
+    return sendStream(route, body.size.toLong(), credential) { it.write(body) }
+  }
+  fun sendFile(file: java.io.File, active: () -> Boolean, socketChanged: (SSLSocket?) -> Unit = {}): ByteArray {
+    val length = file.length(); pairingCheck(length in 129..(64L * 1024 * 1024 + 544))
+    return sendStream(PairingRoute.INGEST, length, null, socketChanged) { output ->
+      file.inputStream().use { input ->
+        val buffer = ByteArray(65536); var count = 0L
+        while (true) {
+          if (!active()) throw java.io.InterruptedIOException("Transfer stopped.")
+          val n = input.read(buffer); if (n < 0) break; count += n; pairingCheck(count <= length); output.write(buffer, 0, n)
+        }
+        pairingCheck(count == length)
+      }
+    }
+  }
+  private fun sendStream(route: PairingRoute, length: Long, credential: ByteArray?, socketChanged: (SSLSocket?) -> Unit = {}, write: (java.io.OutputStream) -> Unit): ByteArray = withPinnedSocket { socket ->
+    socketChanged(socket)
+    try {
+    val authority = offer.origin.text.removePrefix("https://")
+    val auth = if (credential == null) "" else "Authorization: Bearer ${credential.joinToString("") { "%02x".format(it) }}\r\n"
+    val header = "POST ${route.path} HTTP/1.1\r\nHost: $authority\r\n${auth}Content-Type: application/octet-stream\r\nAccept: application/octet-stream\r\nContent-Length: ${length}\r\nConnection: close\r\n\r\n"
+    socket.outputStream.write(header.toByteArray(Charsets.US_ASCII)); write(socket.outputStream); socket.outputStream.flush()
+    readReply(socket.inputStream, route.responseLimit)
+    } finally { socketChanged(null) }
+  }
+  fun <T> withPinnedSocket(action: (SSLSocket) -> T): T {
     val anchor = CertificateFactory.getInstance("X.509").generateCertificate(ByteArrayInputStream(offer.ca)) as X509Certificate
     pairingCheck(anchor.encoded.contentEquals(offer.ca) && anchor.basicConstraints >= 0); anchor.checkValidity()
     val store = KeyStore.getInstance(KeyStore.getDefaultType()); store.load(null); store.setCertificateEntry("pairing-only", anchor)
@@ -57,11 +86,7 @@ internal class PairingTransport(private val offer: PairingOffer) {
       val params = socket.sslParameters; params.endpointIdentificationAlgorithm = "HTTPS"; socket.sslParameters = params
       socket.connect(InetSocketAddress(offer.origin.host, offer.origin.port), 15000)
       socket.startHandshake()
-      val authority = offer.origin.text.removePrefix("https://")
-      val auth = if (credential == null) "" else "Authorization: Bearer ${credential.joinToString("") { "%02x".format(it) }}\r\n"
-      val header = "POST ${route.path} HTTP/1.1\r\nHost: $authority\r\n${auth}Content-Type: application/octet-stream\r\nAccept: application/octet-stream\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n"
-      socket.outputStream.write(header.toByteArray(Charsets.US_ASCII)); socket.outputStream.write(body); socket.outputStream.flush()
-      return readReply(socket.inputStream, route.responseLimit)
+      return action(socket)
     }
   }
   private fun readReply(input: InputStream, limit: Int): ByteArray {
@@ -74,7 +99,9 @@ internal class PairingTransport(private val offer: PairingOffer) {
         pairingCheck(b in 32..126); out.write(b)
       }
     }
-    pairingCheck(Regex("HTTP/1\\.[01] 200(?: .*)?").matches(line())) // all redirects/auth challenges are refused
+    val status = Regex("HTTP/1\\.[01] ([0-9]{3})(?: .*)?").matchEntire(line())?.groupValues?.get(1)?.toIntOrNull()
+    pairingCheck(status != null)
+    if (status != 200) throw PairingHTTPFailure(requireNotNull(status)) // never follow redirects or auth challenges
     val headers = mutableMapOf<String, String>()
     while (true) {
       val text = line(); if (text.isEmpty()) break

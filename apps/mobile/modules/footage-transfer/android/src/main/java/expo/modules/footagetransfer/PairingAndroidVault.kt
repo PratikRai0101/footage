@@ -87,6 +87,23 @@ internal class PairingAndroidVault(context: Context) : PairingDeviceVault {
     val directory = Os.open(dir.absolutePath, OsConstants.O_RDONLY, 0)
     try { Os.fsync(directory) } finally { Os.close(directory) }
   }
+  @Synchronized fun readBlob(name: String): ByteArray? {
+    pairingCheck(Regex("[a-zA-Z0-9.-]{1,96}").matches(name))
+    val value = AtomicFile(File(dir, "data-$name"))
+    if (!value.baseFile.exists() && !File(value.baseFile.path + ".bak").exists()) return null
+    val bytes = bounded(value.openRead(), 16412); pairingCheck(bytes.size in 28..16412)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12))); cipher.updateAAD(aad + name.toByteArray())
+    return cipher.doFinal(bytes.copyOfRange(12, bytes.size))
+  }
+  @Synchronized fun saveBlob(name: String, bytes: ByteArray) {
+    pairingCheck(Regex("[a-zA-Z0-9.-]{1,96}").matches(name) && bytes.size <= 16384)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, secretKey()); cipher.updateAAD(aad + name.toByteArray())
+    val value = AtomicFile(File(dir, "data-$name")); val output = value.startWrite()
+    try {
+      Os.fchmod(output.fd, 384); output.write(cipher.iv + cipher.doFinal(bytes)); output.fd.sync(); value.finishWrite(output)
+      val fd = Os.open(dir.absolutePath, OsConstants.O_RDONLY, 0); try { Os.fsync(fd) } finally { Os.close(fd) }
+    } catch (error: Exception) { value.failWrite(output); throw error }
+  }
   @Synchronized override fun save(bytes: ByteArray) {
     pairingCheck(bytes.size <= 16384); publicKey()
     val cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, secretKey()); cipher.updateAAD(aad)

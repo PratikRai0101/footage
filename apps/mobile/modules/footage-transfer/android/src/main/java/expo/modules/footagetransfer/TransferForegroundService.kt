@@ -112,6 +112,7 @@ class TransferForegroundService : Service() {
             it.copy(phase = Phase.Waiting(stopReason))
           else it
         } }
+        jobId?.let(owner.paired::stop)
       } finally { super.onDestroy() }
     }
   }

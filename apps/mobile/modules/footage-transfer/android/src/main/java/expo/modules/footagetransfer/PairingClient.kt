@@ -27,6 +27,19 @@ internal class PairingClient(private val vault: PairingDeviceVault) {
     pairingCheck(vault.read() == null); val offer = PairingOffer(qr); pairingCheck(mask in 0..31 && mask and offer.mask == mask)
     vault.beginKeys(); vault.save(Saved(offer, pairingRandom(16), mask, byteArrayOf()).encode(byteArrayOf()))
   }
+  @Synchronized fun replaceAfterNativeConfirmation(qr: ByteArray, mask: Int) {
+    val offer = PairingOffer(qr); pairingCheck(mask in 0..31 && mask and offer.mask == mask)
+    if (vault.read() == null) vault.beginKeys() else pairingP256(vault.publicKey())
+    vault.save(Saved(offer, pairingRandom(16), mask, byteArrayOf()).encode(byteArrayOf()))
+  }
+  fun sendGroup(job: ByteArray, file: java.io.File, active: () -> Boolean, socketChanged: (javax.net.ssl.SSLSocket?) -> Unit = {}): ByteArray {
+    val installed = PairingControlInstallation.fromSaved(requireNotNull(vault.readJob(job)))
+    return PairingTransport(installed.offer).sendFile(file, active, socketChanged)
+  }
+  fun downloadViewer(job: ByteArray, code: String, file: java.io.File, bytes: Long, hash: String) {
+    val installed = PairingControlInstallation.fromSaved(requireNotNull(vault.readJob(job)))
+    PairingViewer(installed.offer).download(code, file, bytes, hash)
+  }
   @Synchronized fun enroll() {
     val s = saved(); pairingCheck(s.installed.isEmpty() && s.offer.expires > (System.currentTimeMillis() / 1000).toULong())
     val nonce = pairingRandom(32)

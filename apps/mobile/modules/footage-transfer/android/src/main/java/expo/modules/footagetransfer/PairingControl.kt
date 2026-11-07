@@ -40,6 +40,10 @@ internal class PairingControlBinding(receiver: ByteArray, origin: String, device
       val r = PairingReader(body, "FTMAN001", 65536)
       pairingCheck(r.take(32).contentEquals(receiver) && r.lp16(512).contentEquals(origin.toByteArray()) && r.take(16).contentEquals(jobId) && r.take(16).contentEquals(generation) && r.take(16).contentEquals(device) && r.u64() == epoch && r.lp16(17).contentEquals(byteArrayOf(1) + intake))
       r.u64(); r.take(32); r.lp16(240); pairingCheck(r.u64() == expires)
+    } else if (operation.purpose != null) {
+      val r = PairingReader(body, "FTHAND01", 121)
+      pairingCheck(r.take(1)[0].toInt() == operation.purpose && r.take(16).contentEquals(jobId) && r.take(16).contentEquals(generation) && r.take(32).contentEquals(digest))
+      r.take(16); r.take(32); r.end()
     } else {
       val r = PairingReader(body, "FTQUERY1", 65536)
       pairingCheck(r.take(16).contentEquals(jobId) && r.take(16).contentEquals(generation) && r.take(32).contentEquals(digest))
@@ -69,6 +73,7 @@ internal class PairingControlInstallation(val binding: PairingControlBinding, va
     }
   }
 }
-internal enum class PairingControlOperation(val permission: Int, val route: PairingRoute) {
-  SETUP(0x01, PairingRoute.SETUP), STATUS(0x02, PairingRoute.STATUS), REVOKE(0x04, PairingRoute.REVOKE), VIEW(0x08, PairingRoute.VIEW)
+internal enum class PairingControlOperation(val permission: Int, val route: PairingRoute, val purpose: Int? = null) {
+  SETUP(0x01, PairingRoute.SETUP), STATUS(0x02, PairingRoute.STATUS), REVOKE(0x04, PairingRoute.REVOKE), VIEW(0x08, PairingRoute.VIEW),
+  HANDOFF_STATUS(0x02, PairingRoute.HANDOFF_STATUS, 0), DELIVER(0x01, PairingRoute.DELIVER, 1), SEND(0x01, PairingRoute.SEND, 2)
 }

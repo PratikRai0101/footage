@@ -7,6 +7,10 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
   <application>
+    <activity android:name="expo.modules.footagetransfer.ReceivedOriginalActivity" android:exported="false" />
+    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.footage.originals" android:exported="false" android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/footage_viewer_paths" />
+    </provider>
     <service
       android:name="expo.modules.footagetransfer.TransferForegroundService"
       android:foregroundServiceType="dataSync"

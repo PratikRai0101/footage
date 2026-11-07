@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { constants, createReadStream, closeSync, fstatSync, fsyncSync, openSync } from 'node:fs';
-import { chmod, lstat, mkdir, open, readFile, realpath, rename, rm } from 'node:fs/promises';
+import { chmod, lstat, mkdir, open, realpath, rename, rm } from 'node:fs/promises';
 import { extname, join, relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { type StoredJob } from './contracts.js';
@@ -24,10 +24,22 @@ export class T3Client {
     const url = new URL(endpoint);
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/mcp' || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error('Use the approved HTTPS MCP endpoint (or local loopback).');
     if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error('Workspace delivery requires T3 MCP on this same computer; remote filesystem paths are not upload destinations.');
-    const info = await lstat(tokenFile);
-    if (!info.isFile() || info.isSymbolicLink() || (info.mode & 0o077) !== 0 || info.size > 16384) throw new Error('MCP credential file must be a private regular file.');
-    const token = (await readFile(tokenFile, 'utf8')).trim();
-    if (!token || /\s/.test(token)) throw new Error('Invalid MCP credential file.');
+    const file = await open(tokenFile, constants.O_RDONLY | constants.O_NOFOLLOW);
+    let token: string;
+    try {
+      const info = await file.stat();
+      if (!info.isFile() || (info.mode & 0o077) !== 0 || info.size > 16384) throw new Error('MCP credential file must be a private regular file.');
+      const bounded = Buffer.alloc(16385);
+      let bytesRead = 0;
+      while (bytesRead < bounded.length) {
+        const part = await file.read(bounded, bytesRead, bounded.length - bytesRead, bytesRead);
+        if (part.bytesRead === 0) break;
+        bytesRead += part.bytesRead;
+      }
+      if (bytesRead > 16384) throw new Error('MCP credential file exceeds its limit.');
+      token = bounded.subarray(0, bytesRead).toString('utf8').trim();
+    } finally { await file.close(); }
+    if (!/^[\x21-\x7e]+$/.test(token)) throw new Error('Invalid MCP credential file.');
     return new T3Client(url.href, token);
   }
   private async rpc(method: string, params: unknown, notification = false): Promise<unknown> {

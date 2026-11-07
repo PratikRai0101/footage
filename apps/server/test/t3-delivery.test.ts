@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -48,20 +49,45 @@ test('thread delivery pins workspace and original; explicit queue send reconcile
   const address = server.address(); assert(address && typeof address !== 'string');
   let delivery: T3Delivery | null = null;
   try {
-    const client = await T3Client.fromFile(`http://127.0.0.1:${address.port}/mcp`, join(dir, 'credential'));
+    const endpoint = `http://127.0.0.1:${address.port}/mcp`;
+    await symlink(join(dir, 'credential'), join(dir, 'linked-credential'));
+    await assert.rejects(T3Client.fromFile(endpoint, join(dir, 'linked-credential')));
+    await writeFile(join(dir, 'invalid-credential'), `${token}\0`, { mode: 0o600 });
+    await assert.rejects(T3Client.fromFile(endpoint, join(dir, 'invalid-credential')), /Invalid MCP credential file/);
+    const client = await T3Client.fromFile(endpoint, join(dir, 'credential'));
     const target = await client.target('env', 'project', 'thread', randomUUID());
     delivery = new T3Delivery(dir, client);
     const bytes = Buffer.from('generated original; not personal media'), jobId = randomUUID();
     const job = storedJobSchema.parse({ id: jobId, name: 'generated.mp4', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), tokenHash: 'a'.repeat(64), status: 'received', transport: 'tus', contentReference: 'original', receipt: { id: randomUUID(), jobId, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), verifiedAt: new Date().toISOString() } });
     await writeFile(join(dir, 'originals', job.id), bytes, { mode: 0o600 });
     await assert.rejects(delivery.materialize({ ...job, receipt: job.receipt && { ...job.receipt, bytes: job.bytes + 1 } }, target));
-    const saved = await delivery.materialize(job, target);
+    const [saved, sameCopy] = await Promise.all([delivery.materialize(job, target), delivery.materialize(job, target)]);
+    assert.equal(saved.requestId, sameCopy.requestId);
     assert.deepEqual(await readFile(saved.path), bytes); assert.equal(sends.length, 0);
     await assert.rejects(delivery.materialize(job, { ...target, thread: 'different' }));
     archived = true; await assert.rejects(delivery.dispatch(job, target)); assert.equal(sends.length, 0); archived = false;
     wrongEnvironment = true; await assert.rejects(delivery.dispatch(job, target)); wrongEnvironment = false;
     await assert.rejects(delivery.dispatch(job, target));
+    delivery.close(); delivery = null;
+    const childSource = `
+      import { T3Client, T3Delivery, targetSchema } from ${JSON.stringify(new URL('../src/t3-delivery.ts', import.meta.url).href)};
+      import { storedJobSchema } from ${JSON.stringify(new URL('../src/contracts.ts', import.meta.url).href)};
+      let body = ''; for await (const chunk of process.stdin) body += chunk;
+      const input = JSON.parse(body), client = await T3Client.fromFile(input.endpoint, input.credential);
+      const delivery = new T3Delivery(input.directory, client);
+      try { console.log(await delivery.dispatch(storedJobSchema.parse(input.job), targetSchema.parse(input.target))); }
+      finally { delivery.close(); }
+    `;
+    const retried = await new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', childSource], { stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
+      let output = ''; child.stdout.setEncoding('utf8'); child.stdout.on('data', (text: string) => { output += text; }); child.stderr.resume();
+      child.on('error', reject); child.on('close', code => code === 0 ? resolve(output.trim()) : reject(new Error('Owned outbox restart fixture failed.')));
+      child.stdin.end(JSON.stringify({ endpoint, credential: join(dir, 'credential'), directory: dir, job, target }));
+    });
+    z.uuid().parse(retried);
+    delivery = new T3Delivery(dir, await T3Client.fromFile(endpoint, join(dir, 'credential')));
     const [sent, replayed] = await Promise.all([delivery.dispatch(job, target), delivery.dispatch(job, target)]);
+    assert.equal(sent, retried);
     assert.equal(sent, replayed);
     assert.equal(await delivery.dispatch(job, target), sent);
     assert.equal(messages.size, 1); assert.equal(sends.length, 2); assert.equal(sends[0]?.clientRequestId, sends[1]?.clientRequestId);

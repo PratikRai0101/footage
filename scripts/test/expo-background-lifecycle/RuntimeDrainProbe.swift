@@ -19,9 +19,10 @@ private final class DeferredEnumeration: BackgroundDaemon, @unchecked Sendable {
 
 func probeRuntimeDrain(_ docs: URL) throws -> [String: Any] {
   let daemon = DeferredEnumeration()
+  let control = TestControl(); control.offline = true
   let runtime = try BackgroundRuntime(directory: docs.appendingPathComponent("unit-drain-probe"), create: true,
     keychainService: "test.footage.drainprobe." + UUID().uuidString,
-    control: DurableTestControl(docs, offline: true), cellular: false, activeUnlocked: { false }, daemon: daemon)
+    control: control, cellular: false, activeUnlocked: { false }, daemon: daemon)
   let completed = DispatchSemaphore(value: 0), restored = DispatchSemaphore(value: 0)
   runtime.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { completed.signal() }
   runtime.restoreAndStart { _ in restored.signal() }
@@ -42,6 +43,28 @@ func probeRuntimeDrain(_ docs: URL) throws -> [String: Any] {
     try backgroundRequire(completed.wait(timeout: .now() + 5) == .success)
   }
   try backgroundRequire(!missedDrain)
+  // Immediate unavailable control must leave a durable uncertain task and drain,
+  // never credit an invented outcome. This is NOT proof of a slow-network bound.
+  let root = docs.appendingPathComponent("unit-unavailable-control")
+  let source = docs.appendingPathComponent("unit-unavailable-original")
+  try testGenerate(source, count: 1024)
+  let unavailable = TestControl(), absentTasks = TestDaemon()
+  let offline = try BackgroundRuntime(directory: root, create: true,
+    keychainService: "test.footage.unavailable." + UUID().uuidString,
+    control: unavailable, cellular: false, activeUnlocked: { true }, daemon: absentTasks)
+  try offline.prepare(testSelection(source))
+  try backgroundRequire(try testAwait { offline.restoreAndStart(completion: $0) })
+  absentTasks.tasks = []; unavailable.offline = true
+  let drained = DispatchSemaphore(value: 0)
+  offline.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { drained.signal() }
+  let started = Date()
+  try backgroundRequire(!(try testAwait { offline.restoreAndStart(completion: $0) }))
+  offline.finishEventsForTesting()
+  try backgroundRequire(drained.wait(timeout: .now() + 5) == .success)
+  let deferred = try testState(root)
+  try backgroundRequire(deferred.groups.allSatisfy { $0.uncertain && $0.taskID == nil }
+    && deferred.receiptOutcome == nil && deferred.confirmedBytes == 0 && offline.snapshot().phase == "blocked")
   return ["unitOnly": true, "finishDuringEnumerationLeavesPendingToken": missedDrain,
-    "extraSyntheticFinishNeeded": missedDrain]
+    "extraSyntheticFinishNeeded": missedDrain, "unavailableControlDrainedWithDurableUncertainty": true,
+    "unavailableControlSeconds": Date().timeIntervalSince(started), "slowNetworkDeadlineProven": false]
 }

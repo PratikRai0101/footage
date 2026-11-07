@@ -48,6 +48,11 @@ struct PairingControlBinding: Equatable, Sendable {
       // Independently check expiry too, so a binding cannot relabel its lifetime.
       _ = try r.integer(8); _ = try r.take(32); _ = try r.lp16(240)
       try pairingRequire(try r.integer(8) == expires)
+    } else if let purpose = operation.handoffPurpose {
+      var r = try PairingReader(body, "FTHAND01", limit: 121)
+      try pairingRequire(try r.integer(1) == UInt64(purpose))
+      try pairingRequire(try r.take(16) == job && r.take(16) == generation && r.take(32) == manifestDigest)
+      _ = try r.take(16); _ = try r.take(32); try r.end()
     } else {
       var r = try PairingReader(body, "FTQUERY1", limit: 65536)
       try pairingRequire(try r.take(16) == job && r.take(16) == generation && r.take(32) == manifestDigest)
@@ -82,7 +87,8 @@ struct PairingControlInstallation {
   } }
 }
 enum PairingControlOperation: Sendable {
-  case setup, status, revoke, view
-  var permission: UInt32 { switch self { case .setup: return 0x01; case .status: return 0x02; case .revoke: return 0x04; case .view: return 0x08 } }
-  var route: PairingRoute { switch self { case .setup: return .setup; case .status: return .status; case .revoke: return .revoke; case .view: return .view } }
+  case setup, status, revoke, view, handoffStatus, deliver, send
+  var permission: UInt32 { switch self { case .setup, .deliver, .send: return 0x01; case .status, .handoffStatus: return 0x02; case .revoke: return 0x04; case .view: return 0x08 } }
+  var route: PairingRoute { switch self { case .setup: return .setup; case .status: return .status; case .revoke: return .revoke; case .view: return .view; case .handoffStatus: return .handoffStatus; case .deliver: return .deliver; case .send: return .send } }
+  var handoffPurpose: UInt8? { switch self { case .handoffStatus: return 0; case .deliver: return 1; case .send: return 2; default: return nil } }
 }

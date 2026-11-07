@@ -20,6 +20,15 @@ public final class FootageTransferModule: Module {
     AsyncFunction("connect") { (uri: String) async throws -> String in
       try await NativeAppInstallation.connect(uri: uri)
     }
+    AsyncFunction("connection") { () async throws -> String in
+      guard let connection = try await MainActor.run(body: { try NativeAppInstallation.connection() }) else { return "null" }
+      return try appJSON(["origin": connection.origin, "title": connection.title])
+    }
+    AsyncFunction("selectDestination") { () async throws -> String in try await NativeAppInstallation.selectDestination() }
+    AsyncFunction("handoff") { (operation: String) async throws -> String in
+      guard let owner = await Self.owner() else { throw NativeAppFailure(message: "Connect your computer first.") }
+      return try await owner.handoff(operation)
+    }
     AsyncFunction("settings") { () async throws -> String in
       let origin = try await MainActor.run { try NativeAppInstallation.connection()?.origin ?? "" }
       return try appJSON(["origin": origin, "appearance": UserDefaults.standard.string(forKey: "footage.appearance") ?? "dark"])

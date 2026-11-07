@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { Settings } from '../../../modules/footage-transfer/src/contracts';
+import type { Connection, Settings } from '../../../modules/footage-transfer/src/contracts';
 import { Icon } from './Icon';
 import { licenses } from './licenses';
 import type { Theme } from './theme';
 
-export function SettingsSheet({ visible, settings, theme, reducedMotion, onClose, onSave, onConnect }: {
+export function SettingsSheet({ visible, settings, theme, reducedMotion, onClose, onSave, onConnect, connection, onSelectDestination }: {
+  connection: Connection | null; onSelectDestination: () => Promise<Connection>;
   visible: boolean; settings: Settings; theme: Theme; reducedMotion: boolean; onClose: () => void; onSave: (value: Settings) => Promise<void>; onConnect: () => Promise<Settings | undefined>;
 }) {
   const [origin, setOrigin] = useState(settings.origin);
@@ -29,18 +30,23 @@ export function SettingsSheet({ visible, settings, theme, reducedMotion, onClose
       <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: c.ground, borderColor: c.rule }]} accessibilityViewIsModal>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           <View style={styles.header}><Text accessibilityRole="header" style={[styles.title, { color: c.ink, fontFamily: theme.display }]}>Settings</Text><Pressable onPress={onClose} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Close settings"><Icon name="close" color={c.ink} /></Pressable></View>
-          <Text style={[styles.label, { color: c.ink }]}>{Platform.OS === 'ios' ? 'Computer' : 'Upload destination'}</Text>
-          {Platform.OS === 'ios' ? <>
+          <Text style={[styles.label, { color: c.ink }]}>Computer</Text>
+          {Platform.OS !== 'web' ? <>
             {origin && <Text selectable style={[styles.body, { color: c.ink }]}>{origin}</Text>}
             <Pressable disabled={saving} accessibilityRole="button" onPress={() => {
               setSaving(true); setError(null);
               void onConnect().then(saved => { if (saved) setOrigin(saved.origin); }).catch(error => setError(error instanceof Error ? error.message : 'Could not connect.')).finally(() => setSaving(false));
-            }} style={[styles.input, { borderColor: c.secondary, backgroundColor: c.raised }]}><Text style={[styles.body, { color: c.ink }]}>{origin ? 'Change connection' : 'Connect computer'}</Text></Pressable>
+            }} style={[styles.input, { borderColor: c.secondary, backgroundColor: c.raised }]}><Text style={[styles.body, { color: c.ink }]}>{connection ? 'Change connection' : 'Connect computer'}</Text></Pressable>
             <Text style={[styles.note, { color: c.secondary }]}>Open the connection file exported by your computer. Originals go to the destination you confirm.</Text>
+            {connection && <Pressable disabled={saving} accessibilityRole="button" accessibilityLabel="Choose destination" onPress={() => {
+              setSaving(true); setError(null);
+              void onSelectDestination().then(selected => setOrigin(selected.origin)).catch(error => setError(error instanceof Error ? error.message : 'Could not choose a destination.')).finally(() => setSaving(false));
+            }} style={[styles.input, { borderColor: c.secondary, backgroundColor: c.raised }]}><Text style={[styles.body, { color: c.ink }]}>{connection.title}</Text><Text style={[styles.note, { color: c.secondary }]}>Choose destination · applies to your next original</Text></Pressable>}
           </> : <>
             <TextInput accessibilityLabel="Server address" value={origin} onChangeText={setOrigin} editable={!saving} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="http://192.168.1.10:1080" placeholderTextColor={c.secondary} style={[styles.input, { color: c.ink, borderColor: c.secondary, backgroundColor: c.raised }]} returnKeyType="done" onSubmitEditing={() => { void save(); }} />
             <Text style={[styles.note, { color: c.secondary }]}>Changes apply to the next upload.</Text>
           </>}
+          {Platform.OS === 'android' && !connection && <TextInput accessibilityLabel="Legacy server address" value={origin} onChangeText={setOrigin} editable={!saving} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="Legacy private receiver (optional)" placeholderTextColor={c.secondary} style={[styles.input, { color: c.ink, borderColor: c.secondary }]} />}
           <Text style={[styles.label, { color: c.ink }]}>Appearance</Text>
           <View style={styles.appearances} accessibilityRole="radiogroup">
             {([{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System' }] satisfies { value: Settings['appearance']; label: string }[]).map(option => <Pressable key={option.value} onPress={() => setAppearance(option.value)} accessibilityRole="radio" accessibilityState={{ checked: appearance === option.value }} style={[styles.appearance, { borderColor: appearance === option.value ? c.ink : c.rule, backgroundColor: appearance === option.value ? c.raised : c.ground }]}><Text style={{ color: c.ink, fontSize: 14 }}>{option.label}</Text></Pressable>)}

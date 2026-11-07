@@ -15,6 +15,7 @@ const receiptSchema = z.object({
 });
 export type Receipt = z.infer<typeof receiptSchema>;
 const jobFields = {
+  destinationTitle: z.string().min(1).max(120).optional(),
   id: transferId, name: z.string(), bytes: z.number().int().positive(),
   confirmedBytes: z.number().int().nonnegative(), sha256: z.string().regex(/^[a-f0-9]{64}$/),
   localUri: z.string().nullable(), media: mediaSchema, executionActive: z.boolean(),
@@ -51,6 +52,15 @@ export const deviceSchema = z.discriminatedUnion('platform', [
   }),
 ]);
 export const connectionSchema = z.object({ origin: z.url(), title: z.string().min(1).max(120) }).strict();
+export type Connection = z.infer<typeof connectionSchema>;
+export const handoffSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('unavailable') }).strict(),
+  z.object({ kind: z.literal('not_delivered'), title: z.string() }).strict(),
+  z.object({ kind: z.literal('ready'), title: z.string() }).strict(),
+  z.object({ kind: z.literal('unknown'), title: z.string() }).strict(),
+  z.object({ kind: z.literal('sent'), title: z.string(), messageId: z.string().min(1) }).strict(),
+]);
+export type Handoff = z.infer<typeof handoffSchema>;
 export type Device = z.infer<typeof deviceSchema>;
 export const settingsSchema = z.object({ origin: z.string(), appearance: z.enum(['dark', 'light', 'system']) });
 export type Settings = z.infer<typeof settingsSchema>;

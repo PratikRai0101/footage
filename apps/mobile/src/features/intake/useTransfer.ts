@@ -3,14 +3,14 @@ import { AppState, Linking, PermissionsAndroid, Platform, Share } from 'react-na
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { transfers } from '../../../modules/footage-transfer/src/FootageTransferModule';
-import { unknownMedia, type Device, type MediaInfo, type Settings, type Snapshot } from '../../../modules/footage-transfer/src/contracts';
+import { unknownMedia, type Connection, type Handoff, type Device, type MediaInfo, type Settings, type Snapshot } from '../../../modules/footage-transfer/src/contracts';
 import { canChoose, type Draft } from './presentation';
 
 const initialSettings: Settings = { origin: process.env.EXPO_PUBLIC_RECEIVER_ORIGIN ?? '', appearance: 'dark' };
 const explain = (error: unknown) => {
   if (!(error instanceof Error)) return 'The operation could not finish. Try again.';
   const cause = error.message.split('Caused by:').pop()?.trim() ?? error.message;
-  return cause.replace(/^java\.lang\.\w+:\s*/, '');
+  return cause.replace(/^(?:java|kotlin)\.[\w.]+:\s*/, '');
 };
 async function notificationPermission() {
   if (Platform.OS === 'android' && Number(Platform.Version) >= 33 && !await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)) {
@@ -20,6 +20,8 @@ async function notificationPermission() {
 
 export function useTransfer() {
   const [snapshot, setSnapshot] = useState<Snapshot>({ kind: 'empty' });
+  const [connection, setConnection] = useState<Connection | null>(null);
+  const [handoffRecord, setHandoffRecord] = useState<{ id: string; value: Handoff } | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
   const [settings, setSettings] = useState(initialSettings);
   const [draft, setDraft] = useState<Draft>({ kind: 'none' });
@@ -36,7 +38,7 @@ export function useTransfer() {
     setBusy(true);
     setError(null);
     try { await operation(); }
-    catch (failure) { setError(explain(failure)); }
+    catch (failure) { const message = explain(failure); if (message !== 'Cancelled. Nothing was sent.') setError(message); }
     finally { command.current = false; setBusy(false); }
   }, []);
 
@@ -64,9 +66,9 @@ export function useTransfer() {
         if (mounted) setError('Could not read the saved transfer. Unlock the phone and reopen Footage.');
       } finally { reading = false; }
     };
-    void Promise.all([transfers.device(), transfers.settings()]).then(([device, saved]) => {
+    void Promise.all([transfers.device(), transfers.settings(), transfers.connection()]).then(([device, saved, connected]) => {
       if (mounted) {
-        setDevice(device);
+        setDevice(device); setConnection(connected);
         setSettings({ ...saved, origin: saved.origin || initialSettings.origin });
       }
     }).catch(() => { if (mounted) setError('Could not open the native connection. Install the latest Footage build and try again.'); });
@@ -84,6 +86,22 @@ export function useTransfer() {
     autoStart.current = false;
     void act(start);
   }, [snapshot, act, start]);
+
+  const receivedId = snapshot.kind === 'received' ? snapshot.id : null;
+  const handoff = receivedId && handoffRecord?.id === receivedId ? handoffRecord.value : null;
+  useEffect(() => {
+    if (!receivedId || !connection) return;
+    let mounted = true, reading = false;
+    const read = async () => {
+      if (reading || AppState.currentState !== 'active') return;
+      reading = true;
+      try { const value = await transfers.handoff('status'); if (mounted) setHandoffRecord({ id: receivedId, value }); }
+      catch { /* A failed read cannot invent or revoke a send acknowledgment. */ }
+      finally { reading = false; }
+    };
+    void read(); const timer = setInterval(() => { void read(); }, 5000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [receivedId, connection]);
 
   const choose = () => act(async () => {
     if (!canChoose(snapshot)) throw new Error('Finish this transfer or confirm its cancellation first.');
@@ -152,18 +170,32 @@ export function useTransfer() {
   };
 
   const connect = async () => {
-    if (Platform.OS !== 'ios') return;
     const result = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: false, copyToCacheDirectory: false, base64: false });
     if (result.canceled || !result.assets[0]) return;
-    await transfers.connect(result.assets[0].uri);
+    setConnection(await transfers.connect(result.assets[0].uri));
     const [saved, nextDevice] = await Promise.all([transfers.settings(), transfers.device()]);
     setSettings(saved); setDevice(nextDevice);
     return saved;
   };
 
+  const selectDestination = async () => {
+    const selected = await transfers.selectDestination(); setConnection(selected);
+    setSnapshot(await transfers.current()); return selected;
+  };
+  const handoffCommand = (operation: 'send' | 'deliver') => act(async () => {
+    if (!receivedId) throw new Error('Wait for a verified original.');
+    try { const value = await transfers.handoff(operation); setHandoffRecord({ id: receivedId, value }); }
+    catch (failure) {
+      if (explain(failure) === 'Cancelled. Nothing was sent.') return;
+      throw new Error(operation === 'send' ? 'Send not confirmed. Reconnect and retry this original; do not upload it again.' : 'Could not confirm workspace delivery. Check your computer and try again.');
+    }
+  });
+  const send = () => handoffCommand('send');
+  const deliver = () => handoffCommand('deliver');
+
   const view = (share = false) => act(async () => {
     try {
-      if (!share && Platform.OS === 'ios') { await transfers.openViewer(); return; }
+      if (!share && (Platform.OS === 'ios' || connection !== null)) { await transfers.openViewer(); return; }
       const url = await transfers.viewer();
       if (share) await Share.share({ title: 'Footage original', message: url });
       else await Linking.openURL(url);
@@ -173,7 +205,7 @@ export function useTransfer() {
     }
   });
 
-  return { snapshot, device, settings, draft, error, busy, available: transfers.available && (Platform.OS !== 'ios' || device?.supportsTransfer === true),
-    choose, upload, cancel, connect, recordPreviewMetadata, resume: () => act(start), view, saveSettings,
+  return { snapshot, device, connection, handoff, settings, draft, error, busy, available: transfers.available && (Platform.OS !== 'ios' || device?.supportsTransfer === true),
+    choose, upload, cancel, connect, selectDestination, send, deliver, recordPreviewMetadata, resume: () => act(start), view, saveSettings,
     dismissError: () => setError(null) };
 }

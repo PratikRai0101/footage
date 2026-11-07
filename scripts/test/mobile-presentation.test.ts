@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { connectionSchema, deviceSchema, snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
+import { connectionSchema, handoffSchema, deviceSchema, snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
 import { previewMetadata } from '../../apps/mobile/src/features/intake/preview-metadata';
 import { canChoose, copyFor, formatBytes, fractionFor, mediaLine, present, type Draft } from '../../apps/mobile/src/features/intake/presentation';
+
+test('phone handoff only reports sent with an explicit acknowledgment and rejects authority fields', () => {
+  assert.equal(handoffSchema.safeParse({ kind: 'sent', title: 'Chosen thread' }).success, false);
+  assert.equal(handoffSchema.safeParse({ kind: 'sent', title: 'Chosen thread', messageId: 'accepted-message' }).success, true);
+  assert.equal(handoffSchema.safeParse({ kind: 'unknown', title: 'Chosen thread', messageId: 'unconfirmed' }).success, false);
+  assert.equal(handoffSchema.safeParse({ kind: 'ready', title: 'Chosen thread', credential: 'not-a-bridge-field' }).success, false);
+  assert.equal(handoffSchema.safeParse({ kind: 'unavailable' }).success, true);
+});
 
 test('native discovery keeps Android compatible and reports an actual paired iPhone background scheduler', () => {
   assert.equal(deviceSchema.parse({ manufacturer: 'test', model: 'test', apiLevel: 33, androidVersion: '13', supportsTransfer: true, scheduler: 'foreground-service' }).platform, 'android');

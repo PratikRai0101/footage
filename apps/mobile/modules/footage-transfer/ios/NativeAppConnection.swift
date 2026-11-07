@@ -62,7 +62,7 @@ enum NativeAppInstallation {
   }
   static func connect(uri: String) async throws -> String {
     let existing = NativeBackgroundHost.shared.runtime as? NativeAppTransfer
-    guard existing?.isPreparing != true else { throw NativeAppFailure(message: "Wait for preparation to finish before changing the connection.") }
+    guard existing?.canChangeConnection != false else { throw NativeAppFailure(message: "Finish or cancel the current upload before changing the connection.") }
     guard let url = URL(string: uri), url.isFileURL else { throw NativeAppFailure(message: "Choose the connection file from your computer.") }
     struct Destination: Decodable { let id: UUID; let title: String }
     struct File: Decodable { let format: String; let offer: String; let destinations: [Destination] }
@@ -78,10 +78,7 @@ enum NativeAppInstallation {
     for d in file.destinations { try pairingRequire(!d.title.isEmpty && d.title.utf8.count <= 120 && !d.title.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)) }
     let chosen = try await choose(file.destinations.map(\.title), origin: offer.origin.text)
     let destination = file.destinations[chosen]
-    if let existing {
-      let empty = await withCheckedContinuation { continuation in existing.runtime.archiveForNextSelection { continuation.resume(returning: $0) } }
-      guard empty else { throw NativeAppFailure(message: "Finish or cancel the current upload before changing its destination.") }
-    }
+    guard existing?.canChangeConnection != false else { throw NativeAppFailure(message: "Finish or cancel the current upload before changing its destination.") }
     let client = client
     try await client.replaceAfterNativeConfirmation(qr: qr, permissions: offer.mask)
     do { try await client.enroll() }
@@ -95,16 +92,36 @@ enum NativeAppInstallation {
     var uuid = destination.id.uuid
     let intake = withUnsafeBytes(of: &uuid) { Data($0) }
     let connection = NativeAppConnection(origin: identity.origin, title: destination.title, receiver: identity.receiver, device: identity.device, intake: intake)
-    if let existing { try existing.installNextConnection(connection, identity: identity, trust: await client.installedTrust()) }
+    if let existing { try existing.selectFutureConnection(connection, identity: identity, trust: await client.installedTrust()) }
     try profile.save(JSONEncoder().encode(connection))
     NativeBackgroundHost.shared.connectionInstalled()
     return try appJSON(["origin": connection.origin, "title": connection.title])
   }
-  private static func choose(_ titles: [String], origin: String) async throws -> Int {
+  static func selectDestination() async throws -> String {
+    guard let existing = NativeBackgroundHost.shared.runtime as? NativeAppTransfer, existing.canChangeConnection else { throw NativeAppFailure(message: "Connect your computer first and finish preparation.") }
+    struct Entry: Decodable { let id: UUID; let title: String; let kind: String }
+    struct Listing: Decodable { let version: Int; let destinations: [Entry] }
+    let client = client
+    let listing = try JSONDecoder().decode(Listing.self, from: await client.listDestinations())
+    try pairingRequire(listing.version == 1 && !listing.destinations.isEmpty && listing.destinations.count <= 16)
+    for item in listing.destinations { try pairingRequire(["inbox", "thread"].contains(item.kind) && !item.title.isEmpty && item.title.utf8.count <= 120 && !item.title.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)) }
+    let selected = try await choose(listing.destinations.map(\.title), origin: existing.connection.origin, heading: "Choose destination", note: "Applies to your next original. Existing uploads keep their confirmed destination.")
+    guard existing.canChangeConnection else { throw NativeAppFailure(message: "Finish or cancel the current upload before changing its destination.") }
+    let identity = try await client.nativeIdentity(); var uuid = listing.destinations[selected].id.uuid
+    let connection = NativeAppConnection(origin: identity.origin, title: listing.destinations[selected].title, receiver: identity.receiver, device: identity.device, intake: withUnsafeBytes(of: &uuid) { Data($0) })
+    try existing.selectFutureConnection(connection, identity: identity, trust: await client.installedTrust())
+    try profile.save(JSONEncoder().encode(connection))
+    return try appJSON(["origin": connection.origin, "title": connection.title])
+  }
+  static func confirmSend(_ title: String) async throws {
+    let selected = try await choose(["Send to thread"], origin: title, heading: "Send verified original?", note: "This starts or queues T3 agent work in this exact destination. It does not authorize paid generation.")
+    try pairingRequire(selected == 0)
+  }
+  private static func choose(_ titles: [String], origin: String, heading: String = "Connect computer", note: String = "Choose where your originals will be received. Only open a connection file you obtained directly from your own computer.") async throws -> Int {
     try await withCheckedThrowingContinuation { continuation in
-      let alert = UIAlertController(title: "Connect computer", message: "\(origin)\n\nChoose where your originals will be received. Only open a connection file you obtained directly from your own computer.", preferredStyle: .alert)
+      let alert = UIAlertController(title: heading, message: "\(origin)\n\n\(note)", preferredStyle: .alert)
       for (index, title) in titles.enumerated() { alert.addAction(UIAlertAction(title: title, style: .default) { _ in continuation.resume(returning: index) }) }
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in continuation.resume(throwing: NativeAppFailure(message: "Connection cancelled.")) })
+      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in continuation.resume(throwing: NativeAppFailure(message: heading == "Send verified original?" ? "Cancelled. Nothing was sent." : "Selection cancelled.")) })
       let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
       guard var controller = scenes.flatMap(\.windows).first(where: \.isKeyWindow)?.rootViewController else { continuation.resume(throwing: BackgroundFailure.inactive); return }
       while let presented = controller.presentedViewController { controller = presented }

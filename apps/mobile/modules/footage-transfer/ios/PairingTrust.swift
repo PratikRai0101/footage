@@ -120,7 +120,8 @@ enum PairingRoute: String {
   case enroll = "/pair/v1/enroll", challenge = "/pair/v1/challenge", recover = "/pair/v1/recover"
   case setup = "/sealed/v1/setup", status = "/sealed/v1/status", revoke = "/sealed/v1/revoke", view = "/sealed/v1/view"
   case destinations = "/pair/v1/destinations"
-  var responseLimit: Int { switch self { case .status, .revoke, .view: return 4096; case .setup, .destinations: return 65536; default: return 16384 } }
+  case handoffStatus = "/sealed/v1/handoff/status", deliver = "/sealed/v1/handoff/deliver", send = "/sealed/v1/handoff/send"
+  var responseLimit: Int { switch self { case .status, .revoke, .view, .handoffStatus, .deliver, .send: return 4096; case .setup, .destinations: return 65536; default: return 16384 } }
   var isControl: Bool { switch self { case .enroll, .challenge, .recover: return false; default: return true } }
 }
 

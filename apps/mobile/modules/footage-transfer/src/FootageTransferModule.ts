@@ -1,7 +1,7 @@
 import { NativeModule, requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import { z } from 'zod';
-import { connectionSchema, deviceSchema, mediaSchema, settingsSchema, snapshotSchema, type Device, type MediaInfo, type Settings, type Snapshot } from './contracts';
+import { connectionSchema, handoffSchema, deviceSchema, mediaSchema, settingsSchema, snapshotSchema, type Device, type MediaInfo, type Settings, type Snapshot } from './contracts';
 
 declare class FootageTransferModule extends NativeModule {
   device(): Promise<string>;
@@ -14,6 +14,9 @@ declare class FootageTransferModule extends NativeModule {
   prepare(uri: string, name: string, endpoint: string): Promise<void>;
   start(): Promise<void>;
   cancel(): Promise<void>;
+  connection(): Promise<string>;
+  selectDestination(): Promise<string>;
+  handoff(operation: 'status' | 'deliver' | 'send'): Promise<string>;
   connect(uri: string): Promise<string>;
   pickOriginal(): Promise<string>;
 }
@@ -36,6 +39,9 @@ export const transfers = {
   prepare: (uri: string, name: string, endpoint: string) => owner().prepare(uri, name, endpoint),
   start: () => owner().start(),
   cancel: () => owner().cancel(),
+  async connection() { return connectionSchema.nullable().parse(parseJson(await owner().connection())); },
+  async selectDestination() { return connectionSchema.parse(parseJson(await owner().selectDestination())); },
+  async handoff(operation: 'status' | 'deliver' | 'send') { return handoffSchema.parse(parseJson(await owner().handoff(operation))); },
   async connect(uri: string) { return connectionSchema.parse(parseJson(await owner().connect(uri))); },
   async pickOriginal() { return z.object({ uri: z.string(), name: z.string(), size: z.number().int().positive().nullable() }).strict().nullable().parse(parseJson(await owner().pickOriginal())); },
 };

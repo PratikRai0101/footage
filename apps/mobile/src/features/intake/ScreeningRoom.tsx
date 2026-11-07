@@ -72,6 +72,10 @@ export function ScreeningRoom() {
   const copy = copyFor(stage, flow.available ? 'transfer' : 'preview');
   const clip = stage.kind === 'import' ? null : stage.clip;
   const received = stage.kind === 'saved' && stage.snapshot.kind === 'received' ? stage.snapshot : null;
+  const handoff = received ? flow.handoff : null;
+  const threadAvailable = handoff !== null && handoff.kind !== 'unavailable';
+  const sendAvailable = threadAvailable && handoff.kind !== 'sent';
+  const destinationTitle = stage.kind === 'saved' ? stage.snapshot.destinationTitle : flow.connection?.title;
   const playable = stage.kind === 'saved' ? stage.snapshot.kind !== 'cancelled' : true;
   const assurance = stage.kind === 'review' && flow.available ? copy.body : null;
   const statusBody = assurance ? null : copy.body;
@@ -107,6 +111,7 @@ export function ScreeningRoom() {
               <Text style={[styles.metadata, { color: c.secondary }]}>{stage.kind === 'review' && stage.clip.inspecting ? 'Reading video details…' : mediaLine(clip)}</Text>
               {assurance && <Text style={[styles.assurance, { color: c.secondary }]}>{assurance}</Text>}
             </View></Readability>}
+            {clip && destinationTitle && <Readability><Pressable accessibilityRole="button" accessibilityLabel={`Destination: ${destinationTitle}`} onPress={() => stage.kind === 'saved' ? Alert.alert('Confirmed destination', `${destinationTitle}\n\nThis original keeps the destination confirmed when you uploaded it.`) : setSettingsOpen(true)} style={styles.destination}><Text style={[styles.small, { color: c.destination }]} numberOfLines={2}>To {destinationTitle}</Text><Icon name="arrow" color={c.destination} size={16} /></Pressable></Readability>}
             {showStatus && <Readability><View style={styles.status}>
               <Progress stage={stage} theme={photoTheme} reducedMotion={reducedMotion} compact={compact} />
               {copy.label && <View style={styles.statusLabel}>
@@ -115,12 +120,17 @@ export function ScreeningRoom() {
                 <Text accessibilityLiveRegion="polite" style={[styles.label, { color: copy.tone === 'error' ? c.error : c.ink }]}>{copy.label}</Text>
               </View>}
               {statusBody && <Text style={[styles.support, { color: c.secondary }]}>{statusBody}</Text>}
+              {handoff && handoff.kind !== 'unavailable' && <Text accessibilityLiveRegion="polite" style={[styles.support, { color: c.secondary }]}>{handoff.kind === 'sent' ? `Sent to ${handoff.title}.` : handoff.kind === 'unknown' ? 'Send not confirmed. Retry without uploading again.' : handoff.kind === 'ready' ? 'Original saved in the thread workspace. Ready to send.' : 'Verified original ready for your chosen thread.'}</Text>}
               {received && <View style={styles.receipt}>
                 <Pressable onPress={() => setDetailsOpen(value => !value)} accessibilityRole="button" accessibilityLabel="Verification details" accessibilityState={{ expanded: detailsOpen }} style={styles.receiptToggle}><Text style={[styles.small, { color: c.secondary }]}>Receipt</Text><Text style={[styles.receiptId, { color: c.ink }]}>{received.receipt.id.slice(0, 8).toUpperCase()} · {detailsOpen ? 'Hide details' : 'View details'}</Text></Pressable>
                 {detailsOpen && <>
                   <Text selectable style={[styles.hash, { color: c.secondary }]}>Receipt {received.receipt.id}</Text>
                   <Text selectable style={[styles.hash, { color: c.secondary }]}>SHA-256 {received.receipt.sha256}</Text>
                   <Text style={[styles.metadata, { color: c.secondary }]}>{new Date(received.receipt.verifiedAt).toLocaleString()}</Text>
+                  {threadAvailable && <>
+                    <Pressable onPress={() => { void flow.view(); }} disabled={flow.busy} accessibilityRole="button" style={styles.share}><Text style={[styles.small, { color: c.ink }]}>View received original</Text></Pressable>
+                    {handoff?.kind === 'not_delivered' && <Pressable onPress={() => { void flow.deliver(); }} disabled={flow.busy} accessibilityRole="button" style={styles.share}><Text style={[styles.small, { color: c.ink }]}>Save to thread without starting agent</Text></Pressable>}
+                  </>}
                   <Pressable onPress={() => { void flow.view(true); }} disabled={flow.busy} accessibilityRole="button" style={styles.share}><Text style={[styles.small, { color: c.ink }]}>Share viewing link</Text><Icon name="arrow" color={c.secondary} size={16} /></Pressable>
                   <Text style={[styles.small, { color: c.secondary }]}>One use. Expires in 2 minutes. Anyone with the link can open it.</Text>
                 </>}
@@ -132,13 +142,13 @@ export function ScreeningRoom() {
         <SafeAreaView edges={['bottom', 'left', 'right']} style={[styles.footer, { backgroundColor: theme.dark ? 'transparent' : theme.colors.ground }]}>
           <View style={styles.footerContent}>
             {flow.busy && <ActivityIndicator color={theme.colors.ink} size="small" accessibilityLabel="Completing your request" />}
-            {copy.primary && <Action theme={theme} label={copy.primary.label} primary upload={copy.primary.command === 'upload'} disabled={flow.busy || blockedUpload} onPress={() => { if (copy.primary) perform(copy.primary.command); }} />}
+            {sendAvailable ? <Action theme={theme} label={handoff?.kind === 'unknown' ? 'Retry send' : 'Send to thread'} primary upload={false} disabled={flow.busy} onPress={() => { void flow.send(); }} /> : copy.primary && <Action theme={theme} label={copy.primary.label} primary upload={copy.primary.command === 'upload'} disabled={flow.busy || blockedUpload} onPress={() => { if (copy.primary) perform(copy.primary.command); }} />}
             {copy.secondary && <Action theme={theme} label={copy.secondary.label} primary={false} upload={false} disabled={flow.busy} onPress={() => { if (copy.secondary) perform(copy.secondary.command); }} />}
           </View>
         </SafeAreaView>
       </>}
     </Preview>
-    {settingsOpen && <SettingsSheet visible settings={flow.settings} theme={theme} reducedMotion={reducedMotion} onClose={() => setSettingsOpen(false)} onSave={flow.saveSettings} onConnect={flow.connect} />}
+    {settingsOpen && <SettingsSheet visible settings={flow.settings} theme={theme} reducedMotion={reducedMotion} onClose={() => setSettingsOpen(false)} onSave={flow.saveSettings} onConnect={flow.connect} connection={flow.connection} onSelectDestination={flow.selectDestination} />}
   </View>;
 }
 
@@ -153,6 +163,7 @@ const styles = StyleSheet.create({
   playback: { alignItems: 'center', gap: 12 }, play: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#151912d9', borderWidth: 1, borderColor: '#f4f1e970', alignItems: 'center', justifyContent: 'center' },
   playLabel: { fontSize: 13, lineHeight: 21, backgroundColor: '#0b0b0be8', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 6 },
   unavailable: { width: '100%' }, fallbackRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  destination: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12 },
   file: { gap: 4 }, filenameButton: { minHeight: 44, flexDirection: 'row', gap: 10, alignItems: 'center' },
   filename: { fontSize: 15, lineHeight: 22, fontWeight: '600', flex: 1 }, metadata: { fontSize: 13, lineHeight: 21 }, assurance: { fontSize: 13, lineHeight: 21, marginTop: 4 },
   small: { fontSize: 13, lineHeight: 21 },

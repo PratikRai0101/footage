@@ -64,7 +64,7 @@ export class T3Client {
   }
   async call(name: string, args: unknown): Promise<unknown> {
     if (!this.initialized) {
-      await this.rpc('initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'footage', version: '0.5.0' } });
+      await this.rpc('initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'footage', version: '0.6.0' } });
       await this.rpc('notifications/initialized', {}, true); this.initialized = true;
     }
     const reply = toolResult.parse(await this.rpc('tools/call', { name, arguments: args }));

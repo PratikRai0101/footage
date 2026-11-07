@@ -3,6 +3,7 @@ import AVFoundation
 import UniformTypeIdentifiers
 import UIKit
 import OSLog
+import CryptoKit
 
 struct NativeAppFailure: LocalizedError {
   let message: String
@@ -48,6 +49,11 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
   private var installedConnection: NativeAppConnection
   var connection: NativeAppConnection { locked { installedConnection } }
   var isPreparing: Bool { locked { preparing != nil } }
+  var canChangeConnection: Bool {
+    guard !isPreparing else { return false }
+    guard let state = runtime.stateForPresentation() else { return true }
+    return state.receiptOutcome != nil || state.cancelOperation != nil && !runtime.snapshot().cleanupPending
+  }
   private let lock = NSLock()
   private var preparing: String?
   private var preparationError: String?
@@ -80,6 +86,7 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
         try pairingRequire(identity.receiver == connection.receiver && identity.device == connection.device && identity.origin == connection.origin)
         let archived = await withCheckedContinuation { continuation in runtime.archiveForNextSelection { continuation.resume(returning: $0) } }
         guard archived else { throw NativeAppFailure(message: "Finish or cancel the current upload before choosing another original.") }
+        try installNextConnection(connection, identity: identity, trust: await client.installedTrust())
         let metadata = await NativeClipMetadata.inspect(url)
         let bytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard bytes > 0 && bytes <= 1024 * 1024 * 1024 else { throw NativeAppFailure(message: "Choose an original up to 1 GiB for this receiver.") }
@@ -89,6 +96,7 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
         try runtime.prepare(.init(source: url, safeName: name, receiver: identity.receiver, origin: identity.origin,
           device: identity.device, enrollmentEpoch: identity.epoch, destination: .standalone(intake: connection.intake), expiresAt: expiry))
         let privateDirectory = directory.appendingPathComponent("private")
+        try BackgroundFiles.save(JSONEncoder().encode(connection), to: privateDirectory.appendingPathComponent("destination.json"), complete: true)
         let metadataURL = privateDirectory.appendingPathComponent("media.json")
         try BackgroundFiles.save(JSONEncoder().encode(metadata), to: metadataURL, complete: true)
         // AVFoundation needs the original extension for some containers. This is a
@@ -117,6 +125,19 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
       trust: PairingBackgroundTrust(pinned: trust))
     locked { installedConnection = connection }
   }
+  private func confirmedTitle() throws -> String {
+    let file = directory.appendingPathComponent("private/destination.json")
+    return FileManager.default.fileExists(atPath: file.path) ? try JSONDecoder().decode(NativeAppConnection.self, from: Data(contentsOf: file)).title : connection.title
+  }
+  func selectFutureConnection(_ next: NativeAppConnection, identity: PairingInstalledIdentity, trust: PairingPinnedTrust) throws {
+    guard !isPreparing else { throw NativeAppFailure(message: "Wait for preparation to finish.") }
+    if let state = runtime.stateForPresentation() {
+      guard state.receiptOutcome != nil || state.cancelOperation != nil && !runtime.snapshot().cleanupPending else { throw NativeAppFailure(message: "Finish or cancel the current upload before changing its destination.") }
+      let file = directory.appendingPathComponent("private/destination.json")
+      if !FileManager.default.fileExists(atPath: file.path) { try BackgroundFiles.save(JSONEncoder().encode(connection), to: file, complete: true) }
+      locked { installedConnection = next }
+    } else { try installNextConnection(next, identity: identity, trust: trust) }
+  }
   func cancel(completion: @escaping @Sendable () -> Void) {
     locked { cancelledDuringPreparation = preparing != nil }
     runtime.cancel { _ in completion() }
@@ -143,7 +164,7 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
     let metadata = (try? JSONDecoder().decode(NativeClipMetadata.self, from: Data(contentsOf: metadataURL))) ?? NativeClipMetadata()
     let privateFiles = try FileManager.default.contentsOfDirectory(at: manifestURL.deletingLastPathComponent(), includingPropertiesForKeys: nil)
     let preview = privateFiles.first(where: { $0.lastPathComponent.hasPrefix("preview.") }) ?? directory.appendingPathComponent("private/original")
-    var value: [String: Any] = ["id": try appUUID(state.job), "name": manifest.safeName, "bytes": state.originalBytes,
+    var value: [String: Any] = ["destinationTitle": try confirmedTitle(), "id": try appUUID(state.job), "name": manifest.safeName, "bytes": state.originalBytes,
       "confirmedBytes": snapshot.confirmedBytes, "sha256": state.originalHash.map { String(format: "%02x", $0) }.joined(),
       "localUri": FileManager.default.fileExists(atPath: preview.path) ? preview.absoluteString : NSNull(), "media": metadata.object,
       "executionActive": state.groups.contains { $0.taskID != nil && $0.resumed }]
@@ -170,6 +191,32 @@ final class NativeAppTransfer: NativeBackgroundRuntime, @unchecked Sendable {
       }
     }
     return try appJSON(value)
+  }
+  func handoff(_ operation: String) async throws -> String {
+    let control: PairingControlOperation
+    switch operation { case "status": control = .handoffStatus; case "deliver": control = .deliver; case "send": control = .send; default: throw BackgroundFailure.blocked }
+    guard let state = runtime.stateForPresentation(), let receipt = state.receiptOutcome, let purpose = control.handoffPurpose else { throw NativeAppFailure(message: "Wait for a verified original.") }
+    let master = try BackgroundKeychain(service: NativeAppInstallation.keychainService).read(state.keyReference)
+    let context = try state.outcome(master: master), keys = try SealedProtocol.Keys(master: master, outcome: context)
+    _ = try SealedProtocol.VerifiedReceipt.verify(receipt, keys: keys)
+    if operation == "send" { try await NativeAppInstallation.confirmSend(confirmedTitle()) }
+    guard runtime.stateForPresentation()?.job == state.job else { throw NativeAppFailure(message: "The selected original changed. Nothing was sent.") }
+    let prefix = try Data("FTHAND01".utf8) + Data([purpose]) + state.job + state.generation + context.digest + pairingRandom(16)
+    let mac = Data(HMAC<SHA256>.authenticationCode(for: Data("footage/handoff-request/v1".utf8) + prefix, using: SymmetricKey(data: try keys.derive(.status))))
+    let reply = try await client.control(control, job: state.job, canonicalBody: prefix + mac)
+    struct Reply: Decodable { let kind: String; let title: String?; let messageId: String? }
+    let result = try JSONDecoder().decode(Reply.self, from: reply)
+    if result.kind == "unavailable" { return try appJSON(["kind": result.kind]) }
+    try pairingRequire(["not_delivered", "ready", "unknown", "sent"].contains(result.kind))
+    guard let title = result.title else { throw PairingFailure.rejected }
+    try pairingRequire(!title.isEmpty && title.utf8.count <= 120 && !title.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains))
+    var sanitized = ["kind": result.kind, "title": title]
+    if result.kind == "sent" {
+      guard let id = result.messageId else { throw PairingFailure.rejected }
+      try pairingRequire(!id.isEmpty && id.utf8.count <= 256 && !id.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains))
+      sanitized["messageId"] = id
+    }
+    return try appJSON(sanitized)
   }
   func viewer() async throws -> String {
     guard let state = runtime.stateForPresentation(), state.receiptOutcome != nil else { throw NativeAppFailure(message: "Wait for a verified original.") }

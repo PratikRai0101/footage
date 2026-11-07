@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
-import { constants, createReadStream, closeSync, fstatSync, openSync } from 'node:fs';
+import { constants, createReadStream, closeSync, fstatSync, fsyncSync, openSync } from 'node:fs';
 import { chmod, lstat, mkdir, open, readFile, realpath, rename, rm } from 'node:fs/promises';
 import { extname, join, relative, resolve } from 'node:path';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ export class T3Client {
   static async fromFile(endpoint: string, tokenFile: string): Promise<T3Client> {
     const url = new URL(endpoint);
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/mcp' || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))) throw new Error('Use the approved HTTPS MCP endpoint (or local loopback).');
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error('Workspace delivery requires T3 MCP on this same computer; remote filesystem paths are not upload destinations.');
     const info = await lstat(tokenFile);
     if (!info.isFile() || info.isSymbolicLink() || (info.mode & 0o077) !== 0 || info.size > 16384) throw new Error('MCP credential file must be a private regular file.');
     const token = (await readFile(tokenFile, 'utf8')).trim();
@@ -68,7 +69,12 @@ export class T3Client {
     const info = z.object({ thread: z.object({ threadId: id, projectId: id, title: z.string(), archived: z.boolean(), worktreePath: z.string().nullable() }) }).parse(await this.call('t3_thread_read', { threadId: thread, limit: 1, runLimit: 1, maxCharsPerItem: 1 }));
     if (info.thread.threadId !== thread || info.thread.projectId !== project || info.thread.archived) throw new Error('The chosen T3 thread is unavailable.');
     const workspace = await realpath(info.thread.worktreePath ?? projectInfo.workspaceRoot);
-    return targetSchema.parse({ intake, environment, project, thread, workspace, title: info.thread.title.slice(0, 120) || 'Chosen thread' });
+    let title = '';
+    for (const character of info.thread.title.normalize('NFC').replace(/[\p{Cc}\p{Cf}]/gu, ' ')) {
+      if (Buffer.byteLength(title + character) > 120) break;
+      title += character;
+    }
+    return targetSchema.parse({ intake, environment, project, thread, workspace, title: title.trim() || 'Chosen thread' });
   }
 }
 const recordSchema = z.object({ target: targetSchema, receipt: z.uuid(), path: z.string(), bytes: z.number(), sha256: z.string(), credential: z.string(), requestId: z.uuid(), message: z.string(), state: z.enum(['copying', 'ready', 'unknown', 'sent']), messageId: z.string().nullable() });
@@ -76,6 +82,15 @@ type Delivery = z.infer<typeof recordSchema>;
 
 export class T3Delivery {
   private readonly db: DatabaseSync;
+  private readonly tails = new Map<string, Promise<void>>();
+  private async exclusive<T>(job: string, action: () => Promise<T>): Promise<T> {
+    const prior = this.tails.get(job) ?? Promise.resolve();
+    let release = () => {};
+    const current = new Promise<void>(resolve => { release = resolve; });
+    this.tails.set(job, current); await prior;
+    try { return await action(); }
+    finally { release(); if (this.tails.get(job) === current) this.tails.delete(job); }
+  }
   constructor(private readonly directory: string, private readonly client: T3Client) {
     const fd = openSync(join(directory, 'delivery.sqlite'), constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
     try { if (!fstatSync(fd).isFile()) throw new Error('Delivery storage must be a regular file.'); } finally { closeSync(fd); }
@@ -86,9 +101,14 @@ export class T3Delivery {
     const row = this.db.prepare('SELECT record FROM deliveries WHERE job=?').get(job);
     return row && typeof row.record === 'string' ? recordSchema.parse(JSON.parse(row.record)) : null;
   }
-  private save(job: string, record: Delivery): void { this.db.prepare('INSERT OR REPLACE INTO deliveries VALUES (?,?)').run(job, JSON.stringify(recordSchema.parse(record))); }
-  async materialize(job: StoredJob, target: ThreadTarget): Promise<Delivery> {
-    if (job.status !== 'received' || !job.receipt || job.storageFault) throw new Error('Wait for a matching durable original receipt.');
+  private save(job: string, record: Delivery): void {
+    this.db.prepare('INSERT OR REPLACE INTO deliveries VALUES (?,?)').run(job, JSON.stringify(recordSchema.parse(record)));
+    const directory = openSync(this.directory, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try { fsyncSync(directory); } finally { closeSync(directory); }
+  }
+  materialize(job: StoredJob, target: ThreadTarget): Promise<Delivery> { return this.exclusive(job.id, () => this.materializeLocked(job, target)); }
+  private async materializeLocked(job: StoredJob, target: ThreadTarget): Promise<Delivery> {
+    if (job.status !== 'received' || !job.receipt || job.storageFault || job.receipt.jobId !== job.id || job.receipt.bytes !== job.bytes || job.receipt.sha256 !== job.sha256) throw new Error('Wait for a matching durable original receipt.');
     const live = await this.client.target(target.environment, target.project, target.thread, target.intake);
     if (live.workspace !== target.workspace) throw new Error('The thread workspace changed; delivery is blocked.');
     const prior = this.get(job.id);
@@ -104,6 +124,10 @@ export class T3Delivery {
     const root = await realpath(target.workspace), folder = join(root, '.footage-originals');
     await privateDirectory(folder);
     if (await realpath(folder) !== folder || relative(root, folder).startsWith('..')) throw new Error('Workspace intake escapes the chosen thread.');
+    try {
+      const ignore = await open(join(folder, '.gitignore'), 'wx', 0o600);
+      try { await ignore.writeFile('*\n'); await ignore.sync(); } finally { await ignore.close(); }
+    } catch (error) { if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error; }
     const extension = extname(job.name).toLowerCase();
     const destination = join(folder, job.id + (/^\.[a-z0-9]{1,12}$/.test(extension) ? extension : '.original'));
     const message = `Footage original received and SHA-256 verified.\nFile: ${destination}\nOriginal name: ${job.name}\nBytes: ${job.bytes}\nSHA-256: ${job.sha256}\nReceipt: ${job.receipt.id}\n\nUse this original for my requested edit. Inspect it with $cardboard before making changes. Do not generate media or spend credits without asking.`;
@@ -123,8 +147,9 @@ export class T3Delivery {
     this.save(job.id, ready); await chmod(join(this.directory, 'delivery.sqlite'), 0o600); return ready;
   }
   /** ONLY call following explicit operator consent. Ordinary T3 send starts an agent. */
-  async dispatch(job: StoredJob, target: ThreadTarget): Promise<string> {
-    const record = await this.materialize(job, target);
+  dispatch(job: StoredJob, target: ThreadTarget): Promise<string> { return this.exclusive(job.id, () => this.dispatchLocked(job, target)); }
+  private async dispatchLocked(job: StoredJob, target: ThreadTarget): Promise<string> {
+    const record = await this.materializeLocked(job, target);
     if (record.state === 'sent' && record.messageId) return record.messageId;
     if (record.credential !== this.client.credentialIdentity) throw new Error('T3 credential namespace changed. Reconcile the old send before retrying.');
     this.save(job.id, { ...record, state: 'unknown' });

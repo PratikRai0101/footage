@@ -54,13 +54,15 @@ test('thread delivery pins workspace and original; explicit queue send reconcile
     const bytes = Buffer.from('generated original; not personal media'), jobId = randomUUID();
     const job = storedJobSchema.parse({ id: jobId, name: 'generated.mp4', bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), tokenHash: 'a'.repeat(64), status: 'received', transport: 'tus', contentReference: 'original', receipt: { id: randomUUID(), jobId, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), verifiedAt: new Date().toISOString() } });
     await writeFile(join(dir, 'originals', job.id), bytes, { mode: 0o600 });
+    await assert.rejects(delivery.materialize({ ...job, receipt: job.receipt && { ...job.receipt, bytes: job.bytes + 1 } }, target));
     const saved = await delivery.materialize(job, target);
     assert.deepEqual(await readFile(saved.path), bytes); assert.equal(sends.length, 0);
     await assert.rejects(delivery.materialize(job, { ...target, thread: 'different' }));
     archived = true; await assert.rejects(delivery.dispatch(job, target)); assert.equal(sends.length, 0); archived = false;
     wrongEnvironment = true; await assert.rejects(delivery.dispatch(job, target)); wrongEnvironment = false;
     await assert.rejects(delivery.dispatch(job, target));
-    const sent = await delivery.dispatch(job, target);
+    const [sent, replayed] = await Promise.all([delivery.dispatch(job, target), delivery.dispatch(job, target)]);
+    assert.equal(sent, replayed);
     assert.equal(await delivery.dispatch(job, target), sent);
     assert.equal(messages.size, 1); assert.equal(sends.length, 2); assert.equal(sends[0]?.clientRequestId, sends[1]?.clientRequestId);
     assert.equal(sends[0]?.mode, 'queue'); assert.equal(sends[0]?.threadId, 'thread');

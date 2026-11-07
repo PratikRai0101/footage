@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { randomUUID, X509Certificate } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { chmod, readFile, writeFile } from 'node:fs/promises';
+import { chmod, open, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -19,9 +19,15 @@ import { T3Client, T3Delivery, targetSchema } from './t3-delivery.js';
 const args = process.argv.slice(2);
 function option(name: string): string | undefined { const i = args.indexOf(name); if (i < 0) return undefined; const value = args[i + 1]; if (!value || value.startsWith('--')) throw new Error(`Missing ${name}.`); return value; }
 const directory = resolve(option('--dir') ?? 'apps/server/data/paired');
-const host = option('--host') ?? 'localhost';
+const host = (option('--host') ?? 'localhost').toLowerCase();
 const port = z.coerce.number().int().min(1).max(65535).parse(option('--port') ?? '1090');
 const origin = canonicalOrigin(`https://${host.includes(':') && !host.startsWith('[') ? `[${host}]` : host}:${port}`);
+async function savePrivate(path: string, value: unknown): Promise<void> {
+  const temporary = `${path}.${randomUUID()}.pending`;
+  const file = await open(temporary, 'wx', 0o600);
+  try { await file.writeFile(JSON.stringify(value)); await file.sync(); } finally { await file.close(); }
+  await rename(temporary, path); await syncDirectory(dirname(path));
+}
 const tlsDirectory = join(directory, 'tls');
 await privateDirectory(directory); await privateDirectory(tlsDirectory);
 const helper = join(directory, 'key-store');
@@ -33,12 +39,12 @@ const keyStore = args.includes('--init') ? DesktopKeyStore.initialize({ helper, 
 if (!existsSync(join(tlsDirectory, 'leaf.pem'))) {
   if (!args.includes('--init')) throw new Error('Use --init once to provision this computer explicitly.');
   const run = (...parameters: string[]) => execFileSync('openssl', parameters, { cwd: tlsDirectory, stdio: 'pipe' });
-  run('req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-subj', '/CN=Footage private receiver', '-keyout', 'root.key', '-out', 'root.pem', '-days', '365', '-addext', 'basicConstraints=critical,CA:TRUE');
-  run('req', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-subj', '/CN=Footage receiver', '-keyout', 'leaf.key', '-out', 'leaf.csr');
+  run('req', '-sha256', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-pkeyopt', 'ec_param_enc:named_curve', '-nodes', '-subj', '/CN=Footage private receiver', '-keyout', 'root.key', '-out', 'root.pem', '-days', '365', '-addext', 'basicConstraints=critical,CA:TRUE');
+  run('req', '-sha256', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-pkeyopt', 'ec_param_enc:named_curve', '-nodes', '-subj', '/CN=Footage receiver', '-keyout', 'leaf.key', '-out', 'leaf.csr');
   const plainHost = host.replace(/^\[|\]$/g, '');
   const { isIP } = await import('node:net');
   await writeFile(join(tlsDirectory, 'leaf.ext'), `basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\nsubjectAltName=${isIP(plainHost) ? 'IP' : 'DNS'}:${plainHost}\n`, { mode: 0o600 });
-  run('x509', '-req', '-in', 'leaf.csr', '-CA', 'root.pem', '-CAkey', 'root.key', '-CAcreateserial', '-days', '365', '-extfile', 'leaf.ext', '-out', 'leaf.pem');
+  run('x509', '-sha256', '-req', '-in', 'leaf.csr', '-CA', 'root.pem', '-CAkey', 'root.key', '-CAcreateserial', '-days', '365', '-extfile', 'leaf.ext', '-out', 'leaf.pem');
   run('x509', '-in', 'root.pem', '-outform', 'DER', '-out', 'root.der');
   await syncDirectory(tlsDirectory);
 }
@@ -57,10 +63,10 @@ if (option('--mcp')) {
   if (!previous) catalog.push({ id: target.intake, title: target.title, target });
   delivery = new T3Delivery(directory, client);
 } else if (catalog.length === 0) catalog.push({ id: randomUUID(), title: 'Footage inbox', target: null });
-await writeFile(catalogPath, JSON.stringify(catalog), { mode: 0o600 });
+await savePrivate(catalogPath, catalog);
 const authority = PairingAuthority.open({ path: join(directory, 'pairing.sqlite'), keyStore, origin, ca: tls.ca, pin: sha256(new X509Certificate(tls.cert).publicKey.export({ format: 'der', type: 'spki' })) });
 const jobs = new Jobs(join(directory, 'jobs.sqlite'));
-const opened = await PairedService.open({ ...authority, jobs, keyStore, directory, origin, listenHost: option('--bind') ?? '0.0.0.0', tls, allowedIntakes: new Set(catalog.map(entry => entry.id)) });
+const opened = await PairedService.open({ ...authority, jobs, keyStore, directory, origin, listenHost: option('--bind') ?? '0.0.0.0', tls, bodyTimeoutMs: 300000, allowedIntakes: new Set(catalog.map(entry => entry.id)) });
 await opened.service.listen();
 const terminal = createInterface({ input: process.stdin, output: process.stdout });
 process.stdout.write(`Footage receiver ready at ${origin}.\nCommands: pair, approve <request>, jobs, deliver <job>, send <job>, quit\nSending to T3 starts or queues agent work. Uploading alone does not.\n`);
@@ -83,7 +89,7 @@ terminal.on('line', line => {
       const scopes = { intakes: catalog.map(entry => entry.id), projects: [] };
       const offer = opened.local.createOffer({ mask: 31, scopes });
       const path = join(directory, 'Connect.footage');
-      await writeFile(path, JSON.stringify({ format: 'footage-connection-v1', offer: offer.toString('base64'), destinations: catalog.map(({ id, title }) => ({ id, title })) }), { mode: 0o600 });
+      await savePrivate(path, { format: 'footage-connection-v1', offer: offer.toString('base64'), destinations: catalog.map(({ id, title }) => ({ id, title })) });
       process.stdout.write(`Connection file: ${path}\nExpires in two minutes. Transfer it directly to your phone, then open it from Footage Settings. Do not post it publicly.\n`);
     } else if (command === 'approve' && value) {
       opened.local.approveEnrollment(value, { intakes: catalog.map(entry => entry.id), projects: [] }); process.stdout.write('Connection approved.\n');

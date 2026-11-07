@@ -5,8 +5,8 @@ Pod::Spec.new do |s|
   s.description = s.summary
   s.license = { :type => 'MIT', :file => '../LICENSE' }
   s.author = 'Footage'
-  s.homepage = 'https://github.com/footage/footage'
-  s.source = { :git => 'https://github.com/footage/footage.git' }
+  s.homepage = 'https://github.com/PratikRai0101/footage'
+  s.source = { :git => 'https://github.com/PratikRai0101/footage.git' }
   s.platform = :ios, '16.4'
   s.static_framework = true
   s.dependency 'ExpoModulesCore'

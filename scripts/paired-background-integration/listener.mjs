@@ -33,7 +33,7 @@ const { service, local } = await PairedService.open({ ...opened, local: opened.l
   boundary(point) {
     // Actual storage-pipeline error ONCE. The receiver supervisor, not a packet retry,
     // must resume the persisted verifying job while the phone remains stopped.
-    if (point === 'original-sync' && !state.transientFinalizationFailures && !config.restarted) {
+    if (point === 'original-sync' && !state.transientFinalizationFailures && !config.restarted && !config.validOutcomes) {
       state.transientFinalizationFailures++; throw new Error('Test-only transient finalization failure');
     }
   } });
@@ -46,6 +46,9 @@ service.ingest.ingest = req => {
   req.pause();
   const operation = serial.then(async () => {
     while (!await exists(join(out, 'release'))) await sleep(50);
+    if (config.twoWakes && state.groups >= 1) {
+      while (!await exists(join(out, 'second-release'))) await sleep(50);
+    }
     const hash = createHash('sha256'); let header = Buffer.alloc(0), count = 0;
     let tail = Buffer.alloc(0);
     req.on('data', b => {
@@ -65,7 +68,7 @@ service.ingest.ingest = req => {
       if (jobs.all().some(j => j.receipt) && !await exists(join(out, 'respond-final'))) {
         state.lostFinalResponse = true; req.socket.destroy(); return reply;
       }
-      if (!config.restarted) {
+      if (!config.restarted && !config.validOutcomes) {
         state.fakeOutcomeSent = true; const forged = Buffer.from(reply); forged[203] ^= 1; return forged;
       }
       return reply;

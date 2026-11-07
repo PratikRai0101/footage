@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owned actual Expo 58 Release + compile-time no-JS test build. No EAS/real pairing.
+"""Owned actual Expo 58 Release + compile-time no-JS paired test build. No EAS.
 Never invokes the subscriber callback. SIGKILL is an OS-style abrupt exit, not jetsam
 proof; automatic callback/relaunch is reported only if actually observed.
 """
@@ -24,7 +24,7 @@ OUT = BASE / str(uuid.uuid4())
 r.OUT = OUT
 APPROOT = ROOT / 'apps/mobile'
 BUNDLE = 'dev.footage.spike'
-BUILD = BASE / 'build'
+BUILD = BASE / 'owned-build-a9771bfc'
 APP = BUILD / 'Build/Products/Release-iphonesimulator/Footage.app'
 
 def execute(args, log, cwd=ROOT, env=None):
@@ -33,7 +33,9 @@ def execute(args, log, cwd=ROOT, env=None):
     if result.returncode: raise RuntimeError(f'{log}: exit {result.returncode}')
 
 def build(test=False):
-    if shutil.disk_usage(ROOT).free < 8 * 1024**3: raise RuntimeError('Need 8 GiB free; never delete others caches')
+    required = 6 if BUILD.exists() else 13
+    if shutil.disk_usage(ROOT).free < required * 1024**3:
+        raise RuntimeError(f'Need {required} GiB free (6 GiB margin); never delete others caches')
     env = dict(os.environ)
     env.pop('FOOTAGE_EXPO_LIFECYCLE_TEST', None)
     if test: env['FOOTAGE_EXPO_LIFECYCLE_TEST'] = '1'
@@ -48,11 +50,14 @@ def build(test=False):
         '-jobs', '2', 'ARCHS=arm64', 'ONLY_ACTIVE_ARCH=YES', 'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-']
     if test: args += ['SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) FOOTAGE_EXPO_LIFECYCLE_TEST']
     execute(args, 'build-test.log' if test else 'build-normal.log', env=env)
+    if shutil.disk_usage(ROOT).free < 6 * 1024**3: raise RuntimeError('Build used the 6 GiB safety margin')
     assert (APP / 'main.jsbundle').stat().st_size > 100000
     binary = (APP / 'Footage').read_bytes()
     assert (b'ExpoLifecycleFixture' in binary) == test
     if not test:
         assert b'DurableTestControl' not in binary and b'generated-original' not in binary
+        assert b'HarnessWait' not in binary
+    assert b'FootageBackgroundSessionRouter' in binary
     return hashlib.sha256(binary).hexdigest()
 
 def driver_project():
@@ -75,14 +80,25 @@ def state(docs):
 
 def main():
     OUT.mkdir(parents=True, mode=0o700)
+    if os.environ.get('FOOTAGE_TEST_KEYCHAIN') != '1':
+        raise SystemExit('Opt in with FOOTAGE_TEST_KEYCHAIN=1 for one fresh exact recorded macOS test Keychain item')
     r.cmd('git', 'check-ignore', OUT / 'private.key')
     two_wakes = '--two-wakes' in sys.argv
     valid_outcomes = '--valid-outcomes' in sys.argv or two_wakes
-    summary = {'testBuildOnly': True, 'validOutcomes': valid_outcomes, 'twoWakesRequested': two_wakes, 'productionPairingProven': False, 'g5Passed': False,
+    summary = {'testBuildOnly': True, 'validOutcomes': valid_outcomes, 'twoWakesRequested': two_wakes, 'productionPairingProven': False, 'actualPairedControl': True, 'syntheticInjectedControl': False, 'g5Passed': False,
         'physicalLockProven': False, 'callbackManuallyInvoked': False, 'xcode': r.cmd('xcodebuild', '-version')}
     device = listener = docs = None
-    if not (APPROOT / 'ios/Footage.xcworkspace').exists():
-        execute(['npx', '--no-install', 'expo', 'prebuild', '--platform', 'ios', '--no-install'], 'prebuild.log', APPROOT, dict(os.environ, CI='1'))
+    key_cleanup_pending = False
+    paired_source = ROOT / 'scripts/paired-background-integration'
+    # Prove the committed plugin survives clean generation, then repeated generation.
+    execute(['npx', '--no-install', 'expo', 'prebuild', '--platform', 'ios', '--clean', '--no-install'], 'prebuild-clean.log', APPROOT, dict(os.environ, CI='1'))
+    generated_delegate = APPROOT / 'ios/Footage/AppDelegate.swift'
+    routed = generated_delegate.read_bytes()
+    execute(['npx', '--no-install', 'expo', 'prebuild', '--platform', 'ios', '--no-install'], 'prebuild-again.log', APPROOT, dict(os.environ, CI='1'))
+    assert generated_delegate.read_bytes() == routed
+    execute(['node', '--test', SOURCE / 'plugin.test.cjs'], 'plugin-tests.log')
+    summary['cleanPrebuildAndRepeatedPluginIdempotent'] = True
+    summary['generatedRouterSHA256'] = hashlib.sha256(routed).hexdigest()
     scene = APPROOT / 'ios/Footage/SceneDelegate.swift'
     appdelegate = APPROOT / 'ios/Footage/AppDelegate.swift'
     original_scene = scene.read_text()
@@ -109,14 +125,13 @@ def main():
         terminate()
         docs = Path(r.cmd('xcrun', 'simctl', 'get_app_container', device, BUNDLE, 'data')) / 'Documents'
         docs.mkdir(exist_ok=True)
-        # Reuse the EXISTING G3 control/trust adapter and native fixture helpers.
-        # No copied implementation is maintained, and no full runtime fault suite is
-        # transplanted into an optimized Expo target (run its own Debug runner).
-        adapter = (SOURCE.parent / 'ios-background-integration/Probe.swift').read_text().split('@main\n')[0]
+        # Only bounded test waits + existing native UNIT helpers; the actual OS path
+        # uses production PairingClient/BackgroundControl/Trust, never mailbox control.
+        adapter = (paired_source / 'Probe.swift').read_text().split('@main\n')[0]
         tests = (SOURCE.parent / 'ios-background-runtime/Tests.swift').read_text()
-        helpers = 'import SQLite3\n'
+        helpers = 'import SQLite3\n' + tests[tests.index('final class TestControl:'):tests.index('final class DeferredEnumerationDaemon:')]
         for start, end in [('func testState(', 'func testRewriteState('), ('func testAwait(', 'func testEvent('),
-                           ('func testGenerate(', 'func runRuntimeTests(')]:
+                           ('func testSelection(', 'func runRuntimeTests(')]:
             helpers += tests[tests.index(start):tests.index(end)]
         fixture = '#if FOOTAGE_EXPO_LIFECYCLE_TEST\n' + adapter + '\n' + helpers + '\n' + (SOURCE / 'HostTests.swift').read_text() + '\n' + (SOURCE / 'RuntimeDrainProbe.swift').read_text() + '\n#endif\n' + (SOURCE / 'Fixture.swift').read_text()
         generated = APPROOT / 'modules/footage-transfer/ios/build/lifecycle-test/Fixture.generated.swift'
@@ -137,26 +152,31 @@ def main():
     // Deliberately NO super: do not call factory.startReactNative in this test build.
   }
   #endif'''))
-        app_class = 'class AppDelegate: ExpoAppDelegate, ExpoReactNativeFactoryProvider {'
-        assert original_appdelegate.count(app_class) == 1
-        appdelegate.write_text(original_appdelegate.replace(app_class, app_class + '''
-  #if FOOTAGE_EXPO_LIFECYCLE_TEST
-  override func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
-    completionHandler: @escaping () -> Void) {
-    super.application(application, handleEventsForBackgroundURLSession: identifier) {
+        # Observe the REAL UIKit completion around the existing production route,
+        # not an extra override/subscriber call. Only OS callback entry runs this.
+        start = '    if FootageBackgroundSessionRouter.handle(identifier, completionHandler: completionHandler) {'
+        assert original_appdelegate.count(start) == 1
+        instrumented = original_appdelegate.replace(start, '''    let callbackStarted = Date().timeIntervalSince1970
+    let systemCompletion = {
       precondition(Thread.isMainThread)
-      let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("aggregate-completion.json")
+      let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+      let file = docs.appendingPathComponent("aggregate-completion.json")
       var count = 0
       if let bytes = try? Data(contentsOf: file),
-        let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Int] { count = object["count"] ?? 0 }
-      let bytes = try! JSONSerialization.data(withJSONObject: ["count": min(count + 1, 1000), "main": true])
+        let object = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] { count = object["count"] as? Int ?? 0 }
+      // This file exists only after the native contribution independently reopens
+      // the FULL/WAL ledger. Reading it here witnesses ordering at outer handoff.
+      let ledgerBytes = try! Data(contentsOf: docs.appendingPathComponent("completion-ledger.json"))
+      let ledger = try! JSONSerialization.jsonObject(with: ledgerBytes)
+      let bytes = try! JSONSerialization.data(withJSONObject: ["count": min(count + 1, 1000), "main": true,
+        "afterDurableLedger": ledger, "seconds": Date().timeIntervalSince1970 - callbackStarted])
       try! bytes.write(to: file, options: .atomic)
       completionHandler()
     }
-  }
-  #endif
-'''))
+    if FootageBackgroundSessionRouter.handle(identifier, completionHandler: systemCompletion) {''')
+        instrumented = instrumented.replace('super.application(application, handleEventsForBackgroundURLSession: identifier, completionHandler: completionHandler)',
+            'super.application(application, handleEventsForBackgroundURLSession: identifier, completionHandler: systemCompletion)')
+        appdelegate.write_text(instrumented)
         test_installed = True
         summary['testBinarySHA256'] = build(test=True)
         r.cmd('xcrun', 'simctl', 'install', device, APP)
@@ -177,28 +197,37 @@ def main():
         summary['runtimeEnumerationDrainRaceReproduced'] = drain_probe['finishDuringEnumerationLeavesPendingToken']
         shutil.copyfile(docs / 'runtime-drain-probe.json', OUT / 'runtime-drain-probe.json')
         terminate()
+        assert drain_probe['unavailableControlDrainedWithDurableUncertainty']
+        assert drain_probe['unavailableControlSeconds'] < 5, drain_probe
+        summary['immediateUnavailableControlDurableDefer'] = True
+        summary['slowNetworkDeadlineProven'] = False
         r.certs()
-        for name in ['root.der', 'leaf.der']: shutil.copyfile(OUT / name, docs / name)
+        r.cmd('xcrun', 'swiftc', '-swift-version', '6', '-warnings-as-errors',
+            ROOT / 'apps/server/src/desktop-key-store-helper.swift', '-o', OUT / 'key-helper')
+        import socket
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
+        receiver_config = {'namespace': 'test.' + str(uuid.uuid4()), 'origin': f'https://localhost:{port}',
+            'port': port, 'intake': str(uuid.uuid4()), 'validOutcomes': valid_outcomes, 'twoWakes': two_wakes}
+        # Record the exact account BEFORE initialization, and arm finally BEFORE any
+        # constructor can fail. Never enumerate or delete any pre-existing item.
+        (OUT / 'receiver-config.json').write_text(json.dumps(receiver_config))
+        (OUT / 'keychain-cleanup-pending.json').write_text(json.dumps({'namespace': receiver_config['namespace']}))
+        key_cleanup_pending = True
+        r.cmd(ROOT / 'node_modules/.bin/tsx', paired_source / 'key-store.mjs', OUT, 'initialize')
         log = (OUT / 'listener.log').open('w')
-        adapter = SOURCE.parent / 'ios-background-integration/listener.mjs'
-        adapter_source = adapter.read_text()
-        summary['existingG3AdapterSHA256'] = hashlib.sha256(adapter_source.encode()).hexdigest()
-        if valid_outcomes:
-            # Same actual G3 adapter, with ONLY its two response-loss/forgery faults off.
-            # Never duplicate ingest, encryption, receipt or native control implementation.
-            condition = '} else if (!state.fakeOutcomeSent) {'
-            assert adapter_source.count(condition) == 1
-            adapter_source = adapter_source.replace(condition, '} else if (false) {')
-            if two_wakes:
-                gate = '    while (!await exists(join(out, \'release\'))) await sleep(50);'
-                assert adapter_source.count(gate) == 1
-                adapter_source = adapter_source.replace(gate, gate + '\n    if (state.groups >= 1) { while (!await exists(join(out, \'second-release\'))) await sleep(50); }')
-            adapter_source = adapter_source.replace("'../../../apps/", "'" + (ROOT / 'apps').as_uri() + '/')
-            adapter = OUT / 'valid-listener.generated.mjs'
-            adapter.write_text(adapter_source)
-            (OUT / 'respond-final').write_text('valid-response-test-only')
+        adapter = paired_source / 'listener.mjs'
+        summary['existingPairedAdapterSHA256'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+        if valid_outcomes: (OUT / 'respond-final').write_text('valid-response-test-only')
         listener = subprocess.Popen([str(ROOT / 'node_modules/.bin/tsx'), str(adapter), str(OUT), str(docs)], stdout=log, stderr=subprocess.STDOUT)
         ready = r.wait(lambda: r.read_json(OUT / 'listener-ready.json'))
+        configure('enroll'); launch()
+        r.wait(lambda: r.read_json(OUT / 'awaiting-local-approval.json'))
+        (OUT / 'operator-approve').write_text('Independent local test operator approves generated device and exact intake')
+        enrolled = r.wait(lambda: r.read_json(docs / 'enrolled.json'))
+        assert enrolled['ok'] and enrolled['actualNativeEnrollmentAndRecovery'], enrolled
+        summary['nativeGeneratedDeviceIndependentQRLocalApprovalTLSRecovery'] = True
+        terminate()
         configure('prepare'); pid = launch()
         queued = r.wait(lambda: (s if (s := state(docs)) and s.get('backgroundReady') else None), 180)
         assert queued['groups'] == 2 and queued['bridgeCreated'] == 0 and queued['privateDeniedBeforeBackground'], queued
@@ -226,17 +255,26 @@ def main():
                 first_life = r.read_json(docs / 'lifecycle.json')
                 assert first_life and first_life['pid'] != pid and first_life['counts'].get('ownedCallback') == 1
                 assert first_completion['main'] and first_completion['confirmedBytes'] == 67108864
+                assert first_completion['completions'] == first_completion['ownedCallbacks'] == 1
+                assert first_life['counts'].get('bridgeCreated', 0) == 0
                 assert not first_completion['hasReceipt']
                 shutil.copyfile(docs / 'lifecycle.json', OUT / 'first-os-lifecycle.json')
                 shutil.copyfile(docs / 'completion-ledger.json', OUT / 'first-os-completion.json')
-                # Observe Expo's OUTER aggregated OS completion separately from our
-                # subscriber's contribution. Never manufacture the missing completion.
+                # Observe the outer UIKit completion separately from the native
+                # contribution. The owned event must never enter Expo aggregation.
                 aggregate_deadline = time.monotonic() + 30
                 while time.monotonic() < aggregate_deadline and not r.read_json(docs / 'aggregate-completion.json'):
                     time.sleep(.2)
-                summary['firstExpoAggregateCompletionObserved'] = bool(r.read_json(docs / 'aggregate-completion.json'))
+                first_aggregate = r.read_json(docs / 'aggregate-completion.json')
+                assert first_aggregate and first_aggregate['count'] == 1 and first_aggregate['main'], first_aggregate
+                assert first_aggregate['afterDurableLedger'] == first_completion and first_aggregate['seconds'] < 10
+                summary['firstOuterUIKitCompletionObserved'] = True
+                summary['firstOuterCompletionCount'] = first_aggregate['count']
+                summary['firstOuterCompletionSeconds'] = first_aggregate['seconds']
+                shutil.copyfile(docs / 'aggregate-completion.json', OUT / 'first-os-aggregate.json')
                 os.kill(first_life['pid'], signal.SIGKILL)
                 configure('restore')
+            assert summary['firstOSWakeDrainedBeforeSecondGroup'], 'No first actual OS drain/completion'
             (OUT / 'second-release').write_text('second-native-event-batch')
         actual = r.wait(lambda: r.read_json(OUT / 'actual-receipt.json'), 240)
         transferred = r.wait(lambda: r.read_json(OUT / 'listener-state.json'))
@@ -256,15 +294,21 @@ def main():
         summary['osDrivenCallbackObserved'] = bool(life and life['counts'].get('ownedCallback'))
         summary['osDrivenLaunchObserved'] = bool(life and life['counts'].get('factoryBeforeJS'))
         summary['osLaunchDifferentPID'] = bool(life and life['pid'] != pid)
+        assert summary['osLaunchDifferentPID']
+        if two_wakes: assert life['pid'] != first_life['pid']
         summary['osCallbackBatches'] = (life['counts'].get('ownedCallback', 0) if life else 0) + int(summary.get('firstOSWakeDrainedBeforeSecondGroup', False))
         summary['osBridgeCreations'] = life['counts'].get('bridgeCreated', 0) if life else 0
         if life: shutil.copyfile(docs / 'lifecycle.json', OUT / 'os-lifecycle.json')
         completion = r.read_json(docs / 'completion-ledger.json')
-        summary['subscriberCompletionAfterDrainObserved'] = bool(completion and completion['main'] and completion['completions'] == completion['ownedCallbacks'])
+        summary['nativeCompletionAfterDrainObserved'] = bool(completion and completion['main'] and completion['completions'] == completion['ownedCallbacks'] == 1)
         if completion: shutil.copyfile(docs / 'completion-ledger.json', OUT / 'os-completion-ledger.json')
         aggregate = r.read_json(docs / 'aggregate-completion.json')
-        summary['expoAggregateSystemCompletionObserved'] = bool(aggregate)
-        if aggregate: shutil.copyfile(docs / 'aggregate-completion.json', OUT / 'os-aggregate-completion.json')
+        summary['outerUIKitSystemCompletionObserved'] = bool(aggregate)
+        assert aggregate and aggregate['count'] == 1 and aggregate['main'], aggregate
+        assert aggregate['afterDurableLedger'] == completion and aggregate['seconds'] < 10
+        summary['finalOuterCompletionCount'] = aggregate['count']
+        summary['finalOuterCompletionSeconds'] = aggregate['seconds']
+        shutil.copyfile(docs / 'aggregate-completion.json', OUT / 'os-aggregate-completion.json')
         os_final = state(docs) or {}
         if os_final: shutil.copyfile(docs / 'native-state.json', OUT / 'os-native-state.json')
         summary['osWakeMatchingNativeReceipt'] = bool(os_final.get('phase') == 'received'
@@ -273,7 +317,9 @@ def main():
             and os_final.get('confirmedBytes') == actual['independent']['bytes'])
         if valid_outcomes:
             assert summary['osWakeMatchingNativeReceipt'] and summary['osBridgeCreations'] == 0, os_final
-            assert summary['subscriberCompletionAfterDrainObserved']
+            assert summary['nativeCompletionAfterDrainObserved']
+            assert completion['phase'] == 'received' and completion['hasReceipt']
+            assert completion['confirmedBytes'] == actual['independent']['bytes']
         # Explicit foreground relaunch is separately labelled, NOT a cold OS wake.
         terminate(); configure('restore'); launch()
         final = r.wait(lambda: (s if (s := state(docs)) and s.get('phase') == 'received' else None), 120)
@@ -287,31 +333,56 @@ def main():
         else:
             raise AssertionError('Protected manifest unexpectedly readable')
         summary['explicitNativeRelaunchNoJSSameDurableReceipt'] = True
-        summary['g5Passed'] = False # Expo aggregate completion and physical/paired gates remain open
+        summary['g5Passed'] = False # Slow-network deadline, activation and physical gates remain open
+        summary['actualOSOuterCompletionPassed'] = True
+        assert summary['osCallbackBatches'] == (2 if two_wakes else 1)
+        assert summary['noCredentialsOnIngest'] and summary['daemonSocketObserved']
+        assert not transferred['reusableCredentialInBody'] and not transferred['generationMasterInBody']
+        summary['pairedBodiesContainNoReusableCredentialOrGenerationMaster'] = True
         shutil.copyfile(docs / 'native-state.json', OUT / 'native-final.json')
         print(json.dumps(summary, indent=2), flush=True)
     finally:
-        if listener:
-            listener.terminate()
-            try: listener.wait(20)
-            except subprocess.TimeoutExpired: listener.kill(); listener.wait()
-        if docs:
-            for name in ['native-state.json', 'lifecycle.json', 'host-tests.json', 'completion-ledger.json', 'aggregate-completion.json']:
-                if (docs / name).exists(): shutil.copyfile(docs / name, OUT / ('last-' + name))
-            private = docs / 'runtime/private'
-            if private.exists(): private.chmod(0o700)
+        cleanup_errors = []
+        def cleanup(label, operation):
+            try: operation()
+            except BaseException as error: cleanup_errors.append(label + ': ' + str(error))
+        def stop_listener():
+            if listener:
+                listener.terminate()
+                try: listener.wait(20)
+                except subprocess.TimeoutExpired: listener.kill(); listener.wait()
+        cleanup('listener shutdown', stop_listener)
+        # Exact deletion is independent of shutdown success. Keep pending metadata
+        # if deletion fails, even if initialization itself threw after creating it.
+        if key_cleanup_pending:
+            def delete_key():
+                r.cmd(ROOT / 'node_modules/.bin/tsx', paired_source / 'key-store.mjs', OUT, 'delete')
+                (OUT / 'keychain-cleanup-pending.json').unlink()
+                summary['exactNewUUIDKeychainItemDeleted'] = True
+            cleanup('exact Keychain deletion', delete_key)
+        def save_evidence():
+            if docs:
+                for name in ['native-state.json', 'lifecycle.json', 'host-tests.json', 'completion-ledger.json', 'aggregate-completion.json']:
+                    if (docs / name).exists(): shutil.copyfile(docs / name, OUT / ('last-' + name))
+                private = docs / 'runtime/private'
+                if private.exists(): private.chmod(0o700)
+        cleanup('save evidence', save_evidence)
         if device:
-            r.cmd('xcrun', 'simctl', 'shutdown', device, check=False)
-            r.cmd('xcrun', 'simctl', 'delete', device)
-        scene.write_text(original_scene)
-        appdelegate.write_text(original_appdelegate)
-        # Restore ordinary generated build configuration; never leave test mode as default.
+            cleanup('sim shutdown', lambda: r.cmd('xcrun', 'simctl', 'shutdown', device, check=False))
+            cleanup('sim deletion', lambda: r.cmd('xcrun', 'simctl', 'delete', device))
+        cleanup('restore SceneDelegate', lambda: scene.write_text(original_scene))
+        cleanup('restore routed AppDelegate', lambda: appdelegate.write_text(original_appdelegate))
+        # Rebuild and inspect the actual ordinary artifact after removing test flags.
         if test_installed:
-            env = dict(os.environ); env.pop('FOOTAGE_EXPO_LIFECYCLE_TEST', None)
-            execute(['pod', 'install'], 'pods-restored-normal.log', APPROOT / 'ios', env)
+            def restore_normal():
+                summary['restoredNormalBinarySHA256'] = build()
+                assert 'FOOTAGE_EXPO_LIFECYCLE_TEST' not in appdelegate.read_text() + scene.read_text()
+            cleanup('ordinary Release rebuild', restore_normal)
         summary['ownedSimulatorDeleted'] = device is None or device not in r.cmd('xcrun', 'simctl', 'list', 'devices', '-j')
         summary['ownedListenerStopped'] = listener is None or listener.poll() is not None
+        summary['cleanupErrors'] = cleanup_errors
         (OUT / 'safe-summary.json').write_text(json.dumps(summary, indent=2))
         print('Ignored artifacts:', OUT, flush=True)
+        if cleanup_errors: raise RuntimeError('Cleanup failed; see private metadata: ' + '; '.join(cleanup_errors))
 
 if __name__ == '__main__': main()

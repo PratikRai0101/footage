@@ -25,22 +25,51 @@ enum ExpoLifecycleFixture {
     record("factoryBeforeJS")
     let config = try JSONSerialization.jsonObject(with: Data(contentsOf: docs.appendingPathComponent("lifecycle-config.json"))) as! [String: String]
     mode = config["mode"]!; service = config["service"]!
-    if mode == "unit" { return nil }
-    let binding = try JSONSerialization.jsonObject(with: Data(contentsOf: docs.appendingPathComponent("binding.json"))) as! [String: Any]
-    let trust = IntegrationTrust(ca: try Data(contentsOf: docs.appendingPathComponent("root.der")),
-      leaf: try Data(contentsOf: docs.appendingPathComponent("leaf.der")), port: binding["port"] as! Int)
+    if mode == "unit" || mode == "enroll" { return nil }
+    let client = PairingClient(vault: PairingVault(service: service + ".pairing"))
+    let confirmed: PairingNativeConfirmedIntake
+    let pinned: PairingPinnedTrust
+    if mode == "prepare" {
+      let binding = try JSONSerialization.jsonObject(with: Data(contentsOf: docs.appendingPathComponent("binding.json"))) as! [String: String]
+      confirmed = try PairingNativeConfirmedIntake(afterNativeConfirmation: hex(binding["intake"]!),
+        identity: native { try await client.nativeIdentity() })
+      pinned = try native { try await client.installedTrust() }
+    } else {
+      let job = try testState(docs.appendingPathComponent("runtime")).job
+      confirmed = try native { try await PairingNativeConfirmedIntake.restoreConfirmedJob(job, client: client) }
+      pinned = try native { try await client.confirmedJobTrust(job) }
+    }
     let owner = try BackgroundRuntime(directory: docs.appendingPathComponent("runtime"), create: mode == "prepare",
-      keychainService: service, control: DurableTestControl(docs), cellular: false,
-      activeUnlocked: { activity.get() }, trust: trust)
+      keychainService: service, control: PairingBackgroundControl(client: client, nativeConfirmedIntake: confirmed), cellular: false,
+      activeUnlocked: { activity.get() }, trust: PairingBackgroundTrust(pinned: pinned))
     runtime = owner
     record("runtimeCreatedBeforeJS")
     return owner
+  }
+  nonisolated static func hex(_ text: String) -> Data {
+    Data(stride(from: 0, to: text.count, by: 2).map { offset in
+      let start = text.index(text.startIndex, offsetBy: offset)
+      return UInt8(text[start..<text.index(start, offsetBy: 2)], radix: 16)!
+    })
   }
   static func willLaunch() {
     record("willLaunchBeforeJS")
     do { write(["ok": true, "cases": try runHostTests()], "host-tests.json") }
     catch { write(["ok": false, "error": String(describing: error)], "host-tests.json") }
     let docs = self.docs
+    if mode == "enroll" {
+      let service = self.service
+      DispatchQueue.global(qos: .utility).async {
+        do {
+          let client = PairingClient(vault: PairingVault(service: service + ".pairing"))
+          let qr = try Data(contentsOf: docs.appendingPathComponent("independent-local.qr"))
+          try native { try await client.prepareAfterNativeConfirmation(qr: qr, permissions: 7); try await client.enroll() }
+          try native { try await client.recoverLostReply() }
+          Task { @MainActor in write(["ok": true, "actualNativeEnrollmentAndRecovery": true], "enrolled.json") }
+        } catch { Task { @MainActor in write(["ok": false, "error": String(describing: error)], "enrolled.json") } }
+      }
+      return
+    }
     if mode == "unit" {
       DispatchQueue.global(qos: .utility).async {
         do {
@@ -58,22 +87,23 @@ enum ExpoLifecycleFixture {
       // Preparation remains active/unlocked-only; no UIKit grace assertion.
       DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
         let activity = NativeBackgroundHost.shared.activity
+        let service = self.service
         activity.set(activeUnlocked: UIApplication.shared.applicationState == .active && UIApplication.shared.isProtectedDataAvailable)
         DispatchQueue.global(qos: .utility).async {
           do {
             let binding = try JSONSerialization.jsonObject(with: Data(contentsOf: docs.appendingPathComponent("binding.json"))) as! [String: Any]
-            func bytes(_ name: String) -> Data {
-              let text = binding[name] as! String
-              return Data(stride(from: 0, to: text.count, by: 2).map { offset in
-                let start = text.index(text.startIndex, offsetBy: offset)
-                return UInt8(text[start..<text.index(start, offsetBy: 2)], radix: 16)!
-              })
-            }
+            let client = PairingClient(vault: PairingVault(service: service + ".pairing"))
+            let identity = try native { try await client.nativeIdentity() }
+            let intake = hex(binding["intake"] as! String)
             let source = docs.appendingPathComponent("generated-original")
             try testGenerate(source, count: 64 * 1024 * 1024 + 12345)
-            try runtime.prepare(BackgroundSelection(source: source, safeName: "Synthetic.bin", receiver: bytes("receiver"),
-              origin: binding["origin"] as! String, device: bytes("device"), enrollmentEpoch: 1,
-              destination: .standalone(intake: bytes("intake")), expiresAt: UInt64(Date().timeIntervalSince1970) + 3600))
+            try runtime.prepare(BackgroundSelection(source: source, safeName: "Synthetic.bin", receiver: identity.receiver,
+              origin: identity.origin, device: identity.device, enrollmentEpoch: identity.epoch,
+              destination: .standalone(intake: intake), expiresAt: UInt64(Date().timeIntervalSince1970) + 3600))
+            // Restore must use the frozen job authority, not a current installation.
+            let deleted = SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+              kSecAttrService as String: service + ".pairing", kSecAttrAccount as String: "pairing.v1"] as CFDictionary)
+            try backgroundRequire(deleted == errSecSuccess)
             try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: docs.appendingPathComponent("runtime/private").path)
             var denied = false
             do { _ = try Data(contentsOf: docs.appendingPathComponent("runtime/private/manifest")) }

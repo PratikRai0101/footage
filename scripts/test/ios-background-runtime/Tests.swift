@@ -55,6 +55,21 @@ final class DeferredEnumerationDaemon: BackgroundDaemon, @unchecked Sendable {
   func cancel(_ id: Int) {}
 }
 
+/// Test gate holds a real synchronous control call, not the runtime's event queue.
+final class HeldControl: BackgroundControl, @unchecked Sendable {
+  let backend = TestControl()
+  let entered = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
+  func setup(_ m: SealedProtocol.Manifest) throws -> Data { try backend.setup(m) }
+  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+    entered.signal()
+    guard release.wait(timeout: .now() + 15) == .success else { throw BackgroundFailure.uncertain }
+    return try backend.status(m, query: query)
+  }
+  func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+    try status(m, query: query)
+  }
+}
+
 func testState(_ root: URL) throws -> BackgroundState {
   var db: OpaquePointer?, statement: OpaquePointer?
   guard sqlite3_open_v2(root.appendingPathComponent("ledger.sqlite").path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else { throw BackgroundFailure.storage }
@@ -124,6 +139,35 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
   }
   func expectFailure(_ operation: () throws -> Void) throws {
     do { try operation() } catch { return }; throw BackgroundFailure.integrity
+  }
+  for revoke in [false, true] {
+    let c = HeldControl(), d = TestDaemon(), name = "held-control-\(revoke)", directory = root("held-control-\(revoke)")
+    let r = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    try r.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    let g = try testState(directory).groups[0]
+    let command = DispatchSemaphore(value: 0), drained = DispatchSemaphore(value: 0)
+    if revoke { r.cancel { _ in command.signal() } }
+    else { d.tasks = []; r.restoreAndStart { _ in command.signal() } }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal() }
+    for _ in 0..<2 {
+      r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) {
+        MainActor.assertIsolated()
+        if let state = try? testState(directory), state.receiptOutcome == nil,
+           revoke ? state.cancelOperation != nil : state.groups[0].uncertain { drained.signal() }
+      }
+    }
+    r.acceptForTesting(.init(id: g.taskID!, correlation: g.correlation, status: 0,
+      body: Data(), transportOK: false)) { }
+    r.finishEventsForTesting()
+    for _ in 0..<2 { try backgroundRequire(drained.wait(timeout: .now() + 2) == .success) }
+    try backgroundRequire(command.wait(timeout: .now() + 0.05) == .timedOut)
+    c.release.signal()
+    try backgroundRequire(command.wait(timeout: .now() + 5) == .success)
+    try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
+    passed.append(name)
   }
   for point in [BackgroundBoundary.consumed, .encrypted, .groupPublished, .groupRecorded, .setupSaved] {
     let name = "seal-" + point.rawValue, c = TestControl(), d = TestDaemon()

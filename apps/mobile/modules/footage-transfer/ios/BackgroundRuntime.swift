@@ -35,7 +35,7 @@ final class BackgroundRuntime: @unchecked Sendable {
   private var storageBlocked = false, enumerating = false
   private var completions: [@MainActor @Sendable () -> Void] = []
   private var drainFinished = false
-  private var restoring = false, controlInFlight = false
+  private var restoring = false, cancelRunning = false, controlInFlight = false
   private var eventEpoch: UInt64 = 0
   // At most one deferred revoke, behind an older status. Repeated commands receive false
   // (not accepted); they do not grow a callback/request queue or change durable identities.
@@ -265,20 +265,28 @@ final class BackgroundRuntime: @unchecked Sendable {
   }
   func cancel(completion: @escaping @Sendable (Bool) -> Void) {
     queue.async {
+      guard !self.cancelRunning else { completion(false); return }
       do {
         guard let state = self.ledger.state, state.receiptOutcome == nil else { completion(true); return }
+        self.cancelRunning = true
         try self.ledger.change { s in
           if s.cancelOperation == nil { s.cancelOperation = BackgroundPreseal.uuid() }
-          s.phase = "cancelRequested"
+          // Setup can still be pending on the foreground worker. Without a master,
+          // retain a blocked tombstone rather than publishing unauthenticated readiness.
+          s.phase = s.outcomeAuthentication == nil ? "blocked" : "cancelRequested"
         }
         // No daemon stop precedes this FULL transaction; operation ID is reused on every revoke.
         self.daemon.allTasks { tasks in
           self.queue.async {
             tasks.forEach { self.daemon.cancel($0.id) }
-            self.revoke(completion: completion) // local fence survives offline/missing protected material
+            // Local fence survives offline/missing protected material. Neither an
+            // enumeration nor remote request queue grows with repeated cancel taps.
+            self.revoke { [weak owner = self] ok in
+              owner?.cancelRunning = false; completion(ok)
+            }
           }
         }
-      } catch { self.storageBlocked = true; completion(false) }
+      } catch { self.cancelRunning = false; self.storageBlocked = true; completion(false) }
     }
   }
   /// Explicit, idempotent cancelled-bulk collection. Keep keys, private manifest and minimal

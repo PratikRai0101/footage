@@ -301,7 +301,7 @@ enum SealedProtocol {
   /// Native-only minimal outcome material. No filename, destination IDs or frame hashes.
   /// Durable restore authenticates the exact canonical record with the retained native master;
   /// a stored digest alone cannot authenticate a substituted original identity.
-  struct OutcomeContext {
+  struct OutcomeContext: Sendable {
     let receiver: Data, origin: String, job: Data, generation: Data, device: Data
     let enrollmentEpoch: UInt64, digest: Data, destinationDigest: Data
     let originalBytes: UInt64, originalSHA256: Data, expiresAt: UInt64
@@ -714,7 +714,7 @@ enum SealedProtocol {
     if let receipt { try check(receipt.revision >= ack.revision) }
     return VerifiedOutcome(ack: ack, receipt: receipt)
   }
-  struct Query {
+  struct Query: Sendable {
     let operation: Data, challenge: Data
     init(operation: Data, challenge: Data) throws {
       try check(operation.count == 16 && challenge.count == 32)

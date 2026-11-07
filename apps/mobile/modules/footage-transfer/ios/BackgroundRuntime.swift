@@ -5,6 +5,23 @@ struct BackgroundSnapshot: Sendable {
   let backgroundReady: Bool, cleanupPending: Bool
 }
 
+/// The adapter is confined to this lane, including foreground setup. Only one outcome
+/// request is submitted by the owner at a time; the lane never touches ledger/daemon state.
+/// The unchecked conformance is this serial ownership boundary, not a cast of an adapter.
+private final class BackgroundControlWorker: @unchecked Sendable {
+  private let queue = DispatchQueue(label: "footage.sealed.control.v1", qos: .utility)
+  private let adapter: any BackgroundControl
+  init(_ adapter: any BackgroundControl) { self.adapter = adapter }
+  func setup(_ m: SealedProtocol.Manifest) throws -> Data { try queue.sync { try adapter.setup(m) } }
+  func submit(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query, revoke: Bool,
+              completion: @escaping @Sendable (Result<Data, Error>) -> Void) {
+    queue.async {
+      do { completion(.success(try revoke ? self.adapter.revoke(m, query: query) : self.adapter.status(m, query: query))) }
+      catch { completion(.failure(error)) }
+    }
+  }
+}
+
 /// Singleton-neutral: G5 must retain ONE instance before JS and route the owned identifier here.
 /// Commands and delegate work serialize on queue, including cancel -> resume fencing.
 /// Never initialize a second runtime for the same background-session identifier.
@@ -12,19 +29,25 @@ final class BackgroundRuntime: @unchecked Sendable {
   static let sessionIdentifier = BackgroundSession.identifier
   private let queue = DispatchQueue(label: "footage.sealed.native.v1", qos: .utility)
   private let ledger: BackgroundLedger, preseal: BackgroundPreseal, keychain: BackgroundKeychain
-  private let control: any BackgroundControl
+  private let control: BackgroundControlWorker
   private let boundary: (BackgroundBoundary) throws -> Void
   private var daemon: (any BackgroundDaemon)!
   private var storageBlocked = false, enumerating = false
   private var completions: [@MainActor @Sendable () -> Void] = []
   private var drainFinished = false
+  private var restoring = false, controlInFlight = false
+  private var eventEpoch: UInt64 = 0
+  // At most one deferred revoke, behind an older status. Repeated commands receive false
+  // (not accepted); they do not grow a callback/request queue or change durable identities.
+  private var pendingCancel: (@Sendable (Bool) -> Void)?
 
   init(directory: URL, create: Bool, keychainService: String, control: any BackgroundControl,
        cellular: Bool, activeUnlocked: @escaping () -> Bool, trust: (any BackgroundServerTrust)? = nil,
        boundary: @escaping (BackgroundBoundary) throws -> Void = { _ in },
        daemon: (any BackgroundDaemon)? = nil) throws {
     ledger = try BackgroundLedger(root: directory, create: create)
-    keychain = BackgroundKeychain(service: keychainService); self.control = control; self.boundary = boundary
+    keychain = BackgroundKeychain(service: keychainService)
+    self.control = BackgroundControlWorker(control); self.boundary = boundary
     try keychain.claimLedger(directory, create: create)
     // Authenticate durable minimal metadata before even exposing a restored snapshot.
     // Protected display/original records are deliberately not opened here.
@@ -38,7 +61,7 @@ final class BackgroundRuntime: @unchecked Sendable {
           && state.confirmedBytes == state.originalBytes)
       }
     }
-    preseal = BackgroundPreseal(ledger: ledger, keychain: keychain, control: control,
+    preseal = BackgroundPreseal(ledger: ledger, keychain: keychain,
       activeUnlocked: activeUnlocked, boundary: boundary)
     // Finish startup repair before constructing a session that may immediately deliver events.
     if ledger.state?.phase == "preparing" { try ledger.change { $0.phase = "blocked" } }
@@ -51,9 +74,18 @@ final class BackgroundRuntime: @unchecked Sendable {
   /// Blocking preparation belongs on a native worker, never main or a UIKit grace assertion.
   /// activeUnlocked must be a thread-safe native lifecycle/protected-data observation, not JS.
   func prepare(_ selection: BackgroundSelection) throws {
-    try queue.sync {
+    try backgroundRequire(!Thread.isMainThread)
+    let manifest = try queue.sync {
       guard !storageBlocked else { throw BackgroundFailure.blocked }
-      try preseal.prepare(selection)
+      return try preseal.stage(selection)
+    }
+    do {
+      // Caller is the foreground native preparation worker, NOT the event owner.
+      let reply = try control.setup(manifest)
+      try queue.sync { try preseal.finishPreparation(manifest, reply: reply) }
+    } catch {
+      queue.sync { try? ledger.change { $0.phase = "blocked" } }
+      throw error
     }
   }
   func snapshot() -> BackgroundSnapshot {
@@ -71,17 +103,29 @@ final class BackgroundRuntime: @unchecked Sendable {
   /// Unknown/duplicate tasks are cancelled; replacement waits for a later enumeration proving absence.
   func restoreAndStart(completion: @escaping @Sendable (Bool) -> Void) {
     queue.async {
-      guard !self.enumerating else { completion(false); return }
-      self.enumerating = true
-      self.daemon.allTasks { tasks in
-        self.queue.async {
-          defer {
-            self.enumerating = false
-            self.completeDrainIfPossible()
-          }
-          do { try self.reconcile(tasks); completion(true) }
-          catch { self.storageBlocked = true; completion(false) }
+      guard !self.restoring && !self.controlInFlight else { completion(false); return }
+      self.restoring = true
+      self.enumerate(completion: completion)
+    }
+  }
+  private func enumerate(resolvedAt epoch: UInt64? = nil, completion: @escaping @Sendable (Bool) -> Void) {
+    enumerating = true
+    daemon.allTasks { tasks in
+      self.queue.async {
+        defer {
+          // Only LOCAL reconciliation fences delegate drain, never a control socket.
+          self.enumerating = false
+          self.completeDrainIfPossible()
         }
+        do {
+          if try self.reconcile(tasks, controlResolved: epoch == self.eventEpoch) {
+            try self.query { [weak owner = self] ok, schedule in
+              guard let owner else { completion(false); return }
+              if schedule { owner.enumerate(resolvedAt: owner.eventEpoch, completion: completion) }
+              else { owner.restoring = false; completion(ok) }
+            }
+          } else { self.restoring = false; completion(true) }
+        } catch { self.storageBlocked = true; self.restoring = false; completion(false) }
       }
     }
   }
@@ -91,11 +135,12 @@ final class BackgroundRuntime: @unchecked Sendable {
     let context = try state.outcome(master: master)
     return (context, try SealedProtocol.Keys(master: master, outcome: context))
   }
-  private func reconcile(_ tasks: [BackgroundTask]) throws {
+  /// True requests remote reconciliation AFTER durable local task uncertainty.
+  private func reconcile(_ tasks: [BackgroundTask], controlResolved: Bool) throws -> Bool {
     guard let state = ledger.state else {
       tasks.forEach { daemon.cancel($0.id) }
       if !tasks.isEmpty { throw BackgroundFailure.blocked } // No authenticated job context to reconcile.
-      return
+      return false
     }
     // Cancel intent is honored even if manifest/Keychain/protected data cannot be opened.
     if state.cancelOperation != nil { tasks.forEach { daemon.cancel($0.id) } }
@@ -118,19 +163,24 @@ final class BackgroundRuntime: @unchecked Sendable {
       }
     }
     if state.phase == "blocked" || state.phase == "preparing" { throw BackgroundFailure.blocked }
-    let (m, keys) = try material() // No protected-data fallback or fabricated empty job.
+    let (_, keys) = try material() // No protected-data fallback or fabricated empty job.
     if let receipt = state.receiptOutcome {
       _ = try SealedProtocol.VerifiedReceipt.verify(receipt, keys: keys).toOriginalReceipt()
-      tasks.forEach { daemon.cancel($0.id) }; return
+      tasks.forEach { daemon.cancel($0.id) }; return false
     }
     let uncertain = unknown || ledger.state!.groups.contains(where: \.uncertain)
-    if uncertain || state.cancelOperation != nil || state.phase == "verifying" || state.phase == "reconciling" {
-      try query(m, keys: keys)
+    if !controlResolved && (uncertain || state.cancelOperation != nil || state.phase == "verifying" || state.phase == "reconciling") {
+      // A process may die after OS completion and before the socket returns. This state,
+      // existing correlations, and cancel ID suffice for another authenticated attempt.
+      try ledger.change { s in
+        if s.cancelOperation == nil && s.phase != "verifying" { s.phase = "reconciling" }
+      }
+      return true
     }
     storageBlocked = false
     guard let current = ledger.state, current.cancelOperation == nil, current.receiptOutcome == nil,
-      !["cancelled", "blocked"].contains(current.phase), current.expires > UInt64(Date().timeIntervalSince1970) else { return }
-    if unknown { try ledger.change { $0.phase = "reconciling" }; return }
+      !["cancelled", "blocked"].contains(current.phase), current.expires > UInt64(Date().timeIntervalSince1970) else { return false }
+    if unknown { try ledger.change { $0.phase = "reconciling" }; return false }
     try backgroundRequire(current.groups.count == current.groupCount)
     for g in current.groups {
       if current.bitmap & (UInt64(1) << g.index) != 0 { continue }
@@ -155,28 +205,63 @@ final class BackgroundRuntime: @unchecked Sendable {
       try boundary(.resumed)
       try ledger.change { s in s.groups[g.index].resumed = true; s.phase = "transferring" }
     }
+    return false
   }
-  private func query(_ m: SealedProtocol.OutcomeContext, keys: SealedProtocol.Keys) throws {
-    guard let state = ledger.state else { throw BackgroundFailure.blocked }
+  /// Capture authenticated immutable context, never ledger, keys, or daemon objects on
+  /// the worker. Verify against CURRENT high-water/cancel/event fences on return.
+  private func query(completion: @escaping @Sendable (Bool, Bool) -> Void) throws {
+    guard !controlInFlight, let state = ledger.state else { throw BackgroundFailure.uncertain }
+    let (m, _) = try material()
     let q = try SealedProtocol.Query.fresh(operation: state.cancelOperation ?? BackgroundPreseal.uuid())
-    let bytes = try state.cancelOperation == nil ? control.status(m, query: q) : control.revoke(m, query: q)
-    let status = try SealedProtocol.VerifiedStatus.verify(bytes, keys: keys, query: q, highWater: state.revision)
-    // Receiver loss of a previously authenticated range is an integrity incident, not restart-at-zero.
-    try backgroundRequire(status.groupBitmap & state.bitmap == state.bitmap)
-    if let receipt = status.receipt {
-      try receive(receipt, keys: keys); return
-    }
-    try ledger.change { s in
-      s.revision = status.revision
-      if s.cancelOperation == nil {
-        s.bitmap = status.groupBitmap
-        s.phase = status.state >= 4 ? "blocked" : status.state == 2 ? "verifying" : "reconciling"
-      } else {
-        s.phase = status.state >= 4 ? "cancelled" : "cancelRequested"
-        s.remoteCleanup = status.cleanup == 2
+    let cancel = state.cancelOperation, epoch = eventEpoch
+    controlInFlight = true
+    control.submit(m, query: q, revoke: cancel != nil) { [weak self] result in
+      guard let self else { return }
+      self.queue.async {
+        var ok = false, schedule = false
+        do {
+          guard let current = self.ledger.state, current.outcomeBytes == m.bytes else { throw BackgroundFailure.blocked }
+          let (_, keys) = try self.material()
+          let status = try SealedProtocol.VerifiedStatus.verify(result.get(), keys: keys, query: q, highWater: current.revision)
+          try backgroundRequire(status.groupBitmap & current.bitmap == current.bitmap)
+          if let receipt = status.receipt { try self.receive(receipt, keys: keys) }
+          else if current.receiptOutcome == nil && current.cancelOperation == cancel {
+            try self.ledger.change { s in
+              s.revision = status.revision
+              if s.cancelOperation == nil {
+                s.bitmap = status.groupBitmap
+                s.phase = status.state >= 4 ? "blocked" : status.state == 2 ? "verifying" : "reconciling"
+              } else {
+                s.phase = status.state >= 4 ? "cancelled" : "cancelRequested"
+                s.remoteCleanup = status.cleanup == 2
+              }
+              // Events accepted since dispatch may have introduced NEW uncertainty.
+              if self.eventEpoch == epoch { for i in s.groups.indices { s.groups[i].uncertain = false } }
+            }
+            schedule = cancel == nil && status.state == 1 && self.eventEpoch == epoch
+          }
+          self.storageBlocked = false; ok = true
+        } catch {
+          // Network, missing protected authority and stale replies retain durable uncertainty.
+          // They do not erase the job, clear cancel, or manufacture a receipt.
+        }
+        self.controlInFlight = false
+        completion(ok, schedule)
+        if let pending = self.pendingCancel {
+          self.pendingCancel = nil
+          self.revoke(completion: pending)
+        }
       }
-      for i in s.groups.indices { s.groups[i].uncertain = false }
     }
+  }
+  private func revoke(completion: @escaping @Sendable (Bool) -> Void) {
+    if ledger.state?.receiptOutcome != nil { completion(true); return }
+    if controlInFlight {
+      guard pendingCancel == nil else { completion(false); return }
+      pendingCancel = completion; return
+    }
+    do { try query { ok, _ in completion(ok) } }
+    catch { completion(false) }
   }
   func cancel(completion: @escaping @Sendable (Bool) -> Void) {
     queue.async {
@@ -190,8 +275,7 @@ final class BackgroundRuntime: @unchecked Sendable {
         self.daemon.allTasks { tasks in
           self.queue.async {
             tasks.forEach { self.daemon.cancel($0.id) }
-            do { let (m, keys) = try self.material(); try self.query(m, keys: keys); completion(true) }
-            catch { completion(false) } // local fence survives offline/missing key/inaccessible minimal storage
+            self.revoke(completion: completion) // local fence survives offline/missing protected material
           }
         }
       } catch { self.storageBlocked = true; completion(false) }
@@ -230,6 +314,7 @@ final class BackgroundRuntime: @unchecked Sendable {
     queue.async { self.applyEvent(event); completion() }
   }
   private func applyEvent(_ event: BackgroundTaskEvent) {
+    eventEpoch &+= 1
     do {
       guard let state = ledger.state,
         let g = state.groups.first(where: { $0.taskID == event.id && $0.correlation == event.correlation }),

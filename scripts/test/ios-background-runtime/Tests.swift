@@ -8,6 +8,7 @@ final class TestControl: BackgroundControl, @unchecked Sendable {
   var bitmap: UInt64 = 0, revision: UInt64 = 1
   var state: UInt8 = 1, cleanup: UInt8 = 0
   var offline = false, stale = false
+  var receipt = Data()
   var operations: [Data] = [], challenges: [Data] = []
   func setup(_ m: SealedProtocol.Manifest) throws -> Data {
     if let manifest { try backgroundRequire(manifest.digest == m.digest) }
@@ -21,7 +22,7 @@ final class TestControl: BackgroundControl, @unchecked Sendable {
     challenges.append(query.challenge)
     let q = stale ? try SealedProtocol.Query.fresh(operation: query.operation) : query
     return try SealedProtocol.encodeStatus(keys: keys(), query: q,
-      fields: .init(revision: revision, state: state, cleanup: cleanup, groupBitmap: bitmap))
+      fields: .init(revision: revision, state: state, cleanup: cleanup, groupBitmap: bitmap), receipt: receipt)
   }
   func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
     operations.append(query.operation)
@@ -60,13 +61,16 @@ final class HeldControl: BackgroundControl, @unchecked Sendable {
   let backend = TestControl()
   let entered = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
   func setup(_ m: SealedProtocol.Manifest) throws -> Data { try backend.setup(m) }
-  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+  private func hold(_ result: Result<Data, Error>) throws -> Data {
     entered.signal()
     guard release.wait(timeout: .now() + 15) == .success else { throw BackgroundFailure.uncertain }
-    return try backend.status(m, query: query)
+    return try result.get()
+  }
+  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+    try hold(Result { try backend.status(m, query: query) })
   }
   func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
-    try status(m, query: query)
+    try hold(Result { try backend.revoke(m, query: query) })
   }
 }
 
@@ -126,6 +130,9 @@ func testGenerate(_ url: URL, count: Int) throws {
   try output.synchronize()
 }
 func runRuntimeTests(_ base: URL) throws -> [String] {
+  func backgroundRequire(_ value: Bool, line: Int = #line) throws {
+    if !value { throw NSError(domain: "runtime-test-line-\(line)", code: 1) }
+  }
   var passed: [String] = []
   let source = base.appendingPathComponent("small-original")
   try testGenerate(source, count: 1024 * 1024 + 7)
@@ -168,6 +175,99 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     try backgroundRequire(command.wait(timeout: .now() + 5) == .success)
     try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
     passed.append(name)
+  }
+  for final in [false, true] {
+    let c = HeldControl(), d = TestDaemon(), directory = root("held-cancel-race-\(final)")
+    let r = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    try r.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    let saved = try testState(directory)
+    c.backend.bitmap = 1; c.backend.revision = 4
+    if final {
+      c.backend.state = 3
+      c.backend.receipt = try SealedProtocol.encodeReceipt(keys: c.backend.keys(), id: BackgroundPreseal.uuid(),
+        verifiedAt: UInt64(Date().timeIntervalSince1970), revision: 4)
+    }
+    d.tasks = []
+    let restored = DispatchSemaphore(value: 0), cancelled = DispatchSemaphore(value: 0), drained = DispatchSemaphore(value: 0)
+    r.restoreAndStart { _ in restored.signal() }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal(); c.release.signal() }
+    r.cancel { _ in cancelled.signal() }
+    // Ordered barrier proves local cancel persisted, without waiting for remote revoke.
+    try testEvent(r, .init(id: -1, correlation: nil, status: 0, body: Data(), transportOK: false))
+    let cancelID = try testState(directory).cancelOperation
+    try backgroundRequire(cancelID != nil)
+    for _ in 0..<8 {
+      try backgroundRequire(!(try testAwait { r.restoreAndStart(completion: $0) }))
+      try backgroundRequire(!(try testAwait { r.cancel(completion: $0) }))
+    }
+    r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) {
+      MainActor.assertIsolated()
+      if (try? testState(directory).cancelOperation) == cancelID { drained.signal() }
+    }
+    r.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    c.release.signal()
+    try backgroundRequire(restored.wait(timeout: .now() + 5) == .success)
+    if !final {
+      try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+      let late = try testState(directory)
+      try backgroundRequire(late.cancelOperation == cancelID && late.phase == "cancelRequested"
+        && late.confirmedBytes == 0 && d.created == 1)
+      c.release.signal()
+    }
+    try backgroundRequire(cancelled.wait(timeout: .now() + 5) == .success)
+    let after = try testState(directory)
+    try backgroundRequire(after.job == saved.job && after.cancelOperation == cancelID && d.created == 1)
+    try backgroundRequire(final ? after.receiptOutcome == c.backend.receipt && after.phase == "received" : after.confirmedBytes == 0)
+    try backgroundRequire(c.backend.operations.count == (final ? 0 : 1))
+    // Remote completion cannot reconsume an OS token. A later callback needs a new finish.
+    try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
+    r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { MainActor.assertIsolated(); drained.signal() }
+    try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
+    r.finishEventsForTesting(); r.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
+    passed.append(final ? "held-final-receipt-wins-local-cancel" : "held-late-uploading-status-cannot-undo-cancel")
+    passed.append("bounded-coalescing-and-callback-after-drain-\(final)")
+  }
+  for networkError in [false, true] {
+    let c = HeldControl(), d = TestDaemon(), directory = root("held-reopen-\(networkError)")
+    var r: BackgroundRuntime? = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    try r!.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r!.restoreAndStart(completion: $0) })
+    let before = try testState(directory)
+    d.tasks = []; c.backend.offline = networkError
+    let command = DispatchSemaphore(value: 0), drained = DispatchSemaphore(value: 0)
+    r!.restoreAndStart { _ in command.signal() }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal() }
+    r!.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { MainActor.assertIsolated(); drained.signal() }
+    r!.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    if networkError {
+      c.release.signal()
+      try backgroundRequire(command.wait(timeout: .now() + 5) == .success)
+      try backgroundRequire(try testState(directory).groups[0].uncertain)
+    }
+    weak let old = r
+    r = nil // Process-loss seam: worker must not retain the ledger owner while its request waits.
+    try backgroundRequire(old == nil)
+    let uncertain = try testState(directory)
+    try backgroundRequire(uncertain.groups[0].uncertain && uncertain.phase == "reconciling" && uncertain.job == before.job)
+    c.backend.offline = false
+    r = try BackgroundRuntime(directory: directory, create: false, keychainService: service,
+      control: c.backend, cellular: false, activeUnlocked: { true }, daemon: d)
+    try backgroundRequire(try testAwait { r!.restoreAndStart(completion: $0) })
+    let reopened = try testState(directory)
+    try backgroundRequire(reopened.job == before.job && reopened.generation == before.generation
+      && reopened.groups[0].correlation == before.groups[0].correlation && d.created == 2)
+    c.release.signal()
+    try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
+    passed.append(networkError ? "held-network-error-durable-reopen-same-identity" : "reopen-after-os-drain-before-control-completion")
   }
   for point in [BackgroundBoundary.consumed, .encrypted, .groupPublished, .groupRecorded, .setupSaved] {
     let name = "seal-" + point.rawValue, c = TestControl(), d = TestDaemon()

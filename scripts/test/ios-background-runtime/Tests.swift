@@ -39,6 +39,22 @@ final class TestDaemon: BackgroundDaemon, @unchecked Sendable {
   func cancel(_ id: Int) { cancelled.append(id) }
 }
 
+final class DeferredEnumerationDaemon: BackgroundDaemon, @unchecked Sendable {
+  private let lock = NSLock()
+  private var callback: (@Sendable ([BackgroundTask]) -> Void)?
+  let entered = DispatchSemaphore(value: 0)
+  func allTasks(_ completion: @escaping @Sendable ([BackgroundTask]) -> Void) {
+    lock.lock(); callback = completion; lock.unlock(); entered.signal()
+  }
+  func deliver(_ tasks: [BackgroundTask]) {
+    lock.lock(); let completion = callback; callback = nil; lock.unlock()
+    completion?(tasks)
+  }
+  func create(file: URL, origin: String, correlation: String, bytes: UInt64) throws -> BackgroundTask { throw BackgroundFailure.blocked }
+  func resume(_ id: Int) throws { throw BackgroundFailure.blocked }
+  func cancel(_ id: Int) {}
+}
+
 func testState(_ root: URL) throws -> BackgroundState {
   var db: OpaquePointer?, statement: OpaquePointer?
   guard sqlite3_open_v2(root.appendingPathComponent("ledger.sqlite").path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else { throw BackgroundFailure.storage }
@@ -406,6 +422,24 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     r.finishEventsForTesting()
     try backgroundRequire(signal.wait(timeout: .now() + 0.1) == .timedOut)
     passed += ["unowned-main-completion", "multiple-completions-once-after-durable-drain"]
+  }
+  for failReconciliation in [false, true] {
+    let d = DeferredEnumerationDaemon(), c = TestControl()
+    let r = try BackgroundRuntime(directory: root("enumeration-drain-\(failReconciliation)"), create: true,
+      keychainService: service, control: c, cellular: false, activeUnlocked: { false }, daemon: d)
+    let completed = DispatchSemaphore(value: 0), restored = DispatchSemaphore(value: 0)
+    r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { MainActor.assertIsolated(); completed.signal() }
+    r.restoreAndStart { _ in restored.signal() }
+    try backgroundRequire(d.entered.wait(timeout: .now() + 5) == .success)
+    r.finishEventsForTesting()
+    // Queue barrier: the sole finish event is processed while enumeration is held.
+    try testEvent(r, .init(id: -1, correlation: nil, status: 0, body: Data(), transportOK: false))
+    try backgroundRequire(completed.wait(timeout: .now() + 0.1) == .timedOut)
+    d.deliver(failReconciliation ? [.init(id: 999, correlation: UUID().uuidString, suspended: true)] : [])
+    try backgroundRequire(restored.wait(timeout: .now() + 5) == .success)
+    try backgroundRequire(completed.wait(timeout: .now() + 5) == .success)
+    try backgroundRequire(completed.wait(timeout: .now() + 0.1) == .timedOut)
+    passed.append(failReconciliation ? "finish-during-failed-enumeration-drains-once" : "finish-during-enumeration-drains-once")
   }
   return passed
 }

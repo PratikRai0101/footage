@@ -41,6 +41,7 @@ func probeRuntimeDrain(_ docs: URL) throws -> [String: Any] {
     runtime.finishEventsForTesting()
     try backgroundRequire(completed.wait(timeout: .now() + 5) == .success)
   }
+  try backgroundRequire(!missedDrain)
   return ["unitOnly": true, "finishDuringEnumerationLeavesPendingToken": missedDrain,
     "extraSyntheticFinishNeeded": missedDrain]
 }

@@ -13,6 +13,14 @@ Two independently reproduced completion defects prevent claiming a complete syst
 
 Neither other owner's source was modified to conceal these defects.
 
+## Parent integration update
+
+The host/subscriber and actual Expo tests are now integrated, still fail-closed and preview-only. Since this worker's isolated base, paired `BackgroundControl`, the macOS OS-wrapping backend and receiver supervision have also been integrated; their standalone paired proof does not retroactively make this Expo test paired.
+
+The parent reproduced the enumeration/drain defect with a deterministic native regression: hold `getAllTasks`, deliver the only finish event, then release enumeration. The unmodified runtime failed. The fix clears `enumerating` and then rechecks drain in the same defer on every reconciliation exit. Both normal and failed reconciliation now drain once without another finish event. All **39 native cases**, all **105 current root tests**, typecheck and lint pass after that correction. The Expo fixture's old defect probe now requires the race to be absent.
+
+The Expo outer aggregation issue below remains unfixed in this recorded app build. Actual OS-event aggregation must be rerun after ownership routing is corrected. No G5 pass or paired normal-app activation is claimed.
+
 ## Implemented native assembly
 
 Implementation commit: `912c1dc`. Actual-app tests and defect reproductions: `cc86f48`.

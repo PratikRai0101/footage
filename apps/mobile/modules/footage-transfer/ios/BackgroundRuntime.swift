@@ -75,10 +75,12 @@ final class BackgroundRuntime: @unchecked Sendable {
       self.enumerating = true
       self.daemon.allTasks { tasks in
         self.queue.async {
-          defer { self.enumerating = false }
+          defer {
+            self.enumerating = false
+            self.completeDrainIfPossible()
+          }
           do { try self.reconcile(tasks); completion(true) }
           catch { self.storageBlocked = true; completion(false) }
-          self.completeDrainIfPossible()
         }
       }
     }

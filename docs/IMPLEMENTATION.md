@@ -1,61 +1,39 @@
-# Completion plan
+# Implementation status — 0.5.0
 
-Status is based on working code and recorded checks, not mockups. No percentage is assigned: finishing the screen is not finishing the upload-to-thread workflow.
+Status describes the actual local prototype, not store/physical-device certification. GitHub CI/CD remains disabled; checks run locally.
 
-## Working
+## Implemented and exercised
 
-- Approved full-frame interface, serif typography and restrained colors.
-- Actual iPhone Simulator picker, metadata and full-frame playback.
-- Android native original preparation, resumable transfer, cancellation and matching receipts, under the versions/conditions named in evidence.
-- Desktop receiver: resumable storage, original byte/hash verification, durable outcomes and a read-only browser viewer.
-- Public repository and small commits. GitHub CI/CD is disabled; checks run locally before pushes.
+- Approved full-frame layout, Instrument Serif and charcoal/warm-white styling, unchanged.
+- **Ordinary iPhone Release app:** native Files selection with retained original URL grant, real metadata/preview, private computer connection import, explicit native trust/destination confirmation and operator-approved enrollment. Before connection, Preview only is deliberate.
+- **Native original ownership:** after Upload original, stage/hash/full-preseal, durable ledger, encrypted file-backed background URLSession tasks, original-byte confirmed progress and authenticated matching receipt. No video bytes, signing keys or upload credentials cross the JS bridge.
+- **Actual ordinary-app background completion:** a generated 79,595,914-byte, two-group MP4 completed at the receiver and reached native `received` while the app remained backgrounded after Home. The receiver was paused until background state was observed. This was not a lifecycle-fixture app or a foreground-only uploader. See [current evidence](evidence/normal-app-0.5.md).
+- Consecutive uploads durably archive earlier originals/receipts before reusing the active slot. Cold relaunch restores the current receipt. Cancellation records intent; offline cleanup is not represented as completed deletion.
+- **Mac receiver:** explicit HTTPS provisioning, app-scoped trust, local enrollment approval, macOS Keychain wrapping, bounded sealed ingest, shared durable Jobs receipts, supervised finalization and receipt-gated read-only viewing. Conservative admission is **1 GiB**, within quota/disk budgets; the binary 4-GiB ceiling is not advertised capacity.
+- **Explicit T3 handoff on the computer:** allowlisted same-host environment/project/thread/workspace selected at receiver configuration. `deliver JOB_ID` streams and independently hashes the original into the exact workspace without starting an agent. `send JOB_ID` separately queues a text reference, with durable target/receipt/request/auth-namespace identity and uncertain-result reconciliation. No active-thread following, large-attachment limit bypass or direct T3 database modification.
+- T3 handoff uses an explicitly supplied outside-client credential. The owned MCP contract fixture tests lost replies, restart, duplicate/concurrent retry, wrong/archived targets and original integrity. **No live T3 account was sent a message, and no Cardboard action was run.** There is no phone-side send button.
+- One shared Expo app retains the existing Android native tus/foreground-service/user-initiated-job path. Android paired connection/T3 workflow parity is not claimed; Android still uses its existing receiver setup.
 
-## Next verified units
+## Run it
 
-1. **Native iPhone background upload.** A foreground upload core has passed Simulator tests on a separate implementation branch, but foreground-only behavior does not meet the requirement and is not merged into `main`. Build on that work without substituting manual continuation for real background transfer. Preserve native staging/hash, durable identity, confirmed progress, truthful cancellation and matching receipts. Keep the design and copy lean.
-2. **Authorized desktop connection and T3 destination selection.** Keep credentials on the desktop; expose only allowed environments/projects/threads. Pin exact identities when the user confirms upload. Never choose a later active thread on the user's behalf.
-3. **Large original available to the chosen thread.** Validate the selected thread/workspace, make the verified original available there and retain a durable delivery record. No attachment-limit bypass, private database edits or fake thread publication.
-4. **Explicit, retry-safe T3 dispatch.** User confirmation starts an agent turn without interrupting active work. Reconcile uncertain responses using the same immutable message identity; no duplicate messages or byte reupload. Cardboard editing remains a separate user request.
-5. **Full end-to-end acceptance.** iPhone select/review/upload/background continuation/interruption/reopen/receipt/thread delivery, wrong or unavailable target, cancellation cleanup and a separately requested Cardboard inspection/edit. Verify both iPhone and Android builds of the shared app; do not create an iPhone-only fork. Run on actual built apps and preserve build-scoped evidence.
+See **[RUN.md](RUN.md)** for the private connection-file flow, Mac receiver, operator commands, explicit T3 configuration and platform limits. Build outputs remain ignored local artifacts, not a store distribution.
 
-## Separate unfinished background requirement
+## Background safety and activation scope
 
-A standalone native probe proved Apple's background URLSession follows redirects without calling the redirect-veto delegate. Another origin received the complete generated payload. The foreground control honored the veto. See `evidence/ios-background-origin-blocker.md`.
+Apple background URLSession can follow redirects without consulting the redirect-veto callback. TLS/ATS-only protection was experimentally rejected. The implemented transport allows **immutable ciphertext/public framing** to redirect, never original plaintext or reusable write/delete authority. Exact-origin pinned nonredirecting control and authenticated G2 outcomes remain mandatory.
 
-**Corrected requirement:** background upload remains mandatory. The foreground-only milestone was an assistant-selected tradeoff, not user approval to remove that requirement. Keep its tested code as a foundation on a separate branch; do not activate it on `main` or present it as the finished iPhone feature.
+The integrated engine has native ledger/recovery/fault tests and actual paired Expo OS wakes before JS, including durable handoff while a separate remote control response remains pending. Exact session-ID AppDelegate routing preserves unrelated Expo behavior. The held-control lifecycle fixture has its documented startup rendezvous; it is not silently relabelled as natural scheduling or ordinary production configuration.
 
-The [standalone background proof](evidence/ios-background-transport-probe.md) rejected TLS/ATS pinning alone: an HTTP downgrade still disclosed the generated original. Sealed upload content and authenticated acknowledgments passed the bounded proof, including daemon-owned transfer while the test app was stopped. This is not integrated app behavior, durable multi-chunk recovery, pairing, or final-receipt acceptance.
+**Scoped activation decision:** normal 0.5 local-prototype controls are enabled only after explicit authorized native connection, following the ordinary-app acceptance above. This supersedes the earlier blanket "normal controls remain disabled" milestone. It does not assert that all [G1–G7 release gates](architecture/sealed-background-upload.md) passed or weaken any cryptographic/authority check. Production/store acceptance remains **NO-GO** pending the following work.
 
-The [independent security/architecture review and implementation contract](architecture/sealed-background-upload.md) conditionally accepts B's fundamentals for isolated implementation slices, not activation. It compares full presealed groups against bounded native refill and selects full preseal with bounded authenticated frames aggregated into larger immutable file-backed tasks. The review found and corrected a research-listener self-test ordering defect; live regression tests now prove rejected packets cannot publish an original. The historical Simulator proof was not rerun for that proof-only change.
+## Still required for broader release
 
-The model allows encrypted content to follow redirects, not original plaintext or reusable authority. Do not describe background URLSession as rejecting redirects when it does not. The received original must still match the original bytes and hash. The parent accepted the corrected contract for isolated implementation (G0). Gates G1–G7 (pairing, canonical codec/crypto, durable common receiver receipts, native ledger, actual Expo no-JS lifecycle, shared-app acceptance and physical iPhone/Android evidence) remain required before real-upload activation/completion.
-
-A server promise not to redirect, checking the final response URL, or merely stripping Authorization is not an adequate fix for original-file disclosure. Any different transport/authority design must be explicitly reviewed and verified before integration. Force-quit must never be presented as a guaranteed automatic restart.
-
-## Background architecture gate
-
-- [x] Ground: existing native ownership, SQLite/tus outcomes and receipt boundary; see `architecture/engineering-walkthrough.md` and the upload-core branch.
-- [x] Sketch: independent proof review and [design contract](architecture/sealed-background-upload.md) recorded, including caller-first interfaces, canonical framing/limits, pairing, native lifecycle, cancellation and durable common receiver outcomes. Both full presealed groups and bounded native refill evaluated; full preseal selected as the proposed first slice.
-- [x] Agree: parent accepts the corrected [G0 contract](architecture/sealed-background-upload.md#g0-acceptance--parent-integration-review). **GO for isolated implementation; NO-GO for real-upload activation** until its gates pass. Corrected group overhead, QR bounds and enrollment proof-of-possession are recorded before parallel implementation. This is not production approval, a foreground-only substitution or a weakening of confidentiality or authority.
-- [ ] Implement the usable app: native components are integrated, but normal iPhone uploads remain disabled. The verified engine is not the finished product.
-
-### Current integrated result
-
-- Paired encrypted transfers, macOS Keychain wrapping, supervised durable receiver publication and shared original receipts work in the recorded native/Expo tests. The explicit paired service admits up to 1 GiB, subject to remaining capacity.
-- Real paired Expo OS wakes process receipts without JS. Exact-ID AppDelegate routing and enumeration drain ordering are fixed.
-- Remote setup/status/revoke no longer block the serialized event owner. One actual held-control run completed UIKit handoff while the TLS response remained pending; later fixture-ordering failures remain documented, not relabelled success.
-- Parent independently reran **105 root tests**, **50 native cases**, the three routing-plugin tests, typecheck and lint after integrating the final fix. The root run opted into the fresh-item macOS Keychain test. No new full Expo build was run by the parent for that merge.
-
-### Product work still unfinished
-
-- Normal native installation, iOS bridge/snapshot/command activation and user-facing connection/confirmation flow. The current ordinary build remains preview-only; there is no release acceptance claim.
-- Private LAN/local-network denial, AndroidKeyStore and current shared-app acceptance, physical iPhone/Android testing. JVM networking and Simulator process experiments do not certify those conditions.
-- T3 destination selection, workspace delivery and explicit retry-safe dispatch. Reserved view/list interfaces still have no activated reply schemas.
-- Retention/repair and replacement-generation workflows. Six early test-only Keychain entries remain unresolved because their exact IDs were not retained; current fixtures track/delete their own exact items.
-
-Historical version-scoped checks and exact limitations remain in the linked evidence and architecture contract. No agents remain running after the nonblocking-control handoff.
-- [ ] Scrap when needed: reject a design if concrete failures contradict its model; do not paper over them with unverified success states. The TLS/ATS-only candidate is already rejected.
+- Physical iPhone protection/lock, LAN permission denial, network changes and sustained large-file behavior; no user-force-quit automatic-restart guarantee.
+- Current Android native/device acceptance and paired T3 workflow parity. Historical Samsung/API33 results are version-scoped, not current release certification; JVM pairing does not prove AndroidKeyStore.
+- Live, explicitly authorized T3 compatibility/dispatch acceptance and separately requested Cardboard inspection/edit. Contract-fixture success is not a real-account end-to-end claim.
+- Viewer sharing across devices with private-CA trust, receiver retention/repair, replacement-generation/operator migration workflows, and Windows/Linux wrapping backends. Reserved destination-list transport remains unavailable; selected destinations currently come from the authenticated private connection export.
+- Six historical test-only macOS Keychain entries lack exact IDs and remain unresolved. Do not enumerate/delete unrelated credentials. Current fixtures record their exact namespace before initialization, refuse to overwrite unresolved cleanup metadata, and delete only that item.
 
 ## Delivery discipline
 
-Use small coherent commits, run local tests/typecheck/lint and the public-history preflight, then push. Leave the parent worktree clean. Isolated implementation work is reviewed and integrated before it is represented as shipped. Do not re-enable GitHub automation or change account billing.
+Small coherent commits; local tests/typecheck/lint and public-history preflight before push; clean worktree. No GitHub automation, billing changes, deployment, personal-media inspection or real agent/Cardboard action is implied by this implementation. Earlier design/probe documents remain historical and version-scoped.

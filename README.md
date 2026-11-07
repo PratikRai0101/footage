@@ -2,9 +2,9 @@
 
 An independent original-video intake prototype. Not an official Cardboard app or integration.
 
-## Current iPhone build: 0.4.0
+## Current build: 0.5.0
 
-The approved full-frame layout, Instrument Serif and charcoal/warm-white palette are implemented in the app. The Release build runs on a dedicated iPhone 17 Pro Simulator (iOS 26.2), with embedded JavaScript and no Metro. Actual picker selection, video metadata, full-frame playback, closing playback and larger text were verified. Main-screen copy stays short; platform details remain under About.
+The normal iPhone Release app now connects to a computer and uploads originals through the native background engine. Real system-picker selection, explicit trust/destination confirmation, two consecutive uploads with distinct matching receipts, cold relaunch and the pinned read-only received viewer were exercised on iOS 26.2 Simulator. The approved full-frame layout, Instrument Serif and charcoal/warm-white palette are unchanged. No test-build switch or JS byte uploader is required.
 
 ```sh
 npm ci
@@ -13,9 +13,11 @@ xcrun simctl install <simulator-id> artifacts/ios-simulator/Footage.app
 xcrun simctl launch <simulator-id> dev.footage.spike
 ```
 
-**iPhone is still preview-only.** Native iOS upload and the T3 destination/handoff are not implemented. No example T3 threads or non-working dispatch controls are shipped. The existing Android transfer engine and receiver remain unchanged; previous physical-phone results belong to their recorded versions, not this iPhone rebuild.
+**Connect first:** Settings → Connect computer imports a private two-minute connection file from your own computer and confirms its actual destination. Until connected, Preview only is intentional. Preparation needs the app open; prepared encrypted file-backed transfers use native background URLSession. Force-quit is not an automatic restart guarantee.
 
-Evidence: [`docs/evidence/full-frame-ios-rebuild.json`](docs/evidence/full-frame-ios-rebuild.json). Implementation notes: [`docs/architecture/full-frame-rebuild.md`](docs/architecture/full-frame-rebuild.md). Remaining work and acceptance milestones: [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
+**T3 handoff is explicit and computer-side:** `deliver JOB_ID` verifies the original in the chosen same-host thread workspace; `send JOB_ID` queues a retry-safe text reference and can start agent work. No automatic send/edit occurs, and there is no pretend phone dispatch button. Live T3 credential compatibility was not exercised against a personal account. See **[setup and complete workflow](docs/RUN.md)**.
+
+Current evidence: [`docs/evidence/normal-app-0.5.md`](docs/evidence/normal-app-0.5.md). Background lifecycle evidence: [`docs/evidence/expo-background-lifecycle.md`](docs/evidence/expo-background-lifecycle.md). The previous [0.4 rebuild](docs/evidence/full-frame-ios-rebuild.json) remains historical. Product limits: [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
 
 The Android upload flow remains: choose a clip, review its preview/metadata, confirm Upload, and receive a server-verified receipt. Kotlin owns copying, hashing, persistence and transfer; JavaScript never uploads video bytes or receives the upload capability.
 
@@ -62,7 +64,7 @@ npm run mobile -- --dev-client
 
 Only this development APK requires Metro. Expo Go cannot load the Kotlin module. For USB setup, reverse ports 8081 and 1080 and use `http://127.0.0.1:1080`; that route is not Wi-Fi evidence. Generated Android files come from Expo prebuild; custom native code stays in `apps/mobile/modules/footage-transfer/`.
 
-### iOS Simulator — preview only
+### iOS Simulator — native paired uploads
 
 ```sh
 npm run ios:build
@@ -70,15 +72,13 @@ xcrun simctl install <simulator-UUID> artifacts/ios-simulator/Footage.app
 xcrun simctl launch <simulator-UUID> dev.footage.spike
 ```
 
-The unsigned release-mode `.app` embeds JS/assets and needs no Metro. It runs only in Simulator, not on a physical iPhone. The available iPhone Duo / iOS 27.1 passed actual system selection, moving video playback, real duration/resolution, picker cancellation, appearance and enlarged-text checks. [iOS evidence and limitations](docs/evidence/ios-simulator.md).
-
-**iOS native uploads/background transfer are not implemented.** The iOS interface is explicitly preview-only; it does not offer a misleading Upload button. A system picker may import a temporary preview copy. This is distinct from Android's confirmed-upload/stable-copy contract.
+The ad-hoc-signed Release `.app` embeds JS/assets and needs no Metro. It is Simulator-only, not a physical iPhone distribution build. Follow [Connect a Mac](docs/RUN.md#connect-a-mac), then use the normal Upload original action. The paired receiver currently admits up to 1 GiB, subject to quota/disk. Private LAN denial, physical protection and Android paired-KeyStore execution still need device-scoped acceptance; no production reliability claim is made.
 
 ## Try the flow
 
 1. Configure your receiver, then choose a video with the system picker.
 2. Review the filename, size, available duration/resolution and local preview. The labeled Sintel sample still on the empty screen is never selected or uploaded.
-3. Confirm **Upload video**. Only now does Kotlin save and hash a stable app-owned copy. Keep the app open during preparation. If scheduling was interrupted, use **Continue upload**.
+3. Confirm **Upload original**. Only now does the native owner save and hash a stable app-owned copy. Keep the app open during preparation. If scheduling was interrupted, use **Continue upload**.
 4. Progress reflects receiver-confirmed bytes, not bytes written to a socket. Waiting retains the job and reconciles the server offset before resuming.
 5. **Checking your clip** is not success. **Original verified** requires a matching job, full byte length, SHA-256 and server receipt.
 6. Open **View received file** to play a supported original or download its unchanged bytes. Sharing mints a single-use link redeemable for two minutes. Anyone holding it can redeem it; the resulting read-only session lasts ten minutes.
@@ -89,9 +89,11 @@ Preview support depends on device/browser codecs. Missing metadata or failed pre
 
 See [the finish evidence](docs/evidence/mobile-finish.md) and [the full evidence matrix](docs/evidence/spike-status.md).
 
-- **Local tests:** 26 receiver HTTP tests, 18 mobile contract/presentation tests, two streaming-proxy tests, and two native origin tests. TypeScript, Expo lint and Android builds pass. Native lint has no errors; style/usable-space warnings remain.
+- **Current local checks:** receiver, codec, pairing and explicit T3 contract-fixture tests; shared presentation/device contracts; native runtime fault tests; typecheck and lint. See the current build evidence for exact counts. The T3 contract fixture is not a live-account send.
+- **Normal 0.5 iPhone app:** real connection-file picker/confirmation and native enrollment, upload/receipt, independent receiving hash, a second upload retaining the first original, cold relaunch, and read-only pinned viewer. Background OS-wake tests use the same engine in the separately scoped paired Expo acceptance build.
+- **Historical version-scoped checks:**
 - **API 36 emulator:** actual system picker, metadata, native preparation/upload, first-run notification consent, matching receipt, and standalone launch with Metro stopped. A real transport-proxy interruption resumed the same upload identity. This is not physical Wi-Fi or power-state evidence.
-- **iOS 27.1 Simulator:** standalone app, real Files picker/AVKit preview and metadata, neutral picker cancellation, themes and Accessibility Large. No iOS native upload or background claim.
+- **Historical iOS 27.1 preview build:** real Files picker/AVKit preview and metadata, neutral picker cancellation, themes and Accessibility Large. This record predates the 0.5 native uploader.
 - **Real Chromium:** authenticated original decoded, played, sought and downloaded; actual byte ranges and matching independent SHA-256 checked. Mobile browser emulation is not Safari or physical-phone proof.
 - **Historical physical Samsung, Android 13:** Home, USB route loss/recovery, real Wi-Fi loss/recovery, and a 350.8-second continuous screen-off AOD transfer with power saving on passed under the recorded conditions. The earlier failed stress runs remain failures. See [receiver fix](docs/evidence/receiver-disconnect-fix.md) and [screen-off fix](docs/evidence/android13-screen-wifi.md).
 
@@ -111,7 +113,7 @@ API 26–33 uses a foreground service with a bounded CPU wake lock and, when sta
 
 Cancellation retains cleanup-pending status when deletion is not confirmed. Server commit may win a cancellation race; an existing verified receipt is not revoked by Cancel. Received-artifact deletion and automatic retention are not implemented.
 
-Run one receiver process per data directory. Registration is open on the trusted private network, with 20 retained jobs, 8 GiB reserved bytes, a 4 GiB per-file ceiling and 100 cancellation tombstones. There is no public enrollment, TLS termination or production operations layer. Never publish capability headers, native private storage or authenticated requests.
+Run one receiver process per data directory. The legacy Android spike has open private-network registration. The explicit paired receiver uses HTTPS, app-scoped independent trust and local operator approval; it admits up to 1 GiB, within the existing 20-job/8-GiB budgets. The binary 4-GiB ceiling is not an admission guarantee. Neither receiver is advertised as an internet-ready production service. Never publish capability headers, native private storage or authenticated requests.
 
 ## Reproduce checks
 

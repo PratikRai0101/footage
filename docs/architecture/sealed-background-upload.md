@@ -1,6 +1,8 @@
 # Sealed background originals: independent review and implementation contract
 
-**Review date:** 2026-11-06. **Status:** reviewed design proposal; not integrated or enabled. This review was performed independently, without child agents. Production app/server sources, Android behavior and CI/CD remain unchanged.
+**Review date:** 2026-11-06. **Historical status at review:** proposal, not integrated or enabled; app/server sources, Android and CI/CD were then unchanged. The review below preserves that dated assessment.
+
+**Current 0.5 scope:** the reviewed engine is integrated and the explicitly paired local-prototype iPhone flow has passed ordinary Release/Simulator background acceptance. See [current activation decision and remaining release gates](../IMPLEMENTATION.md#background-safety-and-activation-scope) and [ordinary-app evidence](../evidence/normal-app-0.5.md). This is not a claim that all G1–G7 production/device gates passed. The following pre-implementation activation wording does not override that narrower, subsequently verified local-prototype scope.
 
 ## Overview
 

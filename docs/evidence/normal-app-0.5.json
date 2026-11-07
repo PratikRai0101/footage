@@ -1,0 +1,94 @@
+{
+  "version": "0.5.0",
+  "build": "5",
+  "sourceCommit": "3325dd2bc9c74da95ef076e3e778d8e4df300366",
+  "iOS": {
+    "device": "owned iPhone 16 Simulator",
+    "runtime": "26.2",
+    "ordinaryRelease": true,
+    "embeddedJS": true,
+    "testAssembly": false,
+    "finalExecutableSha256": "aa4996de9a0198a0c0bed079f2892e6d84df575fe632ac404ff3d37b5b0e6ef8",
+    "background": {
+      "ordinaryRelease": true,
+      "testAssembly": false,
+      "receiverPausedAt": 1794034968.740021,
+      "originalBytes": 79595914,
+      "groups": 2,
+      "confirmedBeforeBackground": 0,
+      "backgroundConfirmedAt": 1794034973.544021,
+      "receiverResumedAt": 1794034973.544045,
+      "receiverReceivedWhileAppBackgrounded": true,
+      "receiptId": "71ce9c74-e652-40de-b3fd-fef236b8edae",
+      "receivedAt": 1794034979.7988732,
+      "nativeReceiptWhileBackgrounded": true,
+      "nativePhaseWhileBackgrounded": "received"
+    },
+    "uploads": [
+      {
+        "jobId": "b62eeb2f-52ef-4280-9d6c-4489384e8262",
+        "receiptId": "f9b0e471-85e1-4041-8b9e-91be1124fd1a",
+        "bytes": 4098434,
+        "sha256": "869746acddbe7ad25970ac92b55d1a156b21f2bd7af5d33229534ece7f4dcab5",
+        "independentSourceReceiverNativeMatch": true
+      },
+      {
+        "jobId": "b661da15-f1d3-4df0-b8a0-4adcd012417e",
+        "receiptId": "e972e383-2d2b-486e-a700-f6edc012c448",
+        "bytes": 4098434,
+        "sha256": "869746acddbe7ad25970ac92b55d1a156b21f2bd7af5d33229534ece7f4dcab5",
+        "independentSourceReceiverNativeMatch": true
+      },
+      {
+        "jobId": "667da709-d519-4227-9170-29b0ec0315d7",
+        "receiptId": "d8f28890-8c4b-409d-ab56-491acc4d7cef",
+        "bytes": 79595914,
+        "sha256": "8c7615c1b7a0bff8f74a3979c39cf5daed127670fbc33c694d2cbf1af777e5bd",
+        "independentSourceReceiverNativeMatch": true
+      },
+      {
+        "jobId": "ca3a03df-9e04-487a-abad-9a3be7e56125",
+        "receiptId": "71ce9c74-e652-40de-b3fd-fef236b8edae",
+        "bytes": 79595914,
+        "sha256": "8c7615c1b7a0bff8f74a3979c39cf5daed127670fbc33c694d2cbf1af777e5bd",
+        "independentSourceReceiverNativeMatch": true
+      }
+    ],
+    "finalBuildColdReceiptRestore": true,
+    "finalPickerCancelNeutral": true,
+    "finalViewerReceiptMatched": true
+  },
+  "android": {
+    "releaseApkSha256": "97ee82167cce228555585ac7224ca8d45f89e85e012614c6b555cd3bace403ec",
+    "currentReleaseBuild": true,
+    "currentDeviceAcceptance": false,
+    "pairedT3Parity": false
+  },
+  "T3": {
+    "ownedContractFixture": true,
+    "liveAccountDispatch": false,
+    "cardboardAction": false
+  },
+  "checks": {
+    "rootPass": 108,
+    "nativeCases": 52,
+    "pairedServicePass": 8,
+    "routingPluginPass": 3,
+    "typecheck": true,
+    "lint": true
+  },
+  "limits": [
+    "Simulator is not physical lock/LAN acceptance.",
+    "No user-force-quit automatic restart claim.",
+    "Background run preceded only the final picker-dismissal delegate assignment; final build cold receipt restore checked separately. No retained hash for that preceding executable.",
+    "Existing Android receiver path retained; paired T3 workflow parity remains outstanding."
+  ],
+  "cleanup": {
+    "exactFreshMacKeychainItemDeleted": true,
+    "ownedReceiverClosed": true,
+    "nativeStatePreservedWithoutSimulatorKeychain": true,
+    "ownedAcceptanceSimulatorRemoved": true,
+    "parentSimulatorPreservedWithNormalBuild": true,
+    "previousAppAndApkBinariesRetained": true
+  }
+}

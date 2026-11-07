@@ -23,16 +23,15 @@ protocol BackgroundControl {
 
 final class BackgroundPreseal {
   let ledger: BackgroundLedger, keychain: BackgroundKeychain
-  let control: any BackgroundControl
   let activeUnlocked: () -> Bool
   let boundary: (BackgroundBoundary) throws -> Void
   var privateDirectory: URL { ledger.root.appendingPathComponent("private") }
   var original: URL { privateDirectory.appendingPathComponent("original") }
   var manifestURL: URL { privateDirectory.appendingPathComponent("manifest") }
   func packet(_ index: Int) -> URL { ledger.root.appendingPathComponent("group-\(index).sealed") }
-  init(ledger: BackgroundLedger, keychain: BackgroundKeychain, control: any BackgroundControl,
+  init(ledger: BackgroundLedger, keychain: BackgroundKeychain,
        activeUnlocked: @escaping () -> Bool, boundary: @escaping (BackgroundBoundary) throws -> Void) {
-    self.ledger = ledger; self.keychain = keychain; self.control = control
+    self.ledger = ledger; self.keychain = keychain
     self.activeUnlocked = activeUnlocked; self.boundary = boundary
   }
   private func checkActive() throws {
@@ -44,7 +43,9 @@ final class BackgroundPreseal {
       && a.st_mtimespec.tv_sec == b.st_mtimespec.tv_sec && a.st_mtimespec.tv_nsec == b.st_mtimespec.tv_nsec
       && a.st_ctimespec.tv_sec == b.st_ctimespec.tv_sec && a.st_ctimespec.tv_nsec == b.st_ctimespec.tv_nsec)
   }
-  func prepare(_ selection: BackgroundSelection) throws {
+  /// Owner-serialized staging. The foreground caller performs remote setup OUTSIDE
+  /// the event owner, then returns its bytes to finishPreparation on that owner.
+  func stage(_ selection: BackgroundSelection) throws -> SealedProtocol.Manifest {
     try checkActive(); try backgroundRequire(ledger.state == nil && selection.source.isFileURL)
     _ = try SealedProtocol.origin(selection.origin)
     _ = try SealedProtocol.text(selection.safeName, max: 240, name: true)
@@ -85,8 +86,12 @@ final class BackgroundPreseal {
     // Persist identity BEFORE setup: timeout or partial installation may not silently create a new job.
     try BackgroundFiles.save(m.bytes, to: manifestURL, complete: true)
     try ledger.save(try BackgroundState(m))
+    return m
+  }
+  func finishPreparation(_ m: SealedProtocol.Manifest, reply: Data) throws {
     do {
-      let reply = try control.setup(m)
+      try checkActive()
+      try backgroundRequire(ledger.state?.digest == m.digest && ledger.state?.phase == "preparing")
       _ = try SealedProtocol.decodeSetup(reply, manifest: m)
       // G2 intentionally doesn't export its master. Its exact 80-byte canonical setup
       // has already been validated; extract only its fixed master field for Keychain.

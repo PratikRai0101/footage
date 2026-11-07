@@ -63,7 +63,7 @@ func probeRuntimeDrain(_ docs: URL) throws -> [String: Any] {
   try backgroundRequire(drained.wait(timeout: .now() + 5) == .success)
   let deferred = try testState(root)
   try backgroundRequire(deferred.groups.allSatisfy { $0.uncertain && $0.taskID == nil }
-    && deferred.receiptOutcome == nil && deferred.confirmedBytes == 0 && offline.snapshot().phase == "blocked")
+    && deferred.receiptOutcome == nil && deferred.confirmedBytes == 0 && offline.snapshot().phase == "reconciling")
   return ["unitOnly": true, "finishDuringEnumerationLeavesPendingToken": missedDrain,
     "extraSyntheticFinishNeeded": missedDrain, "unavailableControlDrainedWithDurableUncertainty": true,
     "unavailableControlSeconds": Date().timeIntervalSince(started), "slowNetworkDeadlineProven": false]

@@ -3,6 +3,27 @@
 import UIKit
 import Foundation
 
+/// Instrument the actual paired adapter on its native control lane, not a mailbox.
+private final class ObservedPairedControl: BackgroundControl {
+  let adapter: PairingBackgroundControl, docs: URL
+  init(_ adapter: PairingBackgroundControl, docs: URL) { self.adapter = adapter; self.docs = docs }
+  func setup(_ m: SealedProtocol.Manifest) throws -> Data { try adapter.setup(m) }
+  private func started(_ revoke: Bool) throws {
+    try JSONSerialization.data(withJSONObject: ["started": Date().timeIntervalSince1970, "revoke": revoke])
+      .write(to: docs.appendingPathComponent("native-control-start.json"), options: .atomic)
+  }
+  private func ended() {
+    try! JSONSerialization.data(withJSONObject: ["ended": Date().timeIntervalSince1970])
+      .write(to: docs.appendingPathComponent("native-control-ended.json"), options: .atomic)
+  }
+  func status(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+    try started(false); defer { ended() }; return try adapter.status(m, query: query)
+  }
+  func revoke(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query) throws -> Data {
+    try started(true); defer { ended() }; return try adapter.revoke(m, query: query)
+  }
+}
+
 @MainActor
 enum ExpoLifecycleFixture {
   static let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -39,11 +60,41 @@ enum ExpoLifecycleFixture {
       confirmed = try native { try await PairingNativeConfirmedIntake.restoreConfirmedJob(job, client: client) }
       pinned = try native { try await client.confirmedJobTrust(job) }
     }
+    if mode == "restore" && config["slowControl"] == "true" {
+      // Explicit durable crash-uncertainty fault, before opening the sole native owner.
+      // Keep the actual daemon tasks, packet/correlation/job IDs and all accepted ranges.
+      try testRewriteState(docs.appendingPathComponent("runtime")) { raw in
+        if raw["receiptOutcome"] == nil {
+          raw["phase"] = "reconciling"
+          var groups = raw["groups"] as! [[String: Any]]
+          for i in groups.indices { groups[i]["uncertain"] = true }
+          raw["groups"] = groups
+        }
+      }
+    }
     let owner = try BackgroundRuntime(directory: docs.appendingPathComponent("runtime"), create: mode == "prepare",
-      keychainService: service, control: PairingBackgroundControl(client: client, nativeConfirmedIntake: confirmed), cellular: false,
+      keychainService: service, control: ObservedPairedControl(PairingBackgroundControl(client: client,
+        nativeConfirmedIntake: confirmed), docs: docs), cellular: false,
       activeUnlocked: { activity.get() }, trust: PairingBackgroundTrust(pinned: pinned))
     runtime = owner
     record("runtimeCreatedBeforeJS")
+    let rendezvous = docs.appendingPathComponent("slow-control-rendezvous.json")
+    if mode == "restore" && config["slowControl"] == "true"
+        && !FileManager.default.fileExists(atPath: rendezvous.path) {
+      // TEST-ONLY launch ordering seam. Start the REAL owner's cold reconciliation
+      // before returning the installation to the host, then rendezvous with the actual
+      // TLS listener. Without this, fast durable drain can beat TLS establishment.
+      // The event owner remains free; no event/finish/completion is manufactured.
+      // This is not a production startup wait or a background execution assertion.
+      let started = Date()
+      owner.restoreAndStart { _ in }
+      let pending = docs.appendingPathComponent("control-socket-pending.json")
+      while !FileManager.default.fileExists(atPath: pending.path) && Date().timeIntervalSince(started) < 3 {
+        Thread.sleep(forTimeInterval: 0.001)
+      }
+      try backgroundRequire(FileManager.default.fileExists(atPath: pending.path))
+      write(["testOnlyEarlyRestoreRendezvous": true, "seconds": Date().timeIntervalSince(started)], "slow-control-rendezvous.json")
+    }
     return owner
   }
   nonisolated static func hex(_ text: String) -> Data {
@@ -147,7 +198,10 @@ enum ExpoLifecycleFixture {
     if let state = try? testState(docs.appendingPathComponent("runtime")) {
       write(["phase": state.phase, "confirmedBytes": state.confirmedBytes, "hasReceipt": state.receiptOutcome != nil,
         "main": Thread.isMainThread, "ownedCallbacks": counts["ownedCallback"] ?? 0,
-        "completions": counts["completionMainAfterDrain"] ?? 0], "completion-ledger.json")
+        "completions": counts["completionMainAfterDrain"] ?? 0,
+        "uncertainGroups": state.groups.filter(\.uncertain).count,
+        "controlSocketPending": FileManager.default.fileExists(atPath: docs.appendingPathComponent("control-socket-pending.json").path),
+        "completedAt": Date().timeIntervalSince1970], "completion-ledger.json")
     }
   }
 }

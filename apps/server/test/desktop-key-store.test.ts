@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createPublicKey, generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
-import { chmodSync, copyFileSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { test } from 'node:test';
@@ -20,11 +20,14 @@ test('macOS Keychain wraps actual PairingAuthority and G3 across restart, fails 
   const directory = mkdtempSync(join(tmpdir(), 'footage-os-wrap-')); chmodSync(directory, 0o700);
   let store: DesktopKeyStore | undefined;
   let ownsItem = false;
+  // Exact-account recovery metadata precedes any initialization, including failure.
+  const cleanupRecord = resolve('src/../../../artifacts/desktop-key-store', `${config.namespace}.cleanup.json`);
+  writeFileSync(cleanupRecord, JSON.stringify(config), { mode: 0o600, flag: 'wx' });
   const origin = 'https://localhost:443', now = () => 2_000_000_000n;
   const authorityConfig = { path: join(directory, 'pair.sqlite'), origin, ca: randomBytes(64), pin: randomBytes(32), now };
   try {
     assert.throws(() => DesktopKeyStore.load(config));
-    store = DesktopKeyStore.initialize(config); ownsItem = true;
+    ownsItem = true; store = DesktopKeyStore.initialize(config);
     assert.throws(() => DesktopKeyStore.initialize(config));
     const plain = randomBytes(32), wrapped = store.wrap(plain, 'own/context');
     assert.deepEqual(store.unwrap(wrapped, 'own/context'), plain);
@@ -84,7 +87,7 @@ test('macOS Keychain wraps actual PairingAuthority and G3 across restart, fails 
     try {
       await assert.rejects(SealedIngest.open({ directory, jobs, authority: pairing.authority, wrappingStore: store, assertDestinationAccess() {}, now }));
     } finally { jobs.close(); }
-    store = DesktopKeyStore.initialize(config); ownsItem = true;
+    ownsItem = true; store = DesktopKeyStore.initialize(config);
     assert.throws(() => PairingAuthority.open({ ...authorityConfig, keyStore: DesktopKeyStore.load(config) }));
     assert.throws(() => store?.unwrap(wrapped, 'own/context'));
     // G3 replacement check independently, using the original verified authority.
@@ -94,7 +97,9 @@ test('macOS Keychain wraps actual PairingAuthority and G3 across restart, fails 
     } finally { jobs.close(); pairing.authority.close(); }
     assert.equal(readFileSync(join(directory, 'jobs.sqlite')).includes(master), false);
   } finally {
-    if (ownsItem) store?.deleteTestItem();
-    rmSync(directory, { recursive: true, force: true });
+    try {
+      if (ownsItem) (store ?? DesktopKeyStore.load(config)).deleteTestItem();
+      rmSync(cleanupRecord); // Retain exact metadata if deletion throws.
+    } finally { rmSync(directory, { recursive: true, force: true }); }
   }
 });

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomUUID, X509Certificate } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Jobs } from '../../apps/server/src/jobs.ts';
 import { PairingAuthority } from '../../apps/server/src/pairing.ts';
@@ -40,6 +40,21 @@ const { service, local } = await PairedService.open({ ...opened, local: opened.l
 let generationMaster;
 const actualSetup = service.ingest.setup.bind(service.ingest);
 service.ingest.setup = async (...args) => { const reply = await actualSetup(...args); generationMaster = Buffer.from(reply.subarray(40, 72)); return reply; };
+// Explicit slow-control fault gate only. Authenticate and compute the REAL G3
+// response first, then keep its TLS response socket open until the local runner releases it.
+const actualStatus = service.ingest.status.bind(service.ingest);
+service.ingest.status = async (...args) => {
+  const reply = await actualStatus(...args);
+  if (config.holdControl && !await exists(join(out, 'control-release'))) {
+    const pending = { started: Date.now() / 1000, revoke: args[3] === true };
+    await json(join(out, 'control-socket-pending.json'), pending);
+    await json(join(docs, 'control-socket-pending.json'), pending);
+    while (!await exists(join(out, 'control-release'))) await sleep(20);
+    await json(join(out, 'control-released.json'), { ...pending, released: Date.now() / 1000 });
+    await unlink(join(docs, 'control-socket-pending.json')).catch(() => {});
+  }
+  return reply;
+};
 const actualIngest = service.ingest.ingest.bind(service.ingest);
 let serial = Promise.resolve();
 service.ingest.ingest = req => {

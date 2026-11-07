@@ -24,7 +24,7 @@ OUT = BASE / str(uuid.uuid4())
 r.OUT = OUT
 APPROOT = ROOT / 'apps/mobile'
 BUNDLE = 'dev.footage.spike'
-BUILD = BASE / 'owned-build-a9771bfc'
+BUILD = BASE / 'owned-build-control-7c12d930'
 APP = BUILD / 'Build/Products/Release-iphonesimulator/Footage.app'
 
 def execute(args, log, cwd=ROOT, env=None):
@@ -58,6 +58,10 @@ def build(test=False):
         assert b'DurableTestControl' not in binary and b'generated-original' not in binary
         assert b'HarnessWait' not in binary
     assert b'FootageBackgroundSessionRouter' in binary
+    # Preserve each final product before the next variant overwrites Products.
+    preserved = OUT / ('test.app' if test else 'restored-ordinary.app' if (OUT / 'ordinary.app').exists() else 'ordinary.app')
+    assert not preserved.exists()
+    shutil.copytree(APP, preserved, symlinks=True)
     return hashlib.sha256(binary).hexdigest()
 
 def driver_project():
@@ -85,7 +89,9 @@ def main():
     r.cmd('git', 'check-ignore', OUT / 'private.key')
     two_wakes = '--two-wakes' in sys.argv
     valid_outcomes = '--valid-outcomes' in sys.argv or two_wakes
-    summary = {'testBuildOnly': True, 'validOutcomes': valid_outcomes, 'twoWakesRequested': two_wakes, 'productionPairingProven': False, 'actualPairedControl': True, 'syntheticInjectedControl': False, 'g5Passed': False,
+    slow_control = '--slow-control' in sys.argv
+    assert not slow_control or two_wakes, 'Held-control proof requires --two-wakes'
+    summary = {'testBuildOnly': True, 'slowControlRequested': slow_control, 'validOutcomes': valid_outcomes, 'twoWakesRequested': two_wakes, 'productionPairingProven': False, 'actualPairedControl': True, 'syntheticInjectedControl': False, 'g5Passed': False,
         'physicalLockProven': False, 'callbackManuallyInvoked': False, 'xcode': r.cmd('xcodebuild', '-version')}
     device = listener = docs = None
     key_cleanup_pending = False
@@ -130,7 +136,7 @@ def main():
         adapter = (paired_source / 'Probe.swift').read_text().split('@main\n')[0]
         tests = (SOURCE.parent / 'ios-background-runtime/Tests.swift').read_text()
         helpers = 'import SQLite3\n' + tests[tests.index('final class TestControl:'):tests.index('final class DeferredEnumerationDaemon:')]
-        for start, end in [('func testState(', 'func testRewriteState('), ('func testAwait(', 'func testEvent('),
+        for start, end in [('func testState(', 'func testAwait('), ('func testAwait(', 'func testEvent('),
                            ('func testSelection(', 'func runRuntimeTests(')]:
             helpers += tests[tests.index(start):tests.index(end)]
         fixture = '#if FOOTAGE_EXPO_LIFECYCLE_TEST\n' + adapter + '\n' + helpers + '\n' + (SOURCE / 'HostTests.swift').read_text() + '\n' + (SOURCE / 'RuntimeDrainProbe.swift').read_text() + '\n#endif\n' + (SOURCE / 'Fixture.swift').read_text()
@@ -169,7 +175,10 @@ def main():
       let ledgerBytes = try! Data(contentsOf: docs.appendingPathComponent("completion-ledger.json"))
       let ledger = try! JSONSerialization.jsonObject(with: ledgerBytes)
       let bytes = try! JSONSerialization.data(withJSONObject: ["count": min(count + 1, 1000), "main": true,
-        "afterDurableLedger": ledger, "seconds": Date().timeIntervalSince1970 - callbackStarted])
+        "afterDurableLedger": ledger, "seconds": Date().timeIntervalSince1970 - callbackStarted,
+        "callbackStarted": callbackStarted,
+        "controlSocketPending": FileManager.default.fileExists(atPath: docs.appendingPathComponent("control-socket-pending.json").path),
+        "controlReturned": FileManager.default.fileExists(atPath: docs.appendingPathComponent("native-control-ended.json").path)])
       try! bytes.write(to: file, options: .atomic)
       completionHandler()
     }
@@ -185,9 +194,11 @@ def main():
         # Test-only filesystem mode cannot enable anything in an ordinary binary.
         service = 'test.footage.expolifecycle.' + str(uuid.uuid4())
         def configure(mode):
-            for name in ['native-state.json', 'lifecycle.json', 'completion-ledger.json', 'aggregate-completion.json']:
+            for name in ['native-state.json', 'lifecycle.json', 'completion-ledger.json', 'aggregate-completion.json',
+                         'native-control-start.json', 'native-control-ended.json']:
                 (docs / name).unlink(missing_ok=True)
-            (docs / 'lifecycle-config.json').write_text(json.dumps({'mode': mode, 'service': service}))
+            (docs / 'lifecycle-config.json').write_text(json.dumps({'mode': mode, 'service': service,
+                'slowControl': 'true' if slow_control else 'false'}))
         configure('unit'); launch()
         host = r.wait(lambda: r.read_json(docs / 'host-tests.json'))
         assert host['ok'], host
@@ -208,7 +219,8 @@ def main():
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0)); port = sock.getsockname()[1]
         receiver_config = {'namespace': 'test.' + str(uuid.uuid4()), 'origin': f'https://localhost:{port}',
-            'port': port, 'intake': str(uuid.uuid4()), 'validOutcomes': valid_outcomes, 'twoWakes': two_wakes}
+            'port': port, 'intake': str(uuid.uuid4()), 'validOutcomes': valid_outcomes, 'twoWakes': two_wakes,
+            'holdControl': slow_control}
         # Record the exact account BEFORE initialization, and arm finally BEFORE any
         # constructor can fail. Never enumerate or delete any pre-existing item.
         (OUT / 'receiver-config.json').write_text(json.dumps(receiver_config))
@@ -272,10 +284,45 @@ def main():
                 summary['firstOuterCompletionCount'] = first_aggregate['count']
                 summary['firstOuterCompletionSeconds'] = first_aggregate['seconds']
                 shutil.copyfile(docs / 'aggregate-completion.json', OUT / 'first-os-aggregate.json')
+                if slow_control:
+                    rendezvous = r.read_json(docs / 'slow-control-rendezvous.json')
+                    assert rendezvous and rendezvous['testOnlyEarlyRestoreRendezvous']
+                    summary['testOnlyEarlyRestoreRendezvous'] = True
+                    summary['testOnlyEarlyRestoreRendezvousSeconds'] = rendezvous['seconds']
+                    shutil.copyfile(docs / 'slow-control-rendezvous.json', OUT / 'slow-control-rendezvous.json')
+                    pending = r.read_json(OUT / 'control-socket-pending.json')
+                    native_start = r.read_json(docs / 'native-control-start.json')
+                    summary['heldControlAtFirstOuterCompletion'] = bool(first_aggregate['controlSocketPending'])
+                    summary['firstLocalUncertainGroups'] = first_completion['uncertainGroups']
+                    summary['controlSocketEnteredBeforeOwnedCallback'] = bool(pending and pending['started'] < first_aggregate['callbackStarted'])
+                    assert pending and native_start, 'Startup did not issue real paired control'
+                    summary['nativeControlStartedBeforeOwnedCallback'] = native_start['started'] < first_aggregate['callbackStarted']
+                    assert native_start['started'] < first_aggregate['callbackStarted'], 'Native startup control must precede the OS callback'
+                    assert first_completion['completedAt'] - native_start['started'] < 5
+                    assert not first_aggregate['controlReturned'], 'Not an in-flight control request at outer completion'
+                    shutil.copyfile(docs / 'native-control-start.json', OUT / 'first-native-control-start.json')
+                    assert first_aggregate['controlSocketPending'] and first_completion['controlSocketPending'], 'Outer completed before held TLS socket entered'
+                    assert not (OUT / 'control-released.json').exists()
+                    summary['heldControlFirstOuterGapSeconds'] = first_completion['completedAt'] - pending['started']
+                    summary['slowNetworkDeadlineProven'] = True
+                    # Hold the real TLS response well beyond the handoff, not an immediate
+                    # refusal. No application timer/extra finish event makes progress.
+                    time.sleep(10)
+                    assert not (docs / 'native-control-ended.json').exists()
+                    assert r.read_json(docs / 'aggregate-completion.json')['count'] == 1
+                    summary['controlStillPendingTenSecondsAfterOuter'] = True
+                    summary['nativeStartToOuterSeconds'] = first_completion['completedAt'] - native_start['started']
+                    # Kill AFTER OS completion, WITHOUT releasing that control request.
+                    # Next wake must recover from the durable uncertainty, not its response.
                 os.kill(first_life['pid'], signal.SIGKILL)
                 configure('restore')
             assert summary['firstOSWakeDrainedBeforeSecondGroup'], 'No first actual OS drain/completion'
+            if slow_control: (OUT / 'control-release').write_text('owned-local-controller-releases-response-after-first-outer-and-process-exit')
             (OUT / 'second-release').write_text('second-native-event-batch')
+        if slow_control:
+            released = r.wait(lambda: r.read_json(OUT / 'control-released.json'))
+            summary['heldTLSSocketSeconds'] = released['released'] - released['started']
+            assert summary['heldTLSSocketSeconds'] >= 10
         actual = r.wait(lambda: r.read_json(OUT / 'actual-receipt.json'), 240)
         transferred = r.wait(lambda: r.read_json(OUT / 'listener-state.json'))
         assert transferred['wholeHashMatched'] and all(transferred['wireMatches']), transferred
@@ -333,7 +380,7 @@ def main():
         else:
             raise AssertionError('Protected manifest unexpectedly readable')
         summary['explicitNativeRelaunchNoJSSameDurableReceipt'] = True
-        summary['g5Passed'] = False # Slow-network deadline, activation and physical gates remain open
+        summary['g5Passed'] = False # Full G5/activation/physical gates are not implied by this slice
         summary['actualOSOuterCompletionPassed'] = True
         assert summary['osCallbackBatches'] == (2 if two_wakes else 1)
         assert summary['noCredentialsOnIngest'] and summary['daemonSocketObserved']

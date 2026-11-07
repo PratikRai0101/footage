@@ -6,7 +6,7 @@
 
 The current proof uses production `PairingClient`, `PairingBackgroundControl`, `PairingBackgroundTrust`, `BackgroundRuntime`, macOS `DesktopKeyStore`, and `PairedService`. It does not use the old synthetic control mailbox. Independent local test-controller QR delivery and explicit local approval authorize the generated test device. These are test-only substitutes for scanner/operator UX, not automatic production trust.
 
-The remaining lifecycle gate is slow or unavailable control during startup reconciliation. The synchronous paired adapter can wait 35 seconds while the runtime's serial queue and enumeration fence prevent event drain. Neither the ownership fix nor a fast loopback run proves that deadline safe. `g5Passed` remains false. The ordinary iPhone app still exposes only the approved picker/local preview.
+The slow-control event-queue blocker is fixed. Remote status and revoke now run on a bounded native control lane, separate from durable local reconciliation and delegate drain. Held-control native tests and an actual paired Expo two-wake run prove completion while control is still pending. The controlled OS test uses an explicit, test-only startup-ordering rendezvous described below. It is not proof of every natural launch ordering or the full G5 gate. `g5Passed` remains false. The ordinary iPhone app still exposes only the approved picker/local preview.
 
 Implementation: `e852a3c`. Paired OS acceptance tests: `4d8f874`. Parent runtime enumeration fix: `f01abe9`.
 
@@ -35,7 +35,7 @@ The installed `ExpoAppDelegateSubscriberManager` broadcasts this event to every 
 
 The old actual-app builds reached a genuine receipt but never called the outer completion. `ExpoAggregationProbe.swift` still reproduces this installed bookkeeping behavior. Its artificial finish is unit-only and is not OS evidence. The route prevents the Footage-owned event from entering that bookkeeping at all. Unrelated sessions retain Expo's existing behavior unchanged.
 
-The separate runtime enumeration race is **already fixed by the parent**. `f01abe9` clears `enumerating` before the deferred drain recheck on both successful and failed reconciliation. Both deterministic native regressions pass. The Expo probe now asserts the race is absent and needs no extra finish event. This task does not edit the runtime, codec, pairing client, or production paired service.
+The separate runtime enumeration race is **already fixed by the parent**. `f01abe9` clears `enumerating` before the deferred drain recheck on both successful and failed reconciliation. Both deterministic native regressions pass. The Expo probe now asserts the race is absent and needs no extra finish event. That routing-only change did not edit the runtime, codec, pairing client, or production paired service. The later nonblocking runtime change is described below.
 
 ## Ordinary app and compile-time assembly
 
@@ -51,7 +51,7 @@ The test SceneDelegate deliberately does not start React. The actual Expo AppDel
 
 ## OS-driven paired acceptance
 
-Latest ignored evidence: `artifacts/expo-background-lifecycle/92a1cc9e-17b6-49c6-b55f-c6566439c59a/safe-summary.json`.
+Earlier routing-only evidence: `artifacts/expo-background-lifecycle/92a1cc9e-17b6-49c6-b55f-c6566439c59a/safe-summary.json`.
 
 Independent earlier successful run: `artifacts/expo-background-lifecycle/d99c63fb-ee4e-47f0-95b7-ff21d9989812/safe-summary.json`.
 
@@ -82,11 +82,37 @@ The nine actual-app host cases cover exact-ID routing, untouched foreign identif
 
 The protected-open case denies access at a real native file-read boundary. The host stays blocked, completes its owned token as deferred, and retains the exact pre-event bytes. The runtime unavailable-control unit test removes task availability and makes control fail immediately. Independent ledger reopen requires uncertain task mappings, zero confirmed bytes, and no receipt before completion. It drains in less than the test's five-second assertion. These artificial unit callbacks are not included in OS counts.
 
-### Exact remaining deadline gate
+### Nonblocking control reconciliation
 
-`BackgroundRuntime.restoreAndStart` holds `enumerating` until `reconcile` returns. Missing/uncertain tasks, cancellation, or verifying state can call `query` synchronously on the serial event queue. `PairingBackgroundControl` then waits up to 35 seconds, while `PairingHTTP` permits a 30-second resource lifetime. `didFinishEvents`, completion registration, and the deferred drain recheck cannot progress on that queue during the wait.
+The original `restoreAndStart -> reconcile -> query` and `cancel -> query` paths called synchronous paired control on the event owner. The adapter's 35-second wait blocked completion registration, delegate events and the enumeration/drain recheck. The first gated production-runtime regression failed at a bounded drain timeout before the fix. Its ignored result is `artifacts/ios-background-runtime/7eeafdb0-6de6-45ee-8341-0e384dced92d/safe-summary.json`.
 
-Immediate refusal tests and the two fast local OS runs do not prove a safe slow-network bound. A detached adapter task does not free the waiting runtime queue. Calling UIKit early from the host would hide this defect by completing before durable processing, so the router does not do that. G5/activation must remain blocked until the runtime/control owner supplies and proves a lifecycle-budgeted defer or nonblocking reconciliation policy. No production deadline fix is claimed here.
+`BackgroundRuntime` now confines its adapter to `BackgroundControlWorker`. Only that separate serial lane executes remote status and revoke. Before dispatch, the native event owner commits missing-task uncertainty or local cancellation with its stable revoke operation ID. It validates and copies immutable `OutcomeContext` and a fresh `Query` to the worker. No ledger, daemon, private manifest or verification key crosses to that worker.
+
+`enumerating` fences only local task reconciliation. The existing deferred clear-and-drain ordering remains. Actual native events, their FULL/WAL transactions, token registration and `didFinishEvents` continue while the control socket waits. The host and router never complete early on the runtime's behalf.
+
+Remote results return to the serialized owner. It checks the current outcome binding, current revision and accepted bitmap, exact query authentication and current cancel fence. A late uploading status cannot undo cancel. A matching immutable final receipt can win. A later event prevents the old request from clearing new uncertainty or authorizing task creation. Successful uploading reconciliation enumerates tasks again before scheduling, with the same event-generation fence. No remote result calls OS completion.
+
+Admission is bounded to one control request, one restore command and one cancel command. Cancel can wait behind status in one pending slot. Repeated commands receive `false`, rather than accumulating requests, callbacks or enumerations. Requests never run in parallel. Network failure and missing protected authority retain the same durable job and uncertainty. Reopening does not depend on a pending socket having finished.
+
+Public command callbacks retain their meaning: restore completes after its accepted reconciliation command, including any remote result and subsequent local scheduling pass, not on receipt. Cancel reports its remote reconciliation result; `false` can coexist with a durably saved local cancel. The host ignores these command results and drains UIKit through the separate durable event contract. No callback was changed to report fake handoff success.
+
+Foreground `prepare` still requires a native worker and active/unlocked eligibility. Staging and sealing retain serialized ledger mutation. Its remote setup wait now runs outside the event queue too. A cancel during setup persists a blocked tombstone before stopping tasks. A late valid setup reply saves the same job's recovery authority, but cannot seal or schedule across cancel. There is no new background assertion or weaker plaintext protection.
+
+The native suite now has **50 passing cases: all 39 existing cases and 11 additions**. The additions hold status, revoke and foreground setup; require once/main/durable drain before release; process real authenticated acks during held status; reject a reply below the current high-water; fence late uploading status; accept a matching final receipt; bound repeated commands; test duplicate finish and another callback after drain; and reopen actual SQLite state after network error or owner loss with status/revoke still pending. Reopen tests observe the real ledger lock release, not just weak-reference clearing. Native counts are behavior tests, not source assertions.
+
+### Actual paired held-response OS proof
+
+The flagged `--two-wakes --slow-control` test retains production `PairingClient`, `PairingBackgroundControl`, `PairedService`, OS wrapping and the real daemon session. Only the existing test listener has a new explicit fault gate. It authenticates and computes a real status response, then withholds that TLS response until the independent local runner releases it. Production service routes, crypto, deadlines and admission bounds are unchanged.
+
+The cold fixture marks its existing task mappings uncertain before opening the sole runtime, preserving job, generation, packets, correlations and accepted ranges. A fixture-only early `restoreAndStart` rendezvous waits at most three seconds for the listener's actual pending-socket observation before returning the installation to the actual host. This controls launch ordering, not completion: it neither invokes an OS callback nor supplies a finish event, and the production host has no such wait. Native events can already drain during this rendezvous.
+
+This explicit seam matters. An earlier run without it (`90723986-8e7f-4449-8143-049f78a7e28d`) naturally completed UIKit while the TLS response was held for about 0.152 seconds. Other attempts completed local processing before TLS establishment reached the listener. Those attempts failed the stronger held-socket assertion; they are not relabelled passes. The controlled run proves the actual host with already-pending native control, not a guarantee about every unmodified cold-launch ordering.
+
+In the controlled run, startup control and the authenticated held socket precede the actual owned AppDelegate callback. UIKit's real outer handler returns once on main after an independent ledger reopen shows 67,108,864 confirmed bytes, no receipt and one still-uncertain group. The paired adapter has not returned. The runner keeps the response held for another ten seconds and verifies there is no second completion. It then kills only that OS-launched process before releasing control. A second actual OS wake processes the other group and saves the same G3 receipt for 67,121,209 bytes, independently hash-matched at the receiver. A separately labelled explicit native relaunch reopens that receipt.
+
+Latest completed evidence: `artifacts/expo-background-lifecycle/ef21f1e7-035b-4738-ab5c-21cebd4abfdd/safe-summary.json`. The held TLS response lasted **10.126 seconds**. The two actual outer completions took **0.00530 and 0.00673 seconds** from callback entry, each once on main. Native control start to the first durable completion was 0.08692 seconds; the test-only startup rendezvous took 0.04683 seconds. Receipt `caebe541-eb68-43be-ae2b-ca9d75c79574` matches job `6de3b657-2067-492a-8684-a48f643adef6`, 67,121,209 bytes and SHA-256 `32c2fa179eb7182bcaf5b962937ba22912d0862c95c624fa119471ee466cca4a`. Independent receiver hashing agrees.
+
+There is no mailbox, synthetic progress, timer-based completion, foreground upload or force-quit restart promise. Simulator SIGKILL, permission denial and this controlled startup seam do not pass natural jetsam, physical protection or all G5 scheduling conditions.
 
 ## Build fingerprints and checks
 
@@ -96,20 +122,20 @@ Latest build-scoped SHA-256 values are not reproducible-build guarantees:
 
 | Artifact | SHA-256 |
 | --- | --- |
-| Ordinary Release before test | `30ba548bf1266358dfefc499c6d71fa9ce5c5db7a2f35f29af1c67c655800504` |
-| Compile-time test Release | `83eee46792c19c2150d5c3c1314e155f0b8468b968ae61fd268524c8ada9f549` |
-| Restored ordinary Release | `9adcc1e3c02273234e919bd9c451f0e03e75a5b0f42f4632cbba311fb00edf48` |
-| Embedded JS | `3e6b70f4a3eb027b8e0e00848dd9c1f5b676f328f8b34c01c14715adf2eab070` |
+| Ordinary Release before test | `4193de9d86396fd33e4402b3133398dc34e6d6b8ea0d99a18ab9c0433a655665` |
+| Compile-time test Release | `7b5da6a5f8c9e3375df450df14cfad6f19e8a26bb9c11fe0fb22a5bbe5337f02` |
+| Restored ordinary Release | `4193de9d86396fd33e4402b3133398dc34e6d6b8ea0d99a18ab9c0433a655665` |
+| Embedded JS | `af858981e958695c0a4fd4b4208ea4e5beac1f75571cb03b95eb2361eb4c012d` |
 | Generated routed AppDelegate | `487f1da45ce81e0b7189205315bb39f3d80dfbfe411fdee8d50e2be322fc8864` |
-| Existing paired test controller | `189a1632d73f8cc153ff00516a92c52bf24384956953fbf648cd2acaa222c443` |
+| Paired test controller with explicit held-control gate | `436b607f932d6fb7c51db68557a6a083cb0d23904930873c62de957850b73376` |
 
 Executed checks:
 
 ```sh
-FOOTAGE_TEST_KEYCHAIN=1 python3 scripts/test/expo-background-lifecycle/run.py --two-wakes
+FOOTAGE_TEST_KEYCHAIN=1 python3 scripts/test/expo-background-lifecycle/run.py --two-wakes --slow-control
 node --test scripts/test/expo-background-lifecycle/plugin.test.cjs
 python3 scripts/test/ios-background-runtime/run.py --unit-only
-npm test
+FOOTAGE_TEST_KEYCHAIN=1 npm test
 npm run typecheck
 npm run lint
 npx --no-install tsc -p scripts/paired-background-integration/tsconfig.json
@@ -120,12 +146,12 @@ python3 scripts/public-repo-preflight.py
 ```
 
 - Two complete paired Expo runs pass the required actual outer completion checks, including ordinary, test, and restored ordinary Release builds. No build warning is suppressed.
-- All **39 native runtime cases** pass in a fresh owned Simulator, including both parent enumeration regressions. Combined native runtime sources also compile for iPhoneOS with Swift 6 warnings as errors through that runner.
-- **104 root cases pass; one optional real-Keychain root case is skipped.** Typecheck, lint, and the paired test-controller typecheck pass. The actual Expo paired runs separately exercise OS wrapping and exact-item cleanup. This root run does not supersede the parent's earlier opted-in 105-case result.
+- All **50 native runtime cases** pass in a fresh owned Simulator, including all 39 existing cases and both parent enumeration regressions. Latest result: `artifacts/ios-background-runtime/a5f75e35-687e-4018-992f-5d89baf1b54b/safe-summary.json`. Combined production pairing, codec and background sources also compile for iPhoneOS with Swift 6 warnings as errors.
+- All **105 root cases pass with the real-Keychain test opted in**, with no skips. Typecheck, lint and paired test-controller typecheck pass. The root Keychain test now records its exact fresh namespace before initialization and retains cleanup metadata if deletion fails. No pending cleanup metadata remains from these runs.
 - Three plugin tests pass against the actual installed Expo template. They reject unknown/altered source and ensure the subscriber has no second background-session method.
 - The public-history preflight and whitespace checks pass after the commits. Private artifacts remain ignored.
 
-The runner reuses only `artifacts/expo-background-lifecycle/owned-build-a9771bfc`, checks disk before/after builds, and requires a six-GiB margin. Free disk remained approximately 13 GiB after both runs. No other checkout's build outputs were deleted.
+This task uses only its own `artifacts/expo-background-lifecycle/owned-build-control-7c12d930` incremental cache. The runner checks disk before and after builds and requires a six-GiB margin. Ordinary, test and restored ordinary `.app` copies and hashes are preserved in each completed run. Free disk is approximately 15 GiB at wrap-up. No other checkout's build outputs were deleted.
 
 Each fresh macOS account is written to ignored exact-account cleanup metadata **before initialization**. Deletion is registered before any later constructor and runs even if listener shutdown fails. Metadata is removed only after exact deletion succeeds. Both runs report exact deletion, owned listener shutdown, owned Simulator deletion, and no cleanup errors. Native test items live only in the recorded disposable Simulator, which is deleted. The six old accounts without retained IDs remain unresolved. No Keychain enumeration or broad deletion was attempted.
 
@@ -133,6 +159,6 @@ Each fresh macOS account is written to ignored exact-account cleanup metadata **
 
 The earlier synthetic-mailbox two-wake run at `artifacts/expo-background-lifecycle/36b0b010-f638-47c2-a5d8-74e80f4e5cdb/safe-summary.json` proved G3 receipt verification but not outer completion. The old forged-ack/lost-final-response run at `artifacts/expo-background-lifecycle/05ae43fe-684e-4fef-942d-da20c0eb2e80/safe-summary.json` remains historical fault evidence. Neither is relabelled paired or a passing system handoff. The standalone [paired integration](paired-background-integration.md) retains its receiver restart, offline-cancel, and supervision scope; those adversaries were not all repeated in the new valid-outcome Expo run.
 
-Open gates remain slow-control deadline handling, native production installation and shared iOS bridge activation, scanner/confirmation/re-pair UX, trusted desktop operator UX, private LAN/local-network denial, AndroidKeyStore and shared Android acceptance, and physical iPhone/Android protection and scheduling. Production receiver startup, retention, repair, and platform support also remain gated. No foreground branch was merged and no foreground fallback was added.
+Open gates remain unmodified natural-launch ordering and broader G5 scheduling acceptance, native production installation and shared iOS bridge activation, scanner/confirmation/re-pair UX, trusted desktop operator UX, private LAN/local-network denial, AndroidKeyStore and shared Android acceptance, and physical iPhone/Android protection and scheduling. Production receiver startup, retention, repair, and platform support also remain gated. No foreground branch was merged and no foreground fallback was added.
 
 No push, subagent, cloud/EAS/account/billing/workflow, T3/Cardboard action, global trust change, personal media, physical device, existing Simulator/AVD, or foreign listener was used.

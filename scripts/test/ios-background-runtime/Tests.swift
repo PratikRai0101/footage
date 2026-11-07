@@ -189,7 +189,13 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     try backgroundRequire(!(try testAwait { r.cancel(completion: $0) }))
     c.release.signal()
     try backgroundRequire(prepared.wait(timeout: .now() + 5) == .success)
-    try backgroundRequire(try testState(directory).cancelOperation != nil && d.created == 0)
+    let localCancel = try testState(directory)
+    try backgroundRequire(localCancel.cancelOperation != nil && localCancel.outcomeAuthentication != nil && d.created == 0)
+    c.backend.state = 4; c.backend.cleanup = 2
+    c.release.signal()
+    try backgroundRequire(try testAwait { r.cancel(completion: $0) })
+    let remoteCancel = try testState(directory)
+    try backgroundRequire(remoteCancel.cancelOperation == localCancel.cancelOperation && remoteCancel.remoteCleanup && d.created == 0)
     passed.append("foreground-setup-wait-off-event-owner-cancel-fenced")
   }
   for revoke in [false, true] {

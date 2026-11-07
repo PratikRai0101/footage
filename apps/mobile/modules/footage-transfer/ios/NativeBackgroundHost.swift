@@ -54,6 +54,12 @@ final class NativeBackgroundHost {
     } catch { availability = .blocked }
   }
 
+  func connectionInstalled() {
+    guard runtime == nil else { return }
+    attempted = false
+    launch()
+  }
+
   func protectedDataAvailable() {
     if availability == .blocked && runtime == nil { attempted = false; launch() }
   }
@@ -83,7 +89,7 @@ enum NativeBackgroundInstallation {
     #if FOOTAGE_EXPO_LIFECYCLE_TEST
     return try ExpoLifecycleFixture.makeRuntime(activity: activity)
     #else
-    return nil
+    return try NativeAppInstallation.makeRuntime(activity: activity)
     #endif
   }
 }

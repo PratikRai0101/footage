@@ -61,7 +61,7 @@ export function useTransfer() {
         if (JSON.stringify(value) !== JSON.stringify(previous.current)) setSnapshot(value);
         previous.current = value;
       } catch {
-        if (mounted) setError('Could not read the saved transfer. Reopen Footage with the latest Android build.');
+        if (mounted) setError('Could not read the saved transfer. Unlock the phone and reopen Footage.');
       } finally { reading = false; }
     };
     void Promise.all([transfers.device(), transfers.settings()]).then(([device, saved]) => {
@@ -69,7 +69,7 @@ export function useTransfer() {
         setDevice(device);
         setSettings({ ...saved, origin: saved.origin || initialSettings.origin });
       }
-    }).catch(() => { if (mounted) setError('Install the latest Android build to use the native transfer module.'); });
+    }).catch(() => { if (mounted) setError('Could not open the native connection. Install the latest Footage build and try again.'); });
     void read();
     const timer = setInterval(() => { void read(); }, 750);
     const listener = AppState.addEventListener('change', state => {
@@ -120,7 +120,7 @@ export function useTransfer() {
 
   const upload = () => act(async () => {
     if (draft.kind !== 'review') return;
-    if (!settings.origin.trim()) throw new Error('Connect your demo server before uploading. Open receiver settings above.');
+    if (!settings.origin.trim()) throw new Error('Connect your computer in Settings before uploading.');
     await notificationPermission();
     await transfers.prepare(draft.clip.uri, draft.clip.name, settings.origin);
     autoStart.current = AppState.currentState === 'active';
@@ -149,8 +149,19 @@ export function useTransfer() {
     setSettings({ ...value, origin: value.origin.trim().replace(/\/$/, '') });
   };
 
+  const connect = async () => {
+    if (Platform.OS !== 'ios') return;
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: false, copyToCacheDirectory: false, base64: false });
+    if (result.canceled || !result.assets[0]) return;
+    await transfers.connect(result.assets[0].uri);
+    const [saved, nextDevice] = await Promise.all([transfers.settings(), transfers.device()]);
+    setSettings(saved); setDevice(nextDevice);
+    return saved;
+  };
+
   const view = (share = false) => act(async () => {
     try {
+      if (!share && Platform.OS === 'ios') { await transfers.openViewer(); return; }
       const url = await transfers.viewer();
       if (share) await Share.share({ title: 'Footage original', message: url });
       else await Linking.openURL(url);
@@ -160,7 +171,7 @@ export function useTransfer() {
     }
   });
 
-  return { snapshot, device, settings, draft, error, busy, available: transfers.available,
-    choose, upload, cancel, recordPreviewMetadata, resume: () => act(start), view, saveSettings,
+  return { snapshot, device, settings, draft, error, busy, available: transfers.available && (Platform.OS !== 'ios' || device?.supportsTransfer === true),
+    choose, upload, cancel, connect, recordPreviewMetadata, resume: () => act(start), view, saveSettings,
     dismissError: () => setError(null) };
 }

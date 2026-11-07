@@ -2,7 +2,19 @@ import ExpoModulesCore
 import UIKit
 
 public final class FootageTransferAppDelegateSubscriber: ExpoAppDelegateSubscriber {
+  private var observingActivity = false
+  private func observeActivity() {
+    guard !observingActivity else { return }; observingActivity = true
+    // Scene-based Expo apps do not reliably forward AppDelegate active callbacks.
+    // UIKit notifications remain native and arrive even when React is absent.
+    NotificationCenter.default.addObserver(self, selector: #selector(activeChanged), name: UIApplication.didBecomeActiveNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(activeChanged), name: UIApplication.didEnterBackgroundNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(protectedUnavailable), name: UIApplication.willResignActiveNotification, object: nil)
+  }
+  @objc private func activeChanged() { update(UIApplication.shared) }
   public func subscriberDidRegister() {
+    observeActivity()
+    update(UIApplication.shared)
     NativeBackgroundHost.shared.launch()
     #if FOOTAGE_EXPO_LIFECYCLE_TEST
     ExpoLifecycleFixture.record("subscriberRegistered")
@@ -11,6 +23,7 @@ public final class FootageTransferAppDelegateSubscriber: ExpoAppDelegateSubscrib
 
   public func application(_ application: UIApplication,
                           willFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+    observeActivity()
     // ExpoAppDelegate does not forward protected-data delegate methods in 58.0.21.
     // Subscribe to UIKit notifications instead; never query UIKit on the worker.
     NotificationCenter.default.addObserver(self, selector: #selector(protectedAvailable),

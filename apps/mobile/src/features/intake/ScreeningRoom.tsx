@@ -138,7 +138,7 @@ export function ScreeningRoom() {
         </SafeAreaView>
       </>}
     </Preview>
-    {settingsOpen && <SettingsSheet visible settings={flow.settings} theme={theme} reducedMotion={reducedMotion} onClose={() => setSettingsOpen(false)} onSave={flow.saveSettings} />}
+    {settingsOpen && <SettingsSheet visible settings={flow.settings} theme={theme} reducedMotion={reducedMotion} onClose={() => setSettingsOpen(false)} onSave={flow.saveSettings} onConnect={flow.connect} />}
   </View>;
 }
 

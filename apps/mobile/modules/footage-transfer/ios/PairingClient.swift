@@ -63,6 +63,15 @@ actor PairingClient {
     let s = Saved(offer: offer, device: try pairingRandom(16), key: P256.Signing.PrivateKey(), mask: permissions, installed: Data())
     try vault.save(s.encode(installed: Data()))
   }
+  // Explicit native trust confirmation is required before replacing the CURRENT
+  // installation. Frozen per-job Keychain accounts are never removed or changed.
+  func replaceAfterNativeConfirmation(qr: Data, permissions: UInt32) throws {
+    try pairingRequire(!exchanging)
+    let offer = try PairingOffer(qr)
+    try pairingRequire(permissions & ~offer.mask == 0)
+    let next = Saved(offer: offer, device: try pairingRandom(16), key: P256.Signing.PrivateKey(), mask: permissions, installed: Data())
+    try vault.save(next.encode(installed: Data()))
+  }
   func enroll() async throws {
     try pairingRequire(!exchanging); exchanging = true; defer { exchanging = false }
     let s = try saved(); try pairingRequire(s.installed.isEmpty && s.offer.expires > UInt64(Date().timeIntervalSince1970))

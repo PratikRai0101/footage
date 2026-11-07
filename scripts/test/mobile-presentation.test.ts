@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
+import { connectionSchema, deviceSchema, snapshotSchema, unknownMedia } from '../../apps/mobile/modules/footage-transfer/src/contracts';
 import { previewMetadata } from '../../apps/mobile/src/features/intake/preview-metadata';
 import { canChoose, copyFor, formatBytes, fractionFor, mediaLine, present, type Draft } from '../../apps/mobile/src/features/intake/presentation';
+
+test('native discovery keeps Android compatible and reports an actual paired iPhone background scheduler', () => {
+  assert.equal(deviceSchema.parse({ manufacturer: 'test', model: 'test', apiLevel: 33, androidVersion: '13', supportsTransfer: true, scheduler: 'foreground-service' }).platform, 'android');
+  const ios = deviceSchema.parse({ platform: 'ios', manufacturer: 'Apple', model: 'iPhone', systemVersion: '26.2', supportsTransfer: true, scheduler: 'background-urlsession' });
+  assert.equal(ios.platform, 'ios'); assert.equal('apiLevel' in ios, false);
+  assert.equal(deviceSchema.safeParse({ ...ios, scheduler: 'foreground-service' }).success, false);
+});
+test('connection response cannot smuggle native credentials or upload authority into JavaScript', () => {
+  assert.equal(connectionSchema.safeParse({ origin: 'https://localhost:1090', title: 'Chosen inbox' }).success, true);
+  assert.equal(connectionSchema.safeParse({ origin: 'https://localhost:1090', title: 'Chosen inbox', credential: 'not allowed' }).success, false);
+});
 
 const id = randomUUID();
 const sha256 = 'a'.repeat(64);

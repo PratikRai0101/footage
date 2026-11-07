@@ -30,7 +30,7 @@ final class BackgroundSession: NSObject, URLSessionDataDelegate, @unchecked Send
   private let queue: DispatchQueue
   private let event: (BackgroundTaskEvent) -> Void
   private let finished: () -> Void
-  private let trust: (any BackgroundServerTrust)?
+  private var trust: (any BackgroundServerTrust)?
   private var session: URLSession!
   private var tasks: [Int: URLSessionTask] = [:]
   private struct Response { var bytes = Data(); var rejected = false }
@@ -54,6 +54,8 @@ final class BackgroundSession: NSObject, URLSessionDataDelegate, @unchecked Send
     let delegate = OperationQueue(); delegate.maxConcurrentOperationCount = 1; delegate.underlyingQueue = queue
     session = URLSession(configuration: config, delegate: self, delegateQueue: delegate)
   }
+  // Called only by the serialized runtime after proving no daemon tasks remain.
+  func replaceTrust(_ trust: (any BackgroundServerTrust)?) { self.trust = trust }
   func allTasks(_ completion: @escaping @Sendable ([BackgroundTask]) -> Void) {
     session.getAllTasks { [weak self] tasks in
       guard let self else { return }

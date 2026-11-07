@@ -10,9 +10,10 @@ struct BackgroundSnapshot: Sendable {
 /// The unchecked conformance is this serial ownership boundary, not a cast of an adapter.
 private final class BackgroundControlWorker: @unchecked Sendable {
   private let queue = DispatchQueue(label: "footage.sealed.control.v1", qos: .utility)
-  private let adapter: any BackgroundControl
+  private var adapter: any BackgroundControl
   init(_ adapter: any BackgroundControl) { self.adapter = adapter }
   func setup(_ m: SealedProtocol.Manifest) throws -> Data { try queue.sync { try adapter.setup(m) } }
+  func replace(_ adapter: any BackgroundControl) { queue.sync { self.adapter = adapter } }
   func submit(_ m: SealedProtocol.OutcomeContext, query: SealedProtocol.Query, revoke: Bool,
               completion: @escaping @Sendable (Result<Data, Error>) -> Void) {
     queue.async {
@@ -77,6 +78,12 @@ final class BackgroundRuntime: @unchecked Sendable {
     try backgroundRequire(!Thread.isMainThread)
     let manifest = try queue.sync {
       guard !storageBlocked else { throw BackgroundFailure.blocked }
+      // A setup request is impossible before the first durable job row. These
+      // are copy-stage crash orphans only, never an acknowledged/received job.
+      if ledger.state == nil && FileManager.default.fileExists(atPath: preseal.privateDirectory.path) {
+        try FileManager.default.removeItem(at: preseal.privateDirectory)
+        try BackgroundFiles.syncDirectory(ledger.root)
+      }
       return try preseal.stage(selection)
     }
     do {
@@ -88,6 +95,33 @@ final class BackgroundRuntime: @unchecked Sendable {
       throw error
     }
   }
+  func archiveForNextSelection(completion: @escaping @Sendable (Bool) -> Void) {
+    queue.async {
+      guard !self.restoring && !self.cancelRunning && !self.controlInFlight else { completion(false); return }
+      guard let state = self.ledger.state else { completion(true); return }
+      guard state.receiptOutcome != nil || (state.phase == "cancelled" && state.remoteCleanup && state.localCleanup) else { completion(false); return }
+      self.daemon.allTasks { tasks in
+        self.queue.async {
+          guard tasks.isEmpty else { completion(false); return }
+          do { try self.ledger.archiveCompleted(); self.storageBlocked = false; completion(true) }
+          catch { self.storageBlocked = true; completion(false) }
+        }
+      }
+    }
+  }
+
+  // New native confirmation applies only to an EMPTY slot, after the old
+  // terminal job was durably archived and all daemon references were removed.
+  func installForNextJob(control: any BackgroundControl, trust: (any BackgroundServerTrust)?) throws {
+    try queue.sync {
+      try backgroundRequire(ledger.state == nil && !restoring && !cancelRunning && !controlInFlight)
+      self.control.replace(control)
+      (daemon as? BackgroundSession)?.replaceTrust(trust)
+    }
+  }
+
+  // Native presentation adapter only; never export this ledger record to JS.
+  func stateForPresentation() -> BackgroundState? { queue.sync { ledger.state } }
   func snapshot() -> BackgroundSnapshot {
     queue.sync {
       let s = ledger.state
@@ -299,6 +333,7 @@ final class BackgroundRuntime: @unchecked Sendable {
             guard tasks.isEmpty, let s = self.ledger.state, s.cancelOperation != nil,
               s.remoteCleanup, s.receiptOutcome == nil else { completion(false); return }
             var files = [self.preseal.original, self.preseal.original.appendingPathExtension("partial")]
+            files += try FileManager.default.contentsOfDirectory(at: self.preseal.privateDirectory, includingPropertiesForKeys: nil).filter { $0.lastPathComponent.hasPrefix("preview.") }
             for i in 0..<s.groupCount {
               files += [self.preseal.packet(i), self.preseal.packet(i).appendingPathExtension("partial")]
             }

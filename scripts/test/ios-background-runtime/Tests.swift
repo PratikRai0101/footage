@@ -697,5 +697,34 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     try backgroundRequire(completed.wait(timeout: .now() + 0.1) == .timedOut)
     passed.append(failReconciliation ? "finish-during-failed-enumeration-drains-once" : "finish-during-enumeration-drains-once")
   }
+  do {
+    let name = "empty-reopen", c = TestControl(), d = TestDaemon()
+    var r: BackgroundRuntime? = try runtime(name, c, d)
+    try backgroundRequire(r!.snapshot().phase == "empty"); r = nil
+    r = try runtime(name, c, d, create: false)
+    try backgroundRequire(r!.snapshot().phase == "empty")
+    passed.append("explicit-empty-ledger-survives-reopen")
+  }
+  do {
+    let name = "next-original", c = TestControl(), d = TestDaemon()
+    let r = try runtime(name, c, d); try r.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    let first = try testState(root(name)), g = first.groups[0]
+    let ack = try SealedProtocol.encodeAck(keys: c.keys(), group: 0, wireSHA256: g.hash!, revision: 3)
+    let receipt = try SealedProtocol.encodeReceipt(keys: c.keys(), id: BackgroundPreseal.uuid(), verifiedAt: UInt64(Date().timeIntervalSince1970), revision: 4)
+    try testEvent(r, .init(id: g.taskID!, correlation: g.correlation, status: 200, body: SealedProtocol.encodeOutcome(ack: ack, receipt: receipt), transportOK: true))
+    try backgroundRequire(!(try testAwait { r.archiveForNextSelection(completion: $0) }))
+    d.tasks = []
+    try backgroundRequire(try testAwait { r.archiveForNextSelection(completion: $0) })
+    let archive = root(name).appendingPathComponent("history/" + first.job.map { String(format: "%02x", $0) }.joined())
+    let retained = try JSONDecoder().decode(BackgroundState.self, from: Data(contentsOf: archive.appendingPathComponent("record.json")))
+    try backgroundRequire(retained.receiptOutcome == receipt && retained.job == first.job)
+    try backgroundRequire(try BackgroundFiles.hash(archive.appendingPathComponent("private/original")).1 == first.originalHash)
+    c.manifest = nil
+    try r.prepare(testSelection(source))
+    let second = try testState(root(name))
+    try backgroundRequire(second.job != first.job && second.phase == "ready" && second.receiptOutcome == nil)
+    passed.append("next-original-retains-terminal-receipt-and-original-before-reset")
+  }
   return passed
 }

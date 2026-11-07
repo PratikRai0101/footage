@@ -11,9 +11,9 @@ xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" \
   -configuration Release -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath "$ROOT/artifacts/ios-simulator/build" \
-  -jobs 2 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO "$@"
+  -jobs 2 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- "$@"
 APP="$ROOT/artifacts/ios-simulator/build/Build/Products/Release-iphonesimulator/$SCHEME.app"
 [[ -d "$APP" ]]
 mkdir -p "$ROOT/artifacts/ios-simulator"
 ditto "$APP" "$ROOT/artifacts/ios-simulator/$SCHEME.app"
-printf '\nSimulator app: %s/artifacts/ios-simulator/%s.app\nEmbedded JS/assets; no Metro. Simulator-only, not a physical iPhone build. Transfers remain Android-only.\n' "$ROOT" "$SCHEME"
+printf '\nSimulator app: %s/artifacts/ios-simulator/%s.app\nEmbedded JS/assets; no Metro. Simulator-only, not a physical iPhone build. Connect a computer in Settings to upload originals.\n' "$ROOT" "$SCHEME"

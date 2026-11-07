@@ -196,7 +196,9 @@ final class BackgroundLedger {
       try execute("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON; PRAGMA busy_timeout=1000;")
       try backgroundRequire(try scalar("PRAGMA journal_mode") == "wal" && scalar("PRAGMA synchronous") == "2"
         && scalar("PRAGMA fullfsync") == "1" && scalar("PRAGMA quick_check") == "ok")
-      if !exists { try execute("CREATE TABLE runtime(id INTEGER PRIMARY KEY CHECK(id=1), state BLOB);") }
+      if !exists { try execute("CREATE TABLE runtime(id INTEGER PRIMARY KEY CHECK(id=1), state BLOB); INSERT INTO runtime(id,state) VALUES(1,NULL);") }
+      try execute("CREATE TABLE IF NOT EXISTS archive_pending(id INTEGER PRIMARY KEY CHECK(id=1), state BLOB NOT NULL);")
+      try finishPendingArchive()
       try BackgroundFiles.protect(url, complete: false)
       for suffix in ["-wal", "-shm"] {
         let sidecar = URL(fileURLWithPath: url.path + suffix)
@@ -206,12 +208,12 @@ final class BackgroundLedger {
       guard sqlite3_prepare_v2(db, "SELECT state FROM runtime WHERE id=1", -1, &statement, nil) == SQLITE_OK else { throw BackgroundFailure.storage }
       defer { sqlite3_finalize(statement) }
       let result = sqlite3_step(statement)
-      if result == SQLITE_ROW {
+      if result == SQLITE_ROW && sqlite3_column_type(statement, 0) != SQLITE_NULL {
         let n = Int(sqlite3_column_bytes(statement, 0))
         guard n > 0 && n <= 262144, let bytes = sqlite3_column_blob(statement, 0) else { throw BackgroundFailure.integrity }
         state = try JSONDecoder().decode(BackgroundState.self, from: Data(bytes: bytes, count: n))
         try state?.validate()
-      } else { try backgroundRequire(result == SQLITE_DONE && !exists) }
+      } else { try backgroundRequire(result == SQLITE_ROW && sqlite3_column_type(statement, 0) == SQLITE_NULL) }
       if !exists { try BackgroundFiles.save(Data([1]), to: marker, complete: false) }
       try BackgroundFiles.syncDirectory(root)
     } catch { if let db { sqlite3_close(db) }; flock(lockFD, LOCK_UN); close(lockFD); throw error }
@@ -255,6 +257,54 @@ final class BackgroundLedger {
       try execute("COMMIT"); state = value
     } catch { try? execute("ROLLBACK"); throw error }
   }
+  /// Retain the terminal job and its original before making the active slot empty.
+  /// A durable intent makes every filesystem move restartable; no active job is discarded.
+  func archiveCompleted() throws {
+    guard let value = state else { return }
+    try backgroundRequire(value.receiptOutcome != nil || (value.phase == "cancelled" && value.remoteCleanup && value.localCleanup))
+    let data = try JSONEncoder().encode(value)
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "INSERT INTO archive_pending(id,state) VALUES(1,?)", -1, &statement, nil) == SQLITE_OK else { throw BackgroundFailure.storage }
+    defer { sqlite3_finalize(statement) }
+    let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    let code = data.withUnsafeBytes { sqlite3_bind_blob(statement, 1, $0.baseAddress, Int32($0.count), transient) }
+    try backgroundRequire(code == SQLITE_OK && sqlite3_step(statement) == SQLITE_DONE)
+    try finishPendingArchive()
+    state = nil
+  }
+  private func finishPendingArchive() throws {
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(db, "SELECT state FROM archive_pending WHERE id=1", -1, &statement, nil) == SQLITE_OK else { throw BackgroundFailure.storage }
+    let result = sqlite3_step(statement)
+    if result == SQLITE_DONE { sqlite3_finalize(statement); return }
+    guard result == SQLITE_ROW, let pointer = sqlite3_column_blob(statement, 0) else { sqlite3_finalize(statement); throw BackgroundFailure.storage }
+    let count = Int(sqlite3_column_bytes(statement, 0))
+    guard count > 0 && count <= 262144 else { sqlite3_finalize(statement); throw BackgroundFailure.integrity }
+    let data = Data(bytes: pointer, count: count)
+    sqlite3_finalize(statement)
+    let value = try JSONDecoder().decode(BackgroundState.self, from: data); try value.validate()
+    try backgroundRequire(value.receiptOutcome != nil || (value.phase == "cancelled" && value.remoteCleanup && value.localCleanup))
+    let history = root.appendingPathComponent("history", isDirectory: true)
+    let archive = history.appendingPathComponent(value.job.map { String(format: "%02x", $0) }.joined(), isDirectory: true)
+    try BackgroundFiles.directory(history, complete: true); try BackgroundFiles.directory(archive, complete: true)
+    let record = archive.appendingPathComponent("record.json")
+    if !FileManager.default.fileExists(atPath: record.path) { try BackgroundFiles.save(data, to: record, complete: true) }
+    for name in ["private"] + value.groups.map({ "group-\($0.index).sealed" }) {
+      let source = root.appendingPathComponent(name), destination = archive.appendingPathComponent(name)
+      if FileManager.default.fileExists(atPath: source.path) {
+        try backgroundRequire(!FileManager.default.fileExists(atPath: destination.path))
+        try FileManager.default.moveItem(at: source, to: destination)
+      } else if !(value.remoteCleanup && value.localCleanup) {
+        try backgroundRequire(FileManager.default.fileExists(atPath: destination.path))
+      }
+    }
+    try BackgroundFiles.syncDirectory(archive); try BackgroundFiles.syncDirectory(history); try BackgroundFiles.syncDirectory(root)
+    try execute("BEGIN IMMEDIATE")
+    do {
+      try execute("UPDATE runtime SET state=NULL WHERE id=1; DELETE FROM archive_pending WHERE id=1; COMMIT;")
+    } catch { try? execute("ROLLBACK"); throw error }
+  }
+
   func change(_ body: (inout BackgroundState) throws -> Void) throws {
     guard var value = state else { throw BackgroundFailure.blocked }
     try body(&value); try save(value)

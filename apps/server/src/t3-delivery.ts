@@ -6,6 +6,7 @@ import { extname, join, relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { type StoredJob } from './contracts.js';
 import { fileIdentity, originalPath, privateDirectory, syncDirectory } from './originals.js';
+import type { Handoff } from './phone-intake.js';
 
 const id = z.string().min(1).max(256);
 export const targetSchema = z.object({ intake: z.uuid(), environment: id, project: id, thread: id, workspace: z.string().min(1), title: z.string().min(1).max(120) }).strict();
@@ -117,6 +118,13 @@ export class T3Delivery {
     this.db.prepare('INSERT OR REPLACE INTO deliveries VALUES (?,?)').run(job, JSON.stringify(recordSchema.parse(record)));
     const directory = openSync(this.directory, constants.O_RDONLY | constants.O_NOFOLLOW);
     try { fsyncSync(directory); } finally { closeSync(directory); }
+  }
+  status(job: StoredJob, target: ThreadTarget): Handoff {
+    const record = this.get(job.id);
+    if (!record) return { kind: 'not_delivered', title: target.title };
+    if (JSON.stringify(record.target) !== JSON.stringify(target) || record.receipt !== job.receipt?.id || record.bytes !== job.bytes || record.sha256 !== job.sha256) throw new Error('Delivery identity conflict.');
+    if (record.state === 'sent' && record.messageId) return { kind: 'sent', title: target.title, messageId: record.messageId };
+    return { kind: record.state === 'ready' ? 'ready' : record.state === 'unknown' ? 'unknown' : 'not_delivered', title: target.title };
   }
   materialize(job: StoredJob, target: ThreadTarget): Promise<Delivery> { return this.exclusive(job.id, () => this.materializeLocked(job, target)); }
   private async materializeLocked(job: StoredJob, target: ThreadTarget): Promise<Delivery> {

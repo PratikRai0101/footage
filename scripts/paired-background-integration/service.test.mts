@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { z } from 'zod';
 import { execFileSync } from 'node:child_process';
-import { createPublicKey, generateKeyPairSync, randomBytes, randomUUID, sign, X509Certificate } from 'node:crypto';
+import { createPublicKey, generateKeyPairSync, randomBytes, randomUUID, sign, createHmac, X509Certificate } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as reservePort } from 'node:net';
 import { request } from 'node:https';
@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { DesktopKeyStore } from '../../apps/server/src/desktop-key-store.js';
 import { PairingAuthority } from '../../apps/server/src/pairing.js';
-import { lp16, PairingReader, sha256, u32 } from '../../apps/server/src/pairing-wire.js';
+import { lp16, PairingReader, sha256, u32, u64 } from '../../apps/server/src/pairing-wire.js';
 import { Jobs } from '../../apps/server/src/jobs.js';
 import { PairedService } from '../../apps/server/src/paired-service.js';
 import { Manifest, SealSession, decodeSetup, encodeQuery, freshQuery, groupHeader, limits, VerifiedStatus } from '../../apps/server/src/sealed-protocol.js';
@@ -38,7 +38,7 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
   // Retain only cleanup-account metadata if a fixture fails before initialization.
   t.after(() => rm(out, { recursive: true, force: true }));
 
-  async function fixture(t: TestContext, boundary?: (point: IngestBoundary) => void, permissions = 7) {
+  async function fixture(t: TestContext, boundary?: (point: IngestBoundary) => void, permissions = 7, phone = false) {
     const directory = await mkdtemp(join(out, 'storage-'));
     const namespace = `test.${randomUUID()}`;
     await writeFile(join(base, namespace + '.cleanup.json'), JSON.stringify({ namespace, helper: join(out, 'helper') }), { mode: 0o600 });
@@ -61,7 +61,13 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
       pin: sha256(new X509Certificate(tls.cert).publicKey.export({ format: 'der', type: 'spki' })), now: () => clock });
     const jobs = new Jobs(join(directory, 'jobs.sqlite'));
     const allowed = new Set([intake]);
+    const effects: string[] = [];
+    const phoneConfig: NonNullable<Parameters<typeof PairedService.open>[0]['phone']> = {
+      destinations: () => [{ id: intake, title: 'Owned thread', kind: 'thread' }, { id: randomUUID(), title: 'Not granted', kind: 'thread' }],
+      handoff: async (_job, operation) => { effects.push(operation); return { kind: 'ready', title: 'Owned thread' }; },
+    };
     const opened = await PairedService.open({ ...authority, jobs, keyStore, directory, origin, listenHost: '127.0.0.1', tls,
+      ...(phone ? { phone: phoneConfig } : {}),
       allowedIntakes: allowed, bodyTimeoutMs: 500, supervisionMs: 100, ...(boundary ? { boundary } : {}) });
     let closed = false;
     const close = async () => { await opened.service.close(); closed = true; };
@@ -108,7 +114,7 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
       const reply = await send(revoke ? '/sealed/v1/revoke' : '/sealed/v1/status', encodeQuery(p.m, q), credential);
       assert.equal(reply.status, 200); return VerifiedStatus.verify(reply.bytes, p.keys, q, 0n);
     }
-    return { ...opened, origin, directory, jobs, allowed, send, credential, device, manifest, prepared, status, close,
+    return { ...opened, origin, directory, jobs, allowed, effects, intake, send, credential, device, manifest, prepared, status, close,
       expire: () => { clock += 8n * 86400n; } };
   }
 
@@ -157,6 +163,33 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
     const g = await fixture(t), q = await g.prepared(); g.allowed.clear();
     await until(() => g.jobs.get(q.id).sealed?.cleanup === 2 ? true : undefined);
     assert.equal(g.jobs.get(q.id).sealed?.state, 'cancelled');
+  });
+  await t.test('phone destination scopes and purpose-bound handoff require a matching received original', async t => {
+    const f = await fixture(t, undefined, 31, true), p = await f.prepared();
+    const list = Buffer.concat([Buffer.from('FTLIST01'), f.device, u64(1n), randomBytes(32)]);
+    const response = await f.send('/pair/v1/destinations', list, f.credential); assert.equal(response.status, 200);
+    assert.deepEqual(JSON.parse(response.bytes.toString()).destinations.map((d: { id: string }) => d.id), [f.intake]);
+    assert.notEqual((await f.send('/pair/v1/destinations', list, randomBytes(32))).status, 200);
+    const handoff = (purpose: number) => {
+      const prefix = Buffer.concat([Buffer.from('FTHAND01'), Buffer.from([purpose]), Buffer.from(p.m.fields.job, 'hex'), Buffer.from(p.m.fields.generation, 'hex'), Buffer.from(p.m.digest, 'hex'), randomBytes(16)]);
+      return Buffer.concat([prefix, createHmac('sha256', p.keys.derive('status')).update('footage/handoff-request/v1').update(prefix).digest()]);
+    };
+    assert.notEqual((await f.send('/sealed/v1/handoff/send', handoff(2), f.credential)).status, 200);
+    assert.equal(f.effects.length, 0);
+    assert.equal((await f.send('/sealed/v1/ingest', p.packet)).status, 200);
+    assert.notEqual((await f.send('/sealed/v1/handoff/send', handoff(0), f.credential)).status, 200);
+    assert.notEqual((await f.send('/sealed/v1/handoff/send', encodeQuery(p.m, freshQuery(randomBytes(16).toString('hex'))), f.credential)).status, 200);
+    const forged = handoff(2); forged[90] = (forged[90] ?? 0) ^ 1;
+    assert.notEqual((await f.send('/sealed/v1/handoff/send', forged, f.credential)).status, 200);
+    assert.equal(f.effects.length, 0);
+    assert.equal((await f.send('/sealed/v1/handoff/status', handoff(0), f.credential)).status, 200);
+    assert.deepEqual(f.effects, ['status']);
+    assert.equal((await f.send('/sealed/v1/handoff/send', handoff(2), f.credential)).status, 200);
+    assert.deepEqual(f.effects, ['status', 'send']);
+    f.local.revoke(f.device);
+    assert.notEqual((await f.send('/sealed/v1/handoff/send', handoff(2), f.credential)).status, 200);
+    assert.notEqual((await f.send('/pair/v1/destinations', list, f.credential)).status, 200);
+    assert.deepEqual(f.effects, ['status', 'send']);
   });
   await t.test('paired view grants are receipt-gated, one-use, secure-cookie and read-only', async t => {
     const f = await fixture(t, undefined, 15), p = await f.prepared();

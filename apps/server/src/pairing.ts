@@ -174,6 +174,12 @@ export class PairingAuthority {
     requirePairing(dest.kind === 'intake' ? device.scopes.intakes.includes(dest.intake) : device.scopes.projects.some(p => p.environment === dest.environment && p.project === dest.project));
     return device.scopes;
   }
+  authorizeListing(bytes: Buffer, credential: Buffer): PairingScopes {
+    const r = new PairingReader(bytes, 'FTLIST01'), id = r.take(16), epoch = r.u64(); r.take(32); r.end();
+    const device = this.device(id); fixed(credential, 32);
+    requirePairing(epoch === BigInt(device.epoch) && (device.mask & 16) !== 0 && timingSafeEqual(sha256(credential), Buffer.from(device.credentialHash, 'hex')));
+    return device.scopes;
+  }
   private revoke(id: Buffer): { device: Buffer; epoch: bigint } {
     return this.transaction(() => {
       const device = this.storedDevice(id);

@@ -15,6 +15,8 @@ import { privateDirectory, syncDirectory } from './originals.js';
 import { Manifest } from './sealed-protocol.js';
 import { schemaUuid } from './sealed-ingest.js';
 import { T3Client, T3Delivery, targetSchema } from './t3-delivery.js';
+import type { StoredJob } from './contracts.js';
+import type { Handoff, HandoffOperation, PhoneDestination } from './phone-intake.js';
 
 const args = process.argv.slice(2);
 function option(name: string): string | undefined { const i = args.indexOf(name); if (i < 0) return undefined; const value = args[i + 1]; if (!value || value.startsWith('--')) throw new Error(`Missing ${name}.`); return value; }
@@ -55,18 +57,37 @@ const catalog = existsSync(catalogPath) ? z.array(entrySchema).max(16).parse(JSO
 let delivery: T3Delivery | null = null;
 if (option('--mcp')) {
   const client = await T3Client.fromFile(option('--mcp') ?? '', option('--token-file') ?? '');
-  const environment = option('--environment'), project = option('--project'), thread = option('--thread');
-  if (!environment || !project || !thread) throw new Error('T3 requires explicit --environment, --project and --thread.');
-  const previous = catalog.find(entry => entry.target?.environment === environment && entry.target.project === project && entry.target.thread === thread);
-  const target = await client.target(environment, project, thread, previous?.id ?? randomUUID());
-  if (previous && previous.target?.workspace !== target.workspace) throw new Error('Thread workspace changed. Use a new explicit destination configuration; existing uploads will not be redirected.');
-  if (!previous) catalog.push({ id: target.intake, title: target.title, target });
+  const environment = option('--environment'), project = option('--project');
+  const threads = args.flatMap((arg, index) => arg === '--thread' ? [z.string().min(1).parse(args[index + 1])] : []);
+  if (!environment || !project || threads.length === 0) throw new Error('T3 requires explicit --environment, --project and one or more --thread values.');
+  for (const thread of new Set(threads)) {
+    const previous = catalog.find(entry => entry.target?.environment === environment && entry.target.project === project && entry.target.thread === thread);
+    const target = await client.target(environment, project, thread, previous?.id ?? randomUUID());
+    if (previous && previous.target?.workspace !== target.workspace) throw new Error('Thread workspace changed. Existing uploads will not be redirected.');
+    if (!previous) catalog.push({ id: target.intake, title: target.title, target });
+  }
   delivery = new T3Delivery(directory, client);
 } else if (catalog.length === 0) catalog.push({ id: randomUUID(), title: 'Footage inbox', target: null });
+z.array(entrySchema).max(16).parse(catalog);
 await savePrivate(catalogPath, catalog);
+function targetFor(job: StoredJob) {
+  if (!job.sealed) return null;
+  const destination = Manifest.decode(Buffer.from(job.sealed.manifest, 'base64')).fields.destination;
+  return destination.kind === 'standalone' ? catalog.find(entry => entry.id === schemaUuid(destination.intake))?.target ?? null : null;
+}
+const phone = {
+  destinations: (): PhoneDestination[] => catalog.map(entry => ({ id: entry.id, title: entry.title, kind: entry.target ? 'thread' : 'inbox' })),
+  handoff: async (job: StoredJob, operation: HandoffOperation): Promise<Handoff> => {
+    const target = targetFor(job);
+    if (!delivery || !target) return { kind: 'unavailable' };
+    if (operation === 'deliver') await delivery.materialize(job, target);
+    if (operation === 'send') await delivery.dispatch(job, target);
+    return delivery.status(job, target);
+  },
+};
 const authority = PairingAuthority.open({ path: join(directory, 'pairing.sqlite'), keyStore, origin, ca: tls.ca, pin: sha256(new X509Certificate(tls.cert).publicKey.export({ format: 'der', type: 'spki' })) });
 const jobs = new Jobs(join(directory, 'jobs.sqlite'));
-const opened = await PairedService.open({ ...authority, jobs, keyStore, directory, origin, listenHost: option('--bind') ?? '0.0.0.0', tls, bodyTimeoutMs: 300000, allowedIntakes: new Set(catalog.map(entry => entry.id)) });
+const opened = await PairedService.open({ ...authority, jobs, keyStore, directory, origin, listenHost: option('--bind') ?? '0.0.0.0', tls, bodyTimeoutMs: 300000, phone, allowedIntakes: new Set(catalog.map(entry => entry.id)) });
 await opened.service.listen();
 const terminal = createInterface({ input: process.stdin, output: process.stdout });
 process.stdout.write(`Footage receiver ready at ${origin}.\nCommands: pair, approve <request>, jobs, deliver <job>, send <job>, quit\nSending to T3 starts or queues agent work. Uploading alone does not.\n`);
@@ -99,9 +120,7 @@ terminal.on('line', line => {
       if (!delivery) throw new Error('Start the receiver with an explicitly configured T3 MCP destination first.');
       const job = jobs.all().find(item => item.id === value);
       if (!job?.sealed) throw new Error('Choose a received paired upload.');
-      const manifest = Manifest.decode(Buffer.from(job.sealed.manifest, 'base64'));
-      const destination = manifest.fields.destination;
-      const target = destination.kind === 'standalone' ? catalog.find(entry => entry.id === schemaUuid(destination.intake))?.target : null;
+      const target = targetFor(job);
       if (!target) throw new Error('This upload has no T3 target. Its original destination cannot be changed.');
       if (command === 'send') { await delivery.dispatch(job, target); process.stdout.write('Reference sent to the chosen thread; agent work may start.\n'); }
       else { await delivery.materialize(job, target); process.stdout.write('Original verified in the chosen thread workspace. No agent was started.\n'); }

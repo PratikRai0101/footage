@@ -5,6 +5,7 @@ import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import { HttpError, jobIdSchema, type JobId, type SealedState, type StoredJob } from './contracts.js';
 import { Jobs, hashToken } from './jobs.js';
+import { verifyHandoffRequest, type HandoffOperation } from './phone-intake.js';
 import type { PairingAuthority, PairingDestination, PairingKeyStore } from './pairing.js';
 import { Binding, GenerationKeys, Manifest, VerifiedAck, VerifiedGroup, VerifiedReceipt, decodeQuery, encodeAck, encodeOutcome, encodeReceipt, encodeSetup, encodeStatus, limits, parseGroupHeader, type GroupSource } from './sealed-protocol.js';
 import { fileIdentity, originalPath, prepareOriginal, privateDirectory, privateFile, repairOriginalOrphans, syncDirectory, type PublicationBoundary } from './originals.js';
@@ -264,6 +265,17 @@ export class SealedIngest {
       try { await file?.close(); await rm(temporary, { force: true }); }
       finally { this.activeBodyId = undefined; this.busy = false; }
     }
+  }
+
+  async authorizeHandoff(id: JobId, bytes: Buffer, credential: Buffer, operation: HandoffOperation): Promise<StoredJob> {
+    return this.config.jobs.exclusive(id, async () => {
+      const job = this.config.jobs.get(id), manifest = this.manifest(job);
+      this.authorize(manifest, credential, operation === 'status' ? 2 : 1);
+      this.healthy(job);
+      verifyHandoffRequest(bytes, this.keys(job, manifest), operation);
+      if (job.status !== 'received' || !job.receipt) throw new HttpError(409, 'Wait for a verified original.');
+      return job;
+    });
   }
 
   async authorizeReceived(id: JobId, bytes: Buffer, credential: Buffer): Promise<StoredJob> {

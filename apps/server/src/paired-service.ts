@@ -9,6 +9,8 @@ import { PairingAuthority } from './pairing.js';
 import { origin, sha256 } from './pairing-wire.js';
 import { SealedIngest, schemaUuid, type IngestBoundary } from './sealed-ingest.js';
 import { Manifest } from './sealed-protocol.js';
+import { handoffOperationSchema, handoffSchema, phoneDestinationSchema, type Handoff, type HandoffOperation, type PhoneDestination } from './phone-intake.js';
+import type { StoredJob } from './contracts.js';
 import { PairedViewer } from './paired-viewer.js';
 
 type LocalController = ReturnType<typeof PairingAuthority.open>['local'];
@@ -24,6 +26,7 @@ type Config = {
   // Trusted local owner updates this in-memory set after resolving access. No I/O
   // or indeterminate lookup is interpreted as an authoritative removal under lock.
   allowedIntakes: ReadonlySet<string>;
+  phone?: { destinations: () => readonly PhoneDestination[]; handoff: (job: StoredJob, operation: HandoffOperation) => Promise<Handoff> };
   bodyTimeoutMs?: number;
   supervisionMs?: number;
   boundary?: (point: IngestBoundary) => void;
@@ -169,11 +172,28 @@ export class PairedService {
       if (await this.viewer.handle(req, res)) return;
       if (req.method !== 'POST') throw new HttpError(405, 'POST required.');
       const path = req.url;
-      if (path === '/pair/v1/destinations') throw new HttpError(503, 'Reserved interface unavailable.');
-      if (!['/pair/v1/enroll', '/pair/v1/challenge', '/pair/v1/recover', '/sealed/v1/setup', '/sealed/v1/status', '/sealed/v1/revoke', '/sealed/v1/view', '/sealed/v1/ingest'].includes(path ?? '')) throw new HttpError(404, 'Unavailable.');
+      if (!['/pair/v1/destinations', '/pair/v1/enroll', '/pair/v1/challenge', '/pair/v1/recover', '/sealed/v1/setup', '/sealed/v1/status', '/sealed/v1/revoke', '/sealed/v1/view', '/sealed/v1/ingest', '/sealed/v1/handoff/status', '/sealed/v1/handoff/deliver', '/sealed/v1/handoff/send'].includes(path ?? '')) throw new HttpError(404, 'Unavailable.');
       if (req.headers['content-type'] !== 'application/octet-stream' || req.headers['content-encoding'] !== undefined || req.headers.cookie !== undefined || req.headers['proxy-authorization'] !== undefined) throw new HttpError(400, 'Binary unencoded body required.');
       let reply: Buffer;
-      if (path === '/sealed/v1/ingest') reply = await this.ingest.ingest(req);
+      if (path === '/pair/v1/destinations') {
+        if (!this.config.phone) throw new HttpError(503, 'Destination browsing unavailable.');
+        const auth = credential(req);
+        try {
+          const scopes = this.config.authority.authorizeListing(await body(req, 64), auth);
+          const destinations = this.config.phone.destinations().filter(d => this.config.allowedIntakes.has(d.id) && scopes.intakes.includes(d.id)).map(d => phoneDestinationSchema.parse(d));
+          reply = Buffer.from(JSON.stringify({ version: 1, destinations }));
+        } finally { auth.fill(0); }
+      } else if (path?.startsWith('/sealed/v1/handoff/')) {
+        const auth = credential(req);
+        try {
+          const operation = handoffOperationSchema.parse(path.slice('/sealed/v1/handoff/'.length));
+          const bytes = await body(req, 121);
+          const id = jobIdSchema.parse(schemaUuid(bytes.subarray(9, 25).toString('hex')));
+          const job = await this.ingest.authorizeHandoff(id, bytes, auth, operation);
+          const result = this.config.phone ? await this.config.phone.handoff(job, operation) : { kind: 'unavailable' };
+          reply = Buffer.from(JSON.stringify(handoffSchema.parse(result)));
+        } finally { auth.fill(0); }
+      } else if (path === '/sealed/v1/ingest') reply = await this.ingest.ingest(req);
       else if (path?.startsWith('/pair/')) {
         if (req.headers.authorization !== undefined) throw new HttpError(400, 'Unexpected authority.');
         const bytes = await body(req, 16384);
@@ -196,7 +216,7 @@ export class PairedService {
           }
         } finally { auth.fill(0); }
       }
-      const cap = path === '/sealed/v1/setup' ? 65536 : path?.startsWith('/pair/') ? 16384 : 4096;
+      const cap = path === '/sealed/v1/setup' || path === '/pair/v1/destinations' ? 65536 : path?.startsWith('/pair/') ? 16384 : 4096;
       if (reply.length > cap) throw new HttpError(503, 'Outcome unavailable.');
       res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(reply);
     } catch (error) {

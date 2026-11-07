@@ -47,16 +47,6 @@ public final class FootageTransferAppDelegateSubscriber: ExpoAppDelegateSubscrib
       application.applicationState == .active && application.isProtectedDataAvailable)
   }
 
-  public func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
-                          completionHandler: @escaping () -> Void) {
-    #if FOOTAGE_EXPO_LIFECYCLE_TEST
-    ExpoLifecycleFixture.record(identifier == BackgroundRuntime.sessionIdentifier ? "ownedCallback" : "unrelatedCallback")
-    #endif
-    NativeBackgroundHost.shared.handle(identifier) {
-      #if FOOTAGE_EXPO_LIFECYCLE_TEST
-      ExpoLifecycleFixture.completed()
-      #endif
-      completionHandler()
-    }
-  }
+  // Session completions belong exclusively to AppDelegate's exact-ID router.
+  // Keeping this subscriber lifecycle-only prevents double delivery via Expo.
 }

@@ -59,8 +59,13 @@ final class DeferredEnumerationDaemon: BackgroundDaemon, @unchecked Sendable {
 /// Test gate holds a real synchronous control call, not the runtime's event queue.
 final class HeldControl: BackgroundControl, @unchecked Sendable {
   let backend = TestControl()
+  let gateSetup: Bool
+  init(gateSetup: Bool = false) { self.gateSetup = gateSetup }
   let entered = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
-  func setup(_ m: SealedProtocol.Manifest) throws -> Data { try backend.setup(m) }
+  func setup(_ m: SealedProtocol.Manifest) throws -> Data {
+    let reply = try backend.setup(m)
+    return try gateSetup ? hold(.success(reply)) : reply
+  }
   private func hold(_ result: Result<Data, Error>) throws -> Data {
     entered.signal()
     guard release.wait(timeout: .now() + 15) == .success else { throw BackgroundFailure.uncertain }
@@ -97,6 +102,16 @@ func testRewriteState(_ root: URL, change: (inout [String: Any]) -> Void) throws
     try backgroundRequire(sqlite3_bind_blob(statement, 1, buffer.baseAddress, Int32(buffer.count), transient) == SQLITE_OK)
   }
   try backgroundRequire(sqlite3_step(statement) == SQLITE_DONE)
+}
+/// A command callback may run just before its dispatch block releases the last
+/// owner reference. Observe the real ledger lock release, not weak-zeroing (which
+/// can precede stored-property deinitialization). Never release a pending socket.
+func testReopen(_ open: () throws -> BackgroundRuntime) throws -> BackgroundRuntime {
+  let deadline = Date().addingTimeInterval(2)
+  while true {
+    do { return try open() }
+    catch BackgroundFailure.blocked where Date() < deadline { Thread.sleep(forTimeInterval: 0.005) }
+  }
 }
 func testAwait(_ operation: (@escaping @Sendable (Bool) -> Void) -> Void) throws -> Bool {
   let signal = DispatchSemaphore(value: 0)
@@ -141,11 +156,41 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
   func root(_ name: String) -> URL { base.appendingPathComponent(name) }
   func runtime(_ name: String, _ control: TestControl, _ daemon: TestDaemon,
                create: Bool = true, hook: @escaping (BackgroundBoundary) throws -> Void = { _ in }) throws -> BackgroundRuntime {
-    try BackgroundRuntime(directory: root(name), create: create, keychainService: service,
+    if !create {
+      return try testReopen {
+        try BackgroundRuntime(directory: root(name), create: false, keychainService: service,
+          control: control, cellular: false, activeUnlocked: { true }, boundary: hook, daemon: daemon)
+      }
+    }
+    return try BackgroundRuntime(directory: root(name), create: true, keychainService: service,
       control: control, cellular: false, activeUnlocked: { true }, boundary: hook, daemon: daemon)
   }
   func expectFailure(_ operation: () throws -> Void) throws {
     do { try operation() } catch { return }; throw BackgroundFailure.integrity
+  }
+  do {
+    let c = HeldControl(gateSetup: true), d = TestDaemon(), directory = root("foreground-setup-lane")
+    let r = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    let prepared = DispatchSemaphore(value: 0), drained = DispatchSemaphore(value: 0)
+    DispatchQueue.global(qos: .utility).async {
+      do { try r.prepare(testSelection(source)) } catch { }
+      prepared.signal()
+    }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal() }
+    r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) {
+      MainActor.assertIsolated()
+      if (try? testState(directory).phase) == "preparing" { drained.signal() }
+    }
+    r.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    // Cancel during setup persists, without allowing its late success to seal/resume.
+    try backgroundRequire(!(try testAwait { r.cancel(completion: $0) }))
+    c.release.signal()
+    try backgroundRequire(prepared.wait(timeout: .now() + 5) == .success)
+    try backgroundRequire(try testState(directory).cancelOperation != nil && d.created == 0)
+    passed.append("foreground-setup-wait-off-event-owner-cancel-fenced")
   }
   for revoke in [false, true] {
     let c = HeldControl(), d = TestDaemon(), name = "held-control-\(revoke)", directory = root("held-control-\(revoke)")
@@ -233,6 +278,33 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     passed.append(final ? "held-final-receipt-wins-local-cancel" : "held-late-uploading-status-cannot-undo-cancel")
     passed.append("bounded-coalescing-and-callback-after-drain-\(final)")
   }
+  do {
+    let c = HeldControl(), d = TestDaemon(), directory = root("held-status-durable-ack")
+    let r = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    try r.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r.restoreAndStart(completion: $0) })
+    let g = try testState(directory).groups[0]
+    d.tasks.append(.init(id: 999, correlation: g.correlation, suspended: true))
+    let command = DispatchSemaphore(value: 0), drained = DispatchSemaphore(value: 0)
+    r.restoreAndStart { ok in if !ok { command.signal() } }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal() }
+    let ack = try SealedProtocol.encodeAck(keys: c.backend.keys(), group: 0, wireSHA256: g.hash!, revision: 5)
+    try testEvent(r, .init(id: g.taskID!, correlation: g.correlation, status: 200,
+      body: SealedProtocol.encodeOutcome(ack: ack), transportOK: true))
+    r.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) {
+      MainActor.assertIsolated()
+      if (try? testState(directory).confirmedBytes) == 1048583 { drained.signal() }
+    }
+    r.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    c.release.signal()
+    try backgroundRequire(command.wait(timeout: .now() + 5) == .success) // status is now below CURRENT high-water
+    let after = try testState(directory)
+    try backgroundRequire(after.bitmap == 1 && after.revision == 5 && after.phase == "verifying" && d.created == 1)
+    passed.append("ack-drains-while-status-held-current-highwater-rejects-late-status")
+  }
   for networkError in [false, true] {
     let c = HeldControl(), d = TestDaemon(), directory = root("held-reopen-\(networkError)")
     var r: BackgroundRuntime? = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
@@ -255,12 +327,16 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     }
     weak let old = r
     r = nil // Process-loss seam: worker must not retain the ledger owner while its request waits.
+    let ownerReleaseDeadline = Date().addingTimeInterval(2)
+    while old != nil && Date() < ownerReleaseDeadline { Thread.sleep(forTimeInterval: 0.005) }
     try backgroundRequire(old == nil)
     let uncertain = try testState(directory)
     try backgroundRequire(uncertain.groups[0].uncertain && uncertain.phase == "reconciling" && uncertain.job == before.job)
     c.backend.offline = false
-    r = try BackgroundRuntime(directory: directory, create: false, keychainService: service,
-      control: c.backend, cellular: false, activeUnlocked: { true }, daemon: d)
+    r = try testReopen {
+      try BackgroundRuntime(directory: directory, create: false, keychainService: service,
+        control: c.backend, cellular: false, activeUnlocked: { true }, daemon: d)
+    }
     try backgroundRequire(try testAwait { r!.restoreAndStart(completion: $0) })
     let reopened = try testState(directory)
     try backgroundRequire(reopened.job == before.job && reopened.generation == before.generation
@@ -268,6 +344,36 @@ func runRuntimeTests(_ base: URL) throws -> [String] {
     c.release.signal()
     try backgroundRequire(drained.wait(timeout: .now() + 0.05) == .timedOut)
     passed.append(networkError ? "held-network-error-durable-reopen-same-identity" : "reopen-after-os-drain-before-control-completion")
+  }
+  do {
+    let c = HeldControl(), d = TestDaemon(), directory = root("reopen-pending-revoke")
+    var r: BackgroundRuntime? = try BackgroundRuntime(directory: directory, create: true, keychainService: service,
+      control: c, cellular: false, activeUnlocked: { true }, daemon: d)
+    try r!.prepare(testSelection(source))
+    try backgroundRequire(try testAwait { r!.restoreAndStart(completion: $0) })
+    r!.cancel { _ in }
+    try backgroundRequire(c.entered.wait(timeout: .now() + 3) == .success)
+    defer { c.release.signal() }
+    let cancelled = try testState(directory), drained = DispatchSemaphore(value: 0)
+    r!.handleBackgroundEvents(BackgroundRuntime.sessionIdentifier) { MainActor.assertIsolated(); drained.signal() }
+    r!.finishEventsForTesting()
+    try backgroundRequire(drained.wait(timeout: .now() + 2) == .success)
+    weak let old = r; r = nil
+    let deadline = Date().addingTimeInterval(2)
+    while old != nil && Date() < deadline { Thread.sleep(forTimeInterval: 0.005) }
+    try backgroundRequire(old == nil)
+    c.backend.state = 4; c.backend.cleanup = 2
+    r = try testReopen {
+      try BackgroundRuntime(directory: directory, create: false, keychainService: service,
+        control: c.backend, cellular: false, activeUnlocked: { true }, daemon: d)
+    }
+    try backgroundRequire(try testAwait { r!.restoreAndStart(completion: $0) })
+    let after = try testState(directory)
+    try backgroundRequire(after.cancelOperation == cancelled.cancelOperation && after.job == cancelled.job
+      && after.phase == "cancelled" && after.remoteCleanup && d.created == 1)
+    try backgroundRequire(c.backend.operations.count == 2 && Set(c.backend.operations).count == 1)
+    c.release.signal()
+    passed.append("reopen-pending-revoke-same-operation-no-postcancel-task")
   }
   for point in [BackgroundBoundary.consumed, .encrypted, .groupPublished, .groupRecorded, .setupSaved] {
     let name = "seal-" + point.rawValue, c = TestControl(), d = TestDaemon()

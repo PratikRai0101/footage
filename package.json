@@ -10,6 +10,7 @@
   },
   "scripts": {
     "server": "npm run dev --workspace=@footage/server",
+    "receiver:paired": "tsx apps/server/src/paired-main.ts",
     "test": "npm test --workspace=@footage/server && npm run test:mobile && npm run test:device-tools",
     "test:mobile": "tsx --test scripts/test/mobile-presentation.test.ts",
     "test:device-tools": "node --test scripts/test/*.test.mjs",

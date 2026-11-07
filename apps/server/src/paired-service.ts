@@ -9,6 +9,7 @@ import { PairingAuthority } from './pairing.js';
 import { origin, sha256 } from './pairing-wire.js';
 import { SealedIngest, schemaUuid, type IngestBoundary } from './sealed-ingest.js';
 import { Manifest } from './sealed-protocol.js';
+import { PairedViewer } from './paired-viewer.js';
 
 type LocalController = ReturnType<typeof PairingAuthority.open>['local'];
 type Config = {
@@ -53,6 +54,7 @@ function credential(req: IncomingMessage): Buffer {
 export class PairedService {
   static readonly advertisedMaxOriginalBytes = 1024 ** 3; // Conservative slice admission, NOT the 4GiB wire maximum.
   private readonly server;
+  private readonly viewer: PairedViewer;
   private readonly sockets = new Set<Socket>();
   private readonly operations = new Set<Promise<void>>();
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -64,6 +66,7 @@ export class PairedService {
   private readonly enrollments = new Map<string, { body: Buffer; inspection: ReturnType<PairingAuthority['inspectEnrollment']>; finish: (approved: boolean) => void }>();
   private constructor(private readonly config: Config, readonly ingest: SealedIngest) {
     this.backoff = config.supervisionMs ?? 1000;
+    this.viewer = new PairedViewer(config.directory, config.jobs, config.origin);
     const options: ServerOptions = { ...config.tls, minVersion: 'TLSv1.2', handshakeTimeout: 5000, maxHeaderSize: 8192, headersTimeout: Math.min(5000, config.bodyTimeoutMs ?? 30000), requestTimeout: config.bodyTimeoutMs ?? 30000, connectionsCheckingInterval: 1000 };
     this.server = createServer(options, (req, res) => {
       const operation = this.handle(req, res);
@@ -159,13 +162,15 @@ export class PairedService {
     try {
       if (this.stopping) throw new HttpError(503, 'Stopping.');
       // Host is validated, never used to derive any credential/origin/identity.
-      if (req.headers.host !== this.config.origin.slice(8) || req.headers.forwarded !== undefined || Object.keys(req.headers).some(k => k.startsWith('x-forwarded-'))) throw new HttpError(400, 'Listener binding mismatch.');
+      if ((req.headers.host !== this.config.origin.slice(8) && req.headers.host !== new URL(this.config.origin).host) || req.headers.forwarded !== undefined || Object.keys(req.headers).some(k => k.startsWith('x-forwarded-'))) throw new HttpError(400, 'Listener binding mismatch.');
       const names = req.rawHeaders.filter((_v, i) => i % 2 === 0).map(v => v.toLowerCase());
       if (new Set(names).size !== names.length) throw new HttpError(400, 'Duplicate headers.');
+      if ((req.method === 'GET' || req.method === 'HEAD') && (req.url === '/receive' || req.url?.startsWith('/viewer/'))) clearTimeout(timer);
+      if (await this.viewer.handle(req, res)) return;
       if (req.method !== 'POST') throw new HttpError(405, 'POST required.');
       const path = req.url;
-      if (path === '/sealed/v1/view' || path === '/pair/v1/destinations') throw new HttpError(503, 'Reserved interface unavailable.');
-      if (!['/pair/v1/enroll', '/pair/v1/challenge', '/pair/v1/recover', '/sealed/v1/setup', '/sealed/v1/status', '/sealed/v1/revoke', '/sealed/v1/ingest'].includes(path ?? '')) throw new HttpError(404, 'Unavailable.');
+      if (path === '/pair/v1/destinations') throw new HttpError(503, 'Reserved interface unavailable.');
+      if (!['/pair/v1/enroll', '/pair/v1/challenge', '/pair/v1/recover', '/sealed/v1/setup', '/sealed/v1/status', '/sealed/v1/revoke', '/sealed/v1/view', '/sealed/v1/ingest'].includes(path ?? '')) throw new HttpError(404, 'Unavailable.');
       if (req.headers['content-type'] !== 'application/octet-stream' || req.headers['content-encoding'] !== undefined || req.headers.cookie !== undefined || req.headers['proxy-authorization'] !== undefined) throw new HttpError(400, 'Binary unencoded body required.');
       let reply: Buffer;
       if (path === '/sealed/v1/ingest') reply = await this.ingest.ingest(req);
@@ -183,7 +188,11 @@ export class PairedService {
             reply = await this.ingest.setup(bytes, auth);
           } else {
             if (bytes.length !== 120 || bytes.toString('ascii', 0, 8) !== 'FTQUERY1') throw new HttpError(400, 'Query required.');
-            reply = await this.ingest.status(jobIdSchema.parse(schemaUuid(bytes.subarray(8, 24).toString('hex'))), bytes, auth, path === '/sealed/v1/revoke');
+            const id = jobIdSchema.parse(schemaUuid(bytes.subarray(8, 24).toString('hex')));
+            if (path === '/sealed/v1/view') {
+              await this.ingest.authorizeReceived(id, bytes, auth);
+              reply = Buffer.from(JSON.stringify({ path: this.viewer.grants.issue(id) }));
+            } else reply = await this.ingest.status(id, bytes, auth, path === '/sealed/v1/revoke');
           }
         } finally { auth.fill(0); }
       }

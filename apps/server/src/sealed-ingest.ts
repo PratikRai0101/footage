@@ -128,7 +128,7 @@ export class SealedIngest {
     const master = this.master(job, manifest);
     try { return GenerationKeys.fromSetup(master, manifest); } finally { master.fill(0); }
   }
-  private authorize(manifest: Manifest, credential: Buffer, permission: 1 | 2 | 4): void {
+  private authorize(manifest: Manifest, credential: Buffer, permission: 1 | 2 | 4 | 8): void {
     const f = manifest.fields;
     this.config.authority.authorize({ device: Buffer.from(f.device, 'hex'), owner: Buffer.from(f.device, 'hex'), epoch: f.enrollmentEpoch, credential, permission, destination: pairingDestination(manifest) });
   }
@@ -264,6 +264,17 @@ export class SealedIngest {
       try { await file?.close(); await rm(temporary, { force: true }); }
       finally { this.activeBodyId = undefined; this.busy = false; }
     }
+  }
+
+  async authorizeReceived(id: JobId, bytes: Buffer, credential: Buffer): Promise<StoredJob> {
+    return this.config.jobs.exclusive(id, async () => {
+      const job = this.config.jobs.get(id), manifest = this.manifest(job);
+      decodeQuery(bytes, manifest);
+      this.authorize(manifest, credential, 8);
+      this.healthy(job);
+      if (job.status !== 'received' || !job.receipt) throw new HttpError(409, 'Wait for a verified original.');
+      return job;
+    });
   }
 
   async status(id: JobId, bytes: Buffer, credential: Buffer, revoke = false): Promise<Buffer> {

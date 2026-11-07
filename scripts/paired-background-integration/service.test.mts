@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
+import { z } from 'zod';
 import { execFileSync } from 'node:child_process';
 import { createPublicKey, generateKeyPairSync, randomBytes, randomUUID, sign, X509Certificate } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -37,7 +38,7 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
   // Retain only cleanup-account metadata if a fixture fails before initialization.
   t.after(() => rm(out, { recursive: true, force: true }));
 
-  async function fixture(t: TestContext, boundary?: (point: IngestBoundary) => void) {
+  async function fixture(t: TestContext, boundary?: (point: IngestBoundary) => void, permissions = 7) {
     const directory = await mkdtemp(join(out, 'storage-'));
     const namespace = `test.${randomUUID()}`;
     await writeFile(join(base, namespace + '.cleanup.json'), JSON.stringify({ namespace, helper: join(out, 'helper') }), { mode: 0o600 });
@@ -76,11 +77,11 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
       client.end(bytes); return reply;
     }
     // Authentic synthetic device PoP. Approval is local and cannot be triggered by HTTP.
-    const qr = new PairingReader(opened.local.createOffer({ mask: 7, scopes }), 'FTQR0001');
+    const qr = new PairingReader(opened.local.createOffer({ mask: permissions, scopes }), 'FTQR0001');
     qr.lp16(128); qr.lp16(1024); qr.take(32); qr.lp16(512);
     const offer = qr.take(16), secret = qr.take(32), device = randomBytes(16);
     const key = generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).privateKey;
-    const prefix = Buffer.concat([Buffer.from('FTENRL01'), offer, secret, device, lp16(createPublicKey(key).export({ format: 'der', type: 'spki' })), randomBytes(32), u32(7)]);
+    const prefix = Buffer.concat([Buffer.from('FTENRL01'), offer, secret, device, lp16(createPublicKey(key).export({ format: 'der', type: 'spki' })), randomBytes(32), u32(permissions)]);
     const enrollment = Buffer.concat([prefix, lp16(sign('sha256', Buffer.concat([prefix, authority.authority.identity, lp16(origin)]), key))]);
     const enrolling = send('/pair/v1/enroll', enrollment);
     const pending = await until(() => opened.local.pendingEnrollments()[0]);
@@ -111,10 +112,11 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
       expire: () => { clock += 8n * 86400n; } };
   }
 
-  await t.test('fixed routes, no remote approval/view/list, binding and streaming caps', async t => {
+  await t.test('fixed routes, no remote approval/list, binding and streaming caps', async t => {
     const f = await fixture(t);
     for (const path of ['/unknown', '/sealed/v1/status?x=1', '/pair/v1/offer', '/sealed/v1/complete']) assert.equal((await f.send(path, Buffer.alloc(0))).status, 404);
-    for (const path of ['/sealed/v1/view', '/pair/v1/destinations']) assert.equal((await f.send(path, Buffer.alloc(0))).status, 503);
+    assert.equal((await f.send('/pair/v1/destinations', Buffer.alloc(0))).status, 503);
+    assert.equal((await f.send('/sealed/v1/view', Buffer.alloc(0))).status, 403);
     assert.equal((await f.send('/sealed/v1/setup', Buffer.alloc(0), f.credential, { Host: 'forged.invalid:443' })).status, 400);
     assert.equal((await f.send('/sealed/v1/setup', Buffer.alloc(0), f.credential, { 'X-Forwarded-Host': 'forged.invalid' })).status, 400);
     for (const [path, cap] of [['/pair/v1/enroll', 16384], ['/sealed/v1/setup', 65536], ['/sealed/v1/status', 4096]] satisfies [string, number][]) {
@@ -155,6 +157,29 @@ test('explicit OS-backed paired HTTPS service lifecycle and authority', { skip: 
     const g = await fixture(t), q = await g.prepared(); g.allowed.clear();
     await until(() => g.jobs.get(q.id).sealed?.cleanup === 2 ? true : undefined);
     assert.equal(g.jobs.get(q.id).sealed?.state, 'cancelled');
+  });
+  await t.test('paired view grants are receipt-gated, one-use, secure-cookie and read-only', async t => {
+    const f = await fixture(t, undefined, 15), p = await f.prepared();
+    const query = () => encodeQuery(p.m, freshQuery(randomBytes(16).toString('hex')));
+    assert.notEqual((await f.send('/sealed/v1/view', query(), f.credential)).status, 200);
+    assert.equal((await f.send('/sealed/v1/ingest', p.packet)).status, 200);
+    const grant = await f.send('/sealed/v1/view', query(), f.credential); assert.equal(grant.status, 200);
+    const path = z.object({ path: z.string().regex(/^\/receive#[a-f0-9]{64}$/) }).parse(JSON.parse(grant.bytes.toString())).path;
+    async function browser(path: string, method = 'GET', data?: Buffer, cookie?: string) {
+      const client = request(f.origin + path, { method, ca, agent: false, headers: { ...(data ? { 'Content-Type': 'application/json', Origin: f.origin } : {}), ...(cookie ? { Cookie: cookie } : {}) } });
+      const result = new Promise<{ status: number; bytes: Buffer; cookie: string[] }>((resolve, reject) => {
+        client.on('error', reject); client.on('response', response => { const chunks: Buffer[] = []; response.on('data', b => chunks.push(b)); response.on('error', reject); response.on('end', () => resolve({ status: response.statusCode ?? 0, bytes: Buffer.concat(chunks), cookie: response.headers['set-cookie'] ?? [] })); });
+      }); client.end(data); return result;
+    }
+    assert.equal((await browser('/viewer/content')).status, 401);
+    const exchange = await browser('/viewer/session', 'POST', Buffer.from(JSON.stringify({ code: path.split('#')[1] })));
+    assert.equal(exchange.status, 204); assert(exchange.cookie[0]?.includes('HttpOnly')); assert(exchange.cookie[0]?.includes('Secure'));
+    assert.equal((await browser('/viewer/session', 'POST', Buffer.from(JSON.stringify({ code: path.split('#')[1] })))).status, 401);
+    const cookie = exchange.cookie[0]?.split(';')[0]; assert(cookie);
+    const content = await browser('/viewer/content', 'GET', undefined, cookie); assert.equal(content.status, 200);
+    assert.equal(content.bytes.length, 173); assert(content.bytes.every(byte => byte === 17));
+    assert.equal((await browser('/viewer/content', 'DELETE', undefined, cookie)).status, 405);
+    assert.equal(f.jobs.get(p.id).status, 'received');
   });
   await t.test('shutdown during finalization drains storage BEFORE Jobs.close', async t => {
     let closing: Promise<void> | undefined, f: Awaited<ReturnType<typeof fixture>>;
